@@ -62,10 +62,29 @@
 
 ---
 
-## Drive Location
+---
 
-All original files synced from:
-`AudienceOS/Project Documents & Design (Markdown)/`
+## Trevor's Original Documents (15 files)
+
+From Trevor's previous development work:
+
+| File | Description |
+|------|-------------|
+| TREVOR-EXECUTIVE-SUMMARY.md | Project overview |
+| TREVOR-CLAUDE-MD.md | Original CLAUDE.md |
+| TREVOR-PRD.md | Product Requirements |
+| TREVOR-FRD.md | Functional Requirements |
+| TREVOR-IMPLEMENTATION-PLAN-1.md | Implementation Part 1 |
+| TREVOR-IMPLEMENTATION-PLAN-2.md | Implementation Part 2 |
+| TREVOR-ERD-SCHEMA.md | Database schema |
+| TREVOR-API-DESIGN-SPEC.md | API endpoints |
+| TREVOR-USER-STORY-BACKLOG.md | User stories |
+| TREVOR-TECHNICAL-ARCHITECTURE.md | Architecture diagram |
+| TREVOR-DEVELOPER-ONBOARDING.md | Dev setup guide |
+| TREVOR-DEVOPS-MCP-PLAN.md | DevOps plan |
+| TREVOR-API-TESTING.md | Testing & RAG prompts |
+| TREVOR-PROJECT-SCAFFOLDING.md | Folder structure |
+| TREVOR-MEETING-NOTES-2025-12-17.md | Meeting with Chase |
 
 ---
 
