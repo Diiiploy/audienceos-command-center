@@ -153,17 +153,15 @@ export function useAuth() {
 }
 
 /**
- * Hook that redirects to login if not authenticated
- * Use in pages that require authentication
+ * Hook that checks auth status and logs warning if not authenticated
+ * Note: Redirect logic should be implemented at the page level
  */
 export function useRequireAuth(redirectTo: string = '/login') {
   const auth = useAuth()
 
   useEffect(() => {
     if (!auth.isLoading && !auth.isAuthenticated) {
-      // In a real app, redirect to login
-      console.warn('User not authenticated, should redirect to:', redirectTo)
-      // router.push(redirectTo)
+      console.warn(`Auth required. User should be redirected to: ${redirectTo}`)
     }
   }, [auth.isLoading, auth.isAuthenticated, redirectTo])
 
