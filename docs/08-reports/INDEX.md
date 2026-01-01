@@ -10,7 +10,9 @@ This folder contains periodic reports and status updates for stakeholders.
 
 ## Contents
 
-*No reports yet - folder ready for future use.*
+| Document | Description |
+|----------|-------------|
+| [ROADMAP-BREAKDOWN.md](ROADMAP-BREAKDOWN.md) | Phase breakdown, DU economics, session log, expenses |
 
 ---
 
