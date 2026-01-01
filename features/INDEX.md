@@ -87,7 +87,7 @@
 |-------|----------|--------|
 | TypeScript errors (14) | Medium | ✅ Fixed |
 | `ignoreBuildErrors: true` | Medium | ✅ Removed |
-| knowledge-base-store unused | Low | Wire store to component |
+| knowledge-base-store unused | Low | ✅ Wired to component |
 | No automations store | Low | Wire store to component |
 
 ---
