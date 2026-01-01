@@ -32,12 +32,22 @@ npm run dev
 ```bash
 npm run dev      # Start dev server (localhost:3000)
 npm run build    # Production build with TypeScript check
-npm run test     # Vitest (when tests exist)
+npm run test     # Run test suite (76 tests)
+npm run lint     # ESLint check
 ```
 
 ## Status
 
 **Phase:** E (Testing) - 8 features built, integration in progress
+
+| Metric | Value |
+|--------|-------|
+| React Components | 80+ |
+| API Endpoints | 24 |
+| Zustand Stores | 6 |
+| Unit Tests | 76 |
+| Build Status | ✅ Passing |
+| Lint Status | ✅ 0 errors |
 
 | Feature | Status |
 |---------|--------|
