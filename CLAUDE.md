@@ -35,7 +35,7 @@
 | MVP-PRD | `docs/01-product/MVP-PRD.md` | MVP scope and priorities |
 | Data Model | `docs/04-technical/DATA-MODEL.md` | 19 tables with RLS |
 | API Contracts | `docs/04-technical/API-CONTRACTS.md` | REST API spec |
-| Feature Specs | `features/INDEX.md` | 9 MVP features (206 tasks) |
+| Feature Specs | `features/INDEX.md` | 9 MVP features (323 tasks) |
 
 ---
 
