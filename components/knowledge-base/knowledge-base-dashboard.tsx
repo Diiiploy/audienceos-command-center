@@ -1,7 +1,7 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { useState, useMemo, useCallback } from "react"
+import { useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -44,26 +44,17 @@ import {
   CheckCircle2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { KnowledgeBaseDocument, CategoryWithCount, DocumentSortField, SortDirection } from "@/types/knowledge-base"
+import type { KnowledgeBaseDocument, DocumentSortField } from "@/types/knowledge-base"
 import type { DocumentCategory, IndexStatus } from "@/types/database"
-import {
-  mockDocuments,
-  getCategoryCounts,
-  filterDocuments,
-  sortDocuments,
-  quickLinks,
-} from "@/lib/mock-knowledge-base"
+import { quickLinks } from "@/lib/mock-knowledge-base"
 import {
   formatFileSize,
-  CATEGORY_LABELS,
   FILE_TYPE_INFO,
   INDEX_STATUS_INFO,
 } from "@/types/knowledge-base"
+import { useKnowledgeBaseStore } from "@/stores/knowledge-base-store"
 import { DocumentUploadModal } from "./document-upload-modal"
 import { DocumentPreviewModal } from "./document-preview-modal"
-
-// View mode type
-type ViewMode = "grid" | "list"
 
 // Sort option labels
 const SORT_OPTIONS: { value: DocumentSortField; label: string }[] = [
@@ -75,44 +66,38 @@ const SORT_OPTIONS: { value: DocumentSortField; label: string }[] = [
 ]
 
 export function KnowledgeBaseDashboard() {
-  // State
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState<DocumentCategory | "all">("all")
-  const [selectedStatus, setSelectedStatus] = useState<IndexStatus | "all">("all")
-  const [sortField, setSortField] = useState<DocumentSortField>("updated_at")
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
-  const [viewMode, setViewMode] = useState<ViewMode>("grid")
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
-  const [previewDocument, setPreviewDocument] = useState<KnowledgeBaseDocument | null>(null)
-
-  // Calculate category counts
-  const categoryCounts = useMemo(() => getCategoryCounts(mockDocuments), [])
-
-  // Filter and sort documents
-  const filteredDocuments = useMemo(() => {
-    let docs = filterDocuments(mockDocuments, {
-      query: searchQuery,
-      category: selectedCategory,
-      indexStatus: selectedStatus,
-    })
-    docs = sortDocuments(docs, sortField, sortDirection)
-    return docs
-  }, [searchQuery, selectedCategory, selectedStatus, sortField, sortDirection])
-
-  // Toggle sort direction
-  const toggleSortDirection = useCallback(() => {
-    setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))
-  }, [])
+  // Get state and actions from store
+  const {
+    filteredDocuments,
+    selectedDocument,
+    isLoading,
+    categories,
+    filters,
+    sort,
+    viewMode,
+    isUploadModalOpen,
+    isPreviewModalOpen,
+    setSearchQuery,
+    setCategory,
+    setIndexStatus,
+    setSortField,
+    toggleSortDirection,
+    setViewMode,
+    openUploadModal,
+    closeUploadModal,
+    openPreviewModal,
+    closePreviewModal,
+    reindexDocument,
+  } = useKnowledgeBaseStore()
 
   // Handle document actions
   const handlePreview = useCallback((doc: KnowledgeBaseDocument) => {
-    setPreviewDocument(doc)
-  }, [])
+    openPreviewModal(doc)
+  }, [openPreviewModal])
 
   const handleReindex = useCallback((doc: KnowledgeBaseDocument) => {
-    console.log("Re-indexing document:", doc.id)
-    // TODO: Trigger re-index API call
-  }, [])
+    reindexDocument(doc.id)
+  }, [reindexDocument])
 
   // Get file type icon and color
   const getFileTypeInfo = (mimeType: string) => {
@@ -154,7 +139,7 @@ export function KnowledgeBaseDashboard() {
             SOPs, training materials, and documentation for AI-powered search
           </p>
         </div>
-        <Button onClick={() => setIsUploadModalOpen(true)}>
+        <Button onClick={openUploadModal}>
           <Upload className="mr-2 h-4 w-4" />
           Upload Document
         </Button>
@@ -167,7 +152,7 @@ export function KnowledgeBaseDashboard() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search documents..."
-            value={searchQuery}
+            value={filters.query}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
           />
@@ -175,18 +160,18 @@ export function KnowledgeBaseDashboard() {
 
         {/* Category Pills */}
         <div className="flex flex-wrap items-center gap-2">
-          {categoryCounts.map((cat) => (
+          {categories.map((cat) => (
             <Button
               key={cat.category}
               variant="outline"
               size="sm"
               className={cn(
                 "h-8",
-                selectedCategory === cat.category
+                filters.category === cat.category
                   ? "bg-primary text-primary-foreground border-primary"
                   : "bg-transparent"
               )}
-              onClick={() => setSelectedCategory(cat.category as DocumentCategory | "all")}
+              onClick={() => setCategory(cat.category as DocumentCategory | "all")}
             >
               {cat.label}
               <Badge
@@ -205,8 +190,8 @@ export function KnowledgeBaseDashboard() {
         <div className="flex items-center gap-2">
           {/* Status Filter */}
           <Select
-            value={selectedStatus}
-            onValueChange={(value) => setSelectedStatus(value as IndexStatus | "all")}
+            value={filters.indexStatus}
+            onValueChange={(value) => setIndexStatus(value as IndexStatus | "all")}
           >
             <SelectTrigger className="w-[140px] h-8">
               <Filter className="mr-2 h-3.5 w-3.5" />
@@ -222,7 +207,7 @@ export function KnowledgeBaseDashboard() {
           </Select>
 
           {/* Sort */}
-          <Select value={sortField} onValueChange={(value) => setSortField(value as DocumentSortField)}>
+          <Select value={sort.field} onValueChange={(value) => setSortField(value as DocumentSortField)}>
             <SelectTrigger className="w-[160px] h-8">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
@@ -241,7 +226,7 @@ export function KnowledgeBaseDashboard() {
             className="h-8 w-8"
             onClick={toggleSortDirection}
           >
-            {sortDirection === "asc" ? (
+            {sort.direction === "asc" ? (
               <SortAsc className="h-4 w-4" />
             ) : (
               <SortDesc className="h-4 w-4" />
@@ -269,6 +254,13 @@ export function KnowledgeBaseDashboard() {
           </Button>
         </div>
       </div>
+
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      )}
 
       {/* Results Count */}
       <div className="text-sm text-muted-foreground">
@@ -305,17 +297,17 @@ export function KnowledgeBaseDashboard() {
       )}
 
       {/* Empty State */}
-      {filteredDocuments.length === 0 && (
+      {filteredDocuments.length === 0 && !isLoading && (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <FolderOpen className="h-12 w-12 text-muted-foreground mb-4" />
           <h3 className="text-lg font-medium text-foreground mb-1">No documents found</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            {searchQuery
+            {filters.query
               ? "Try adjusting your search or filters"
               : "Upload your first document to get started"}
           </p>
-          {!searchQuery && (
-            <Button onClick={() => setIsUploadModalOpen(true)}>
+          {!filters.query && (
+            <Button onClick={openUploadModal}>
               <Upload className="mr-2 h-4 w-4" />
               Upload Document
             </Button>
@@ -351,19 +343,19 @@ export function KnowledgeBaseDashboard() {
       {/* Upload Modal */}
       <DocumentUploadModal
         isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
+        onClose={closeUploadModal}
         onUploadComplete={() => {
-          setIsUploadModalOpen(false)
-          // TODO: Refresh documents
+          // Document will be added via store in future API integration
+          closeUploadModal()
         }}
       />
 
       {/* Preview Modal */}
-      {previewDocument && (
+      {selectedDocument && (
         <DocumentPreviewModal
-          document={previewDocument}
-          isOpen={!!previewDocument}
-          onClose={() => setPreviewDocument(null)}
+          document={selectedDocument}
+          isOpen={isPreviewModalOpen}
+          onClose={closePreviewModal}
         />
       )}
     </div>
