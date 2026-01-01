@@ -76,7 +76,7 @@
 | **Database** | Seed Supabase with schema, configure RLS, storage buckets |
 | **Auth** | Real auth context (currently hardcoded "Luke"), RBAC |
 | **Third-party APIs** | Gmail, Slack, Google Ads, Meta (OAuth handlers exist) |
-| **Testing** | Unit tests, E2E tests (Playwright) |
+| **Testing** | ✅ Unit tests (76), E2E tests (Playwright) pending |
 | **Monitoring** | Sentry integration, structured logging |
 
 ---
