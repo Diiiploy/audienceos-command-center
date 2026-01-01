@@ -20,7 +20,7 @@ interface TestResult {
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params
-    const supabase = createRouteHandlerClient(cookies)
+    const supabase = await createRouteHandlerClient(cookies)
 
     const {
       data: { session },

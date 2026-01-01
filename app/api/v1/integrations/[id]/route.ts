@@ -10,7 +10,7 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params
-    const supabase = createRouteHandlerClient(cookies)
+    const supabase = await createRouteHandlerClient(cookies)
 
     const {
       data: { session },
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params
-    const supabase = createRouteHandlerClient(cookies)
+    const supabase = await createRouteHandlerClient(cookies)
 
     const {
       data: { session },
@@ -108,7 +108,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params
-    const supabase = createRouteHandlerClient(cookies)
+    const supabase = await createRouteHandlerClient(cookies)
 
     const {
       data: { session },

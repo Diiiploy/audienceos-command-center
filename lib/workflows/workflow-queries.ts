@@ -4,7 +4,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Database } from '@/types/database'
+import type { Database, WorkflowStatus } from '@/types/database'
 import type {
   Workflow,
   WorkflowInsert,
@@ -219,7 +219,8 @@ export async function getWorkflowRuns(
     .order('started_at', { ascending: false })
 
   if (filters?.status?.length) {
-    query = query.in('status', filters.status)
+    // Cast to WorkflowStatus[] since DB only has running/completed/failed
+    query = query.in('status', filters.status as WorkflowStatus[])
   }
 
   if (filters?.startDate) {
@@ -265,7 +266,7 @@ export async function createWorkflowRun(
   const insert: WorkflowRunInsert = {
     agency_id: agencyId,
     workflow_id: data.workflowId,
-    trigger_data: data.triggerData,
+    trigger_data: data.triggerData as Record<string, string | number | boolean | null>,
     status: 'running',
   }
 

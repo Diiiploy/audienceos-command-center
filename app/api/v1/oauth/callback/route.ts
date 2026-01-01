@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Update integration with tokens
-    const supabase = createRouteHandlerClient(cookies)
+    const supabase = await createRouteHandlerClient(cookies)
 
     const updateData: Record<string, unknown> = {
       is_connected: true,

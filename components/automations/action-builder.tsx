@@ -213,7 +213,7 @@ function ActionConfigCard({
   const meta = ACTION_TYPES[action.type]
 
   const updateConfig = (key: string, value: unknown) => {
-    onUpdate({ config: { ...action.config, [key]: value } })
+    onUpdate({ config: { ...action.config, [key]: value } } as unknown as Partial<WorkflowAction>)
   }
 
   return (

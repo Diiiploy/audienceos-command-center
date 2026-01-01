@@ -6,7 +6,7 @@ import type { IntegrationProvider } from '@/types/database'
 // GET /api/v1/integrations - List all integrations for the agency
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient(cookies)
+    const supabase = await createRouteHandlerClient(cookies)
 
     // Get current user's session
     const {
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
 // POST /api/v1/integrations - Initiate OAuth flow or create integration record
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient(cookies)
+    const supabase = await createRouteHandlerClient(cookies)
 
     const {
       data: { session },

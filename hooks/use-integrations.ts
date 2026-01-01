@@ -71,7 +71,7 @@ export function useIntegrations() {
               }
               break
             case 'DELETE':
-              if (oldRecord && 'id' in oldRecord) {
+              if (oldRecord && 'id' in oldRecord && typeof oldRecord.id === 'string') {
                 removeIntegration(oldRecord.id)
               }
               break

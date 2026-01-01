@@ -36,9 +36,9 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
   const client = mockClients.find((c) => c.id === clientId)
   const [message, setMessage] = useState("")
   const [accessStatus, setAccessStatus] = useState({
-    meta: client?.onboardingData?.accessVerified?.meta || false,
-    gtm: client?.onboardingData?.accessVerified?.gtm || false,
-    shopify: client?.onboardingData?.accessVerified?.shopify || false,
+    meta: client?.onboardingData?.metaAccessVerified || false,
+    gtm: client?.onboardingData?.gtmAccessVerified || false,
+    shopify: client?.onboardingData?.shopifyAccessVerified || false,
   })
 
   if (!client) {

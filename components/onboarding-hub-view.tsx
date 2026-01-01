@@ -195,7 +195,7 @@ export function OnboardingHubView({ onClientClick }: OnboardingHubViewProps) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="clientTier">Client Tier</Label>
-              <Select value={newClientTier} onValueChange={setNewClientTier}>
+              <Select value={newClientTier} onValueChange={(v) => setNewClientTier(v as "Enterprise" | "Core" | "Starter")}>
                 <SelectTrigger id="clientTier">
                   <SelectValue />
                 </SelectTrigger>

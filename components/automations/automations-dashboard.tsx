@@ -231,7 +231,7 @@ export function AutomationsDashboard({
 
   const handleUpdateTrigger = (triggerId: string, config: Record<string, unknown>) => {
     setBuilderTriggers((prev) =>
-      prev.map((t) => (t.id === triggerId ? { ...t, config } : t))
+      prev.map((t) => (t.id === triggerId ? { ...t, config } : t)) as WorkflowTrigger[]
     )
   }
 
@@ -246,7 +246,7 @@ export function AutomationsDashboard({
 
   const handleUpdateAction = (actionId: string, updates: Partial<WorkflowAction>) => {
     setBuilderActions((prev) =>
-      prev.map((a) => (a.id === actionId ? { ...a, ...updates } : a))
+      prev.map((a) => (a.id === actionId ? { ...a, ...updates } : a)) as WorkflowAction[]
     )
   }
 

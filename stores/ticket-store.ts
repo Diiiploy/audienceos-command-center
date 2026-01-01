@@ -210,7 +210,7 @@ export const useTicketStore = create<TicketState>((set, get) => ({
 
       if (error) throw error
 
-      set({ tickets: data as Ticket[], isLoading: false })
+      set({ tickets: data as unknown as Ticket[], isLoading: false })
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to fetch tickets',
@@ -244,7 +244,7 @@ export const useTicketStore = create<TicketState>((set, get) => ({
 
       if (error) throw error
 
-      return data as Ticket
+      return data as unknown as Ticket
     } catch (error) {
       console.error('Failed to fetch ticket:', error)
       return null
@@ -273,7 +273,7 @@ export const useTicketStore = create<TicketState>((set, get) => ({
 
       if (error) throw error
 
-      set({ notes: data as TicketNote[], isLoadingNotes: false })
+      set({ notes: data as unknown as TicketNote[], isLoadingNotes: false })
     } catch (error) {
       console.error('Failed to fetch notes:', error)
       set({ isLoadingNotes: false })
@@ -325,10 +325,10 @@ export const useTicketStore = create<TicketState>((set, get) => ({
 
       // Add to local state
       set((state) => ({
-        tickets: [data as Ticket, ...state.tickets]
+        tickets: [data as unknown as Ticket, ...state.tickets]
       }))
 
-      return data as Ticket
+      return data as unknown as Ticket
     } catch (error) {
       console.error('Failed to create ticket:', error)
       set({ error: error instanceof Error ? error.message : 'Failed to create ticket' })
@@ -539,10 +539,10 @@ export const useTicketStore = create<TicketState>((set, get) => ({
 
       // Add to local state
       set((state) => ({
-        notes: [...state.notes, data as TicketNote]
+        notes: [...state.notes, data as unknown as TicketNote]
       }))
 
-      return data as TicketNote
+      return data as unknown as TicketNote
     } catch (error) {
       console.error('Failed to add note:', error)
       return null

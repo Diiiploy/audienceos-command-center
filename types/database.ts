@@ -77,6 +77,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       user: {
         Row: {
@@ -121,6 +122,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       client: {
         Row: {
@@ -177,6 +179,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       client_assignment: {
         Row: {
@@ -203,6 +206,7 @@ export interface Database {
           role?: AssignmentRole
           created_at?: string
         }
+        Relationships: []
       }
       stage_event: {
         Row: {
@@ -235,6 +239,7 @@ export interface Database {
           moved_at?: string
           notes?: string | null
         }
+        Relationships: []
       }
       task: {
         Row: {
@@ -285,6 +290,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       integration: {
         Row: {
@@ -326,6 +332,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       communication: {
         Row: {
@@ -382,6 +389,7 @@ export interface Database {
           received_at?: string
           created_at?: string
         }
+        Relationships: []
       }
       alert: {
         Row: {
@@ -438,6 +446,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       document: {
         Row: {
@@ -497,6 +506,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       chat_session: {
         Row: {
@@ -529,6 +539,7 @@ export interface Database {
           last_message_at?: string | null
           created_at?: string
         }
+        Relationships: []
       }
       chat_message: {
         Row: {
@@ -564,6 +575,7 @@ export interface Database {
           tokens_used?: number | null
           created_at?: string
         }
+        Relationships: []
       }
       ticket: {
         Row: {
@@ -626,6 +638,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       ticket_note: {
         Row: {
@@ -655,6 +668,7 @@ export interface Database {
           added_by?: string
           created_at?: string
         }
+        Relationships: []
       }
       workflow: {
         Row: {
@@ -702,6 +716,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       workflow_run: {
         Row: {
@@ -714,6 +729,8 @@ export interface Database {
           error_message: string | null
           started_at: string
           completed_at: string | null
+          created_at: string
+          results: Json | null
         }
         Insert: {
           id?: string
@@ -725,6 +742,8 @@ export interface Database {
           error_message?: string | null
           started_at?: string
           completed_at?: string | null
+          created_at?: string
+          results?: Json | null
         }
         Update: {
           id?: string
@@ -736,7 +755,10 @@ export interface Database {
           error_message?: string | null
           started_at?: string
           completed_at?: string | null
+          created_at?: string
+          results?: Json | null
         }
+        Relationships: []
       }
       user_preference: {
         Row: {
@@ -769,6 +791,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       kpi_snapshot: {
         Row: {
@@ -801,6 +824,7 @@ export interface Database {
           snapshot_date?: string
           created_at?: string
         }
+        Relationships: []
       }
       ad_performance: {
         Row: {
@@ -848,13 +872,21 @@ export interface Database {
           revenue?: number | null
           created_at?: string
         }
+        Relationships: []
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      increment_workflow_stats: {
+        Args: {
+          workflow_id: string
+          increment_run: number
+          increment_success: number
+        }
+        Returns: void
+      }
     }
     Enums: {
       user_role: UserRole

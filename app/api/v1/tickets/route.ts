@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createRouteHandlerClient } from '@/lib/supabase'
-import type { TicketCategory, TicketPriority } from '@/types/database'
+import type { TicketCategory, TicketPriority, TicketStatus } from '@/types/database'
 
 // GET /api/v1/tickets - List all tickets for the agency
 export async function GET(request: NextRequest) {
@@ -50,10 +50,10 @@ export async function GET(request: NextRequest) {
 
     // Apply filters
     if (status) {
-      query = query.eq('status', status)
+      query = query.eq('status', status as TicketStatus)
     }
     if (priority) {
-      query = query.eq('priority', priority)
+      query = query.eq('priority', priority as TicketPriority)
     }
     if (clientId) {
       query = query.eq('client_id', clientId)
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
       query = query.eq('assignee_id', assigneeId)
     }
     if (category) {
-      query = query.eq('category', category)
+      query = query.eq('category', category as TicketCategory)
     }
     if (search) {
       query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`)

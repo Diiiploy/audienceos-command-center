@@ -4,7 +4,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Database } from '@/types/database'
+import type { Database, Json } from '@/types/database'
 import type {
   Workflow,
   WorkflowTrigger,
@@ -487,11 +487,11 @@ export class WorkflowEngine {
       const currentTags = context.clientSnapshot.tags || []
       let newTags = [...currentTags]
 
-      if (updates.tags.add) {
+      if (updates.tags?.add) {
         newTags = [...new Set([...newTags, ...updates.tags.add])]
       }
-      if (updates.tags.remove) {
-        newTags = newTags.filter((t) => !updates.tags.remove?.includes(t))
+      if (updates.tags?.remove) {
+        newTags = newTags.filter((t) => !updates.tags?.remove?.includes(t))
       }
 
       updateData.tags = newTags
@@ -571,7 +571,7 @@ export class WorkflowEngine {
           workflowId: context.workflowId,
           runId: context.runId,
           triggerData: context.triggerData,
-        },
+        } as Json,
       })
       .select('id')
       .single()
@@ -659,7 +659,7 @@ export class WorkflowEngine {
     cutoffDate.setDate(cutoffDate.getDate() - days)
 
     const types = activityTypes || ['communication', 'task', 'ticket']
-    const checks: Promise<boolean>[] = []
+    const checks: PromiseLike<boolean>[] = []
 
     if (types.includes('communication')) {
       checks.push(
@@ -781,7 +781,7 @@ export class WorkflowEngine {
     switch (parts[0]) {
       case 'client':
         if (!context.clientSnapshot) return undefined
-        return this.getNestedValue(context.clientSnapshot, parts.slice(1))
+        return this.getNestedValue(context.clientSnapshot as unknown as Record<string, unknown>, parts.slice(1))
       case 'trigger':
         return this.getNestedValue(context.triggerData, parts.slice(1))
       case 'time':

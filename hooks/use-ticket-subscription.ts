@@ -65,7 +65,7 @@ export function useTicketSubscription() {
             // Also update selectedTicket if it's the one being updated
             selectedTicket:
               state.selectedTicket?.id === updatedTicket.id
-                ? { ...state.selectedTicket, ...updatedTicket }
+                ? ({ ...state.selectedTicket, ...updatedTicket } as Ticket)
                 : state.selectedTicket,
           }))
         }
