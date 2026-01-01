@@ -80,6 +80,29 @@ npm run lint         # ESLint
 
 ---
 
+## Google Drive Sync
+
+**Root Folder:** `AudienceOS` (ID: `1U2mwpZDgsppzVa1P0goeceC7NHuNl7Nv`)
+**Parent:** DIIIPLOY/Internal/
+**Link:** [Open in Drive](https://drive.google.com/drive/folders/1U2mwpZDgsppzVa1P0goeceC7NHuNl7Nv)
+
+| Folder | Drive ID | Synced |
+|--------|----------|--------|
+| 00-intake | 1rSKcNTyNdwN09CAOamkIOlON51Q_RuYf | ✅ |
+| 01-product | 1kDy9fK5Y_U06bUo-8V_Sg3eUuic1FpqT | ✅ |
+| 02-specs | 1GhogDDKlBwIDoT2GEIiQOBmci6xcYKFK | ✅ |
+| 03-design | 1aFe-oLwA5ourDt-NozvXy6oRmue6O0Do | ✅ |
+| 04-technical | 1wHpUId5Tw7sYAepLanOqNjzRewu46TGD | ✅ |
+| 05-planning | 1brsKCYXZgKZTun8Z-k3qrGl3d_K0Q4RU | ✅ |
+| 06-reference | 1xSYG-Q1PdtiurwlG2wRlHsuerTdujIWl | ✅ |
+| 07-business | 1KfRAE6H-ZqKPSMidb2ig6_G6Is8nO2p4 | ✅ |
+| 08-reports | 1T7Y1VmbzeQ1giemzrBUQQeCdcHJ0bGiA | - |
+| 09-delivered | 1Tn2HJVrZTOBRoTY17EcRzFqw_dqrkDSA | - |
+
+**Sync Rule:** After updating any doc, sync to corresponding Drive folder using `docs_create_formatted`.
+
+---
+
 ## Rules for This Project
 
 1. **Living docs only** - Update existing docs, don't create orphan files
