@@ -21,6 +21,7 @@ interface InboxItemProps {
   timestamp: string
   unread?: boolean
   selected?: boolean
+  compact?: boolean
   onClick?: () => void
 }
 
@@ -64,18 +65,69 @@ export function InboxItem({
   timestamp,
   unread = false,
   selected = false,
+  compact = false,
   onClick,
 }: InboxItemProps) {
+  // Keyboard handler for accessibility
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault()
+      onClick?.()
+    }
+  }
+
+  // Compact view when detail panel is open
+  if (compact) {
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        aria-selected={selected}
+        className={cn(
+          "px-3 py-2.5 cursor-pointer transition-colors border-b border-border/30",
+          selected
+            ? "bg-primary/10 border-l-2 border-l-primary"
+            : "hover:bg-secondary/50 border-l-2 border-l-transparent"
+        )}
+        onClick={onClick}
+        onKeyDown={handleKeyDown}
+      >
+        <div className="flex items-center gap-2">
+          {/* Priority dot */}
+          <div className={cn("w-2 h-2 rounded-full shrink-0", priorityColors[priority])} />
+          <div className="flex-1 min-w-0">
+            <h3 className="text-xs font-medium text-foreground truncate">
+              {title}
+            </h3>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-[10px] text-muted-foreground truncate">
+                {client.name}
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                #{id}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Full view when no detail panel
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-selected={selected}
       className={cn(
-        "flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors border-l-2",
+        "flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors border-l-2 border-b border-border/30",
         selected
           ? "bg-secondary border-l-primary"
           : "border-l-transparent hover:bg-secondary/50",
         unread && "bg-primary/5"
       )}
       onClick={onClick}
+      onKeyDown={handleKeyDown}
     >
       {/* Unread indicator */}
       <div className="pt-1.5">
@@ -148,7 +200,21 @@ export function InboxItem({
 }
 
 // Skeleton for loading state
-export function InboxItemSkeleton() {
+export function InboxItemSkeleton({ compact = false }: { compact?: boolean }) {
+  if (compact) {
+    return (
+      <div className="px-3 py-2.5 border-b border-border/30">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-muted animate-pulse" />
+          <div className="flex-1 space-y-1">
+            <div className="h-3 w-32 bg-muted rounded animate-pulse" />
+            <div className="h-2 w-20 bg-muted rounded animate-pulse" />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex items-start gap-3 px-4 py-3">
       <div className="pt-1.5">

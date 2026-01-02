@@ -13,14 +13,10 @@ import { DocumentPreviewPanel, type Document } from "@/components/linear/documen
 import { ListHeader } from "@/components/linear"
 import { Button } from "@/components/ui/button"
 import {
-  Plus,
   Upload,
-  LayoutGrid,
-  List,
   FolderOpen,
   Star,
   Clock,
-  Users,
 } from "lucide-react"
 
 // Mock documents
@@ -179,7 +175,7 @@ const mockDocuments: Document[] = [
   },
 ]
 
-type ViewFilter = "all" | "starred" | "shared" | "recent"
+type ViewFilter = "all" | "starred" | "recent"
 
 interface FilterConfig {
   id: ViewFilter
@@ -190,7 +186,6 @@ interface FilterConfig {
 const viewFilters: FilterConfig[] = [
   { id: "all", label: "All Files", icon: <FolderOpen className="w-4 h-4" /> },
   { id: "starred", label: "Starred", icon: <Star className="w-4 h-4" /> },
-  { id: "shared", label: "Shared", icon: <Users className="w-4 h-4" /> },
   { id: "recent", label: "Recent", icon: <Clock className="w-4 h-4" /> },
 ]
 
@@ -213,16 +208,13 @@ export function KnowledgeBase() {
   const [categoryFilter, setCategoryFilter] = useState<DocumentCategory | "all">("all")
 
   // Filter documents
-  const filteredDocuments = useMemo(() => {
-    let result = mockDocuments
+  const filteredDocuments = useMemo((): Document[] => {
+    let result: Document[] = mockDocuments
 
     // Apply view filter
     switch (viewFilter) {
       case "starred":
         result = result.filter((d) => d.starred)
-        break
-      case "shared":
-        result = result.filter((d) => d.shared)
         break
       case "recent":
         // Already sorted by recent, just show top items
@@ -253,13 +245,25 @@ export function KnowledgeBase() {
     console.log("Toggle star:", docId)
   }
 
+  // Helper to render document cards with proper typing
+  const renderDocumentCard = (doc: Document, mode: "compact" | "grid" | "list") => (
+    <DocumentCard
+      key={doc.id}
+      {...doc}
+      viewMode={mode}
+      selected={selectedDocument?.id === doc.id}
+      onClick={() => setSelectedDocument(doc)}
+      onStar={() => handleStar(doc.id)}
+    />
+  )
+
   return (
     <div className="flex h-full">
-      {/* Main content */}
+      {/* Document list - shrinks when preview panel is open */}
       <div
         className={cn(
-          "flex flex-col",
-          selectedDocument ? "w-[calc(100%-400px)]" : "flex-1"
+          "flex flex-col border-r border-border transition-all duration-200",
+          selectedDocument ? "w-[280px]" : "flex-1"
         )}
       >
         <ListHeader
@@ -268,86 +272,77 @@ export function KnowledgeBase() {
           onSearch={setSearchQuery}
           searchValue={searchQuery}
           searchPlaceholder="Search documents..."
-          viewMode={viewMode === "grid" ? "board" : "list"}
-          onViewModeChange={(mode) => setViewMode(mode === "board" ? "grid" : "list")}
+          viewMode={!selectedDocument ? (viewMode === "grid" ? "board" : "list") : undefined}
+          onViewModeChange={!selectedDocument ? (mode) => setViewMode(mode === "board" ? "grid" : "list") : undefined}
           actions={
-            <Button size="sm" className="h-8 gap-1.5">
-              <Upload className="h-4 w-4" />
-              Upload
-            </Button>
+            !selectedDocument && (
+              <Button size="sm" className="h-8 gap-1.5">
+                <Upload className="h-4 w-4" />
+                Upload
+              </Button>
+            )
           }
         />
 
-        {/* Filters */}
-        <div className="flex items-center gap-4 px-4 py-3 border-b border-border">
-          {/* View filters */}
-          <div className="flex items-center gap-1">
-            {viewFilters.map((filter) => (
-              <button
-                key={filter.id}
-                onClick={() => setViewFilter(filter.id)}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
-                  viewFilter === filter.id
-                    ? "bg-secondary text-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                )}
-              >
-                {filter.icon}
-                <span>{filter.label}</span>
-              </button>
-            ))}
+        {/* Filters - hide when document is selected */}
+        {!selectedDocument && (
+          <div className="flex items-center gap-4 px-4 py-3 border-b border-border">
+            {/* View filters */}
+            <div className="flex items-center gap-1">
+              {viewFilters.map((filter) => (
+                <button
+                  key={filter.id}
+                  onClick={() => setViewFilter(filter.id)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+                    viewFilter === filter.id
+                      ? "bg-secondary text-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                  )}
+                >
+                  {filter.icon}
+                  <span>{filter.label}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="w-px h-6 bg-border" />
+
+            {/* Category filter */}
+            <div className="flex items-center gap-1 overflow-x-auto">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setCategoryFilter(cat)}
+                  className={cn(
+                    "px-2.5 py-1 rounded text-sm font-medium transition-colors whitespace-nowrap",
+                    categoryFilter === cat
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                  )}
+                >
+                  {cat === "all" ? "All" : categoryLabels[cat]}
+                </button>
+              ))}
+            </div>
           </div>
+        )}
 
-          <div className="w-px h-6 bg-border" />
-
-          {/* Category filter */}
-          <div className="flex items-center gap-1 overflow-x-auto">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setCategoryFilter(cat)}
-                className={cn(
-                  "px-2.5 py-1 rounded text-sm font-medium transition-colors whitespace-nowrap",
-                  categoryFilter === cat
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                )}
-              >
-                {cat === "all" ? "All" : categoryLabels[cat]}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Documents */}
-        <div className="flex-1 overflow-y-auto p-4">
+        {/* Documents - always use list view when compact */}
+        <div className="flex-1 overflow-y-auto">
           {filteredDocuments.length > 0 ? (
-            viewMode === "grid" ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {filteredDocuments.map((doc) => (
-                  <DocumentCard
-                    key={doc.id}
-                    {...doc}
-                    viewMode="grid"
-                    selected={selectedDocument?.id === doc.id}
-                    onClick={() => setSelectedDocument(doc)}
-                    onStar={() => handleStar(doc.id)}
-                  />
-                ))}
+            selectedDocument ? (
+              // Compact list when document selected
+              <div>
+                {filteredDocuments.map((doc) => renderDocumentCard(doc, "compact"))}
+              </div>
+            ) : viewMode === "grid" ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4">
+                {filteredDocuments.map((doc) => renderDocumentCard(doc, "grid"))}
               </div>
             ) : (
-              <div className="bg-card border border-border rounded-lg overflow-hidden">
-                {filteredDocuments.map((doc) => (
-                  <DocumentCard
-                    key={doc.id}
-                    {...doc}
-                    viewMode="list"
-                    selected={selectedDocument?.id === doc.id}
-                    onClick={() => setSelectedDocument(doc)}
-                    onStar={() => handleStar(doc.id)}
-                  />
-                ))}
+              <div className="bg-card border border-border rounded-lg overflow-hidden m-4">
+                {filteredDocuments.map((doc) => renderDocumentCard(doc, "list"))}
               </div>
             )
           ) : (
@@ -359,9 +354,9 @@ export function KnowledgeBase() {
         </div>
       </div>
 
-      {/* Preview panel */}
+      {/* Preview/Editor panel */}
       {selectedDocument && (
-        <div className="w-[400px] flex-shrink-0">
+        <div className="flex-1">
           <DocumentPreviewPanel
             document={selectedDocument}
             onClose={() => setSelectedDocument(null)}

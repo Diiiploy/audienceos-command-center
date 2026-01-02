@@ -33,7 +33,7 @@ interface DocumentCardProps {
   selected?: boolean
   onClick?: () => void
   onStar?: () => void
-  viewMode?: "grid" | "list"
+  viewMode?: "grid" | "list" | "compact"
 }
 
 const getTypeIcon = (type: DocumentType, size: "sm" | "lg" = "sm") => {
@@ -99,14 +99,75 @@ export function DocumentCard({
   onStar,
   viewMode = "grid",
 }: DocumentCardProps) {
+  // Keyboard handler for accessibility
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault()
+      onClick?.()
+    }
+  }
+
+  // Compact view for master-detail pattern (when detail panel is open)
+  if (viewMode === "compact") {
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        aria-selected={selected}
+        className={cn(
+          "px-3 py-2.5 cursor-pointer transition-colors border-b border-border/30",
+          selected
+            ? "bg-primary/10 border-l-2 border-l-primary"
+            : "hover:bg-secondary/50 border-l-2 border-l-transparent"
+        )}
+        onClick={onClick}
+        onKeyDown={handleKeyDown}
+      >
+        <div className="flex items-center gap-2">
+          {/* Type icon */}
+          <div
+            className={cn(
+              "w-6 h-6 rounded flex items-center justify-center flex-shrink-0",
+              typeColors[type]
+            )}
+          >
+            {getTypeIcon(type)}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-xs font-medium text-foreground truncate">
+              {name}
+            </h3>
+            <div className="flex items-center gap-2 mt-0.5">
+              {category && (
+                <span className="text-[10px] text-muted-foreground truncate">
+                  {categoryLabels[category]}
+                </span>
+              )}
+              <span className="text-[10px] text-muted-foreground">
+                {updatedAt}
+              </span>
+            </div>
+          </div>
+          {starred && (
+            <Star className="w-3 h-3 text-yellow-500 fill-yellow-500 flex-shrink-0" />
+          )}
+        </div>
+      </div>
+    )
+  }
+
   if (viewMode === "list") {
     return (
       <div
+        role="button"
+        tabIndex={0}
+        aria-selected={selected}
         className={cn(
           "flex items-center gap-4 px-4 py-3 border-b border-border cursor-pointer transition-colors",
           selected ? "bg-secondary" : "hover:bg-secondary/50"
         )}
         onClick={onClick}
+        onKeyDown={handleKeyDown}
       >
         {/* Icon */}
         <div
@@ -175,11 +236,15 @@ export function DocumentCard({
   // Grid view
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-selected={selected}
       className={cn(
         "bg-card border border-border rounded-lg overflow-hidden cursor-pointer transition-all group",
         selected ? "border-primary ring-1 ring-primary" : "hover:border-primary/50"
       )}
       onClick={onClick}
+      onKeyDown={handleKeyDown}
     >
       {/* Thumbnail or icon */}
       <div className="aspect-[4/3] bg-secondary/50 flex items-center justify-center relative">
@@ -257,7 +322,21 @@ export function DocumentCard({
 }
 
 // Skeleton for loading state
-export function DocumentCardSkeleton({ viewMode = "grid" }: { viewMode?: "grid" | "list" }) {
+export function DocumentCardSkeleton({ viewMode = "grid" }: { viewMode?: "grid" | "list" | "compact" }) {
+  if (viewMode === "compact") {
+    return (
+      <div className="px-3 py-2.5 border-b border-border/30">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded bg-muted animate-pulse" />
+          <div className="flex-1 space-y-1">
+            <div className="h-3 w-32 bg-muted rounded animate-pulse" />
+            <div className="h-2 w-20 bg-muted rounded animate-pulse" />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (viewMode === "list") {
     return (
       <div className="flex items-center gap-4 px-4 py-3 border-b border-border">
