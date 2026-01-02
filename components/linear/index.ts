@@ -13,3 +13,5 @@ export { SettingsSidebar, intelligenceSettingsGroups, type SettingsGroup, type S
 export { SettingsLayout, SettingsSection as SettingsContentSection } from "./settings-layout"
 export { FeatureCard } from "./feature-card"
 export { IntegrationCard, integrationIcons } from "./integration-card"
+export { StatusRow, StatusIcon, type StatusType } from "./status-row"
+export { VerticalSection, VerticalPageLayout } from "./vertical-section"

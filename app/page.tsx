@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { Toaster } from "@/components/ui/toaster"
 import { IntelligenceCenter } from "@/components/views/intelligence-center"
+import { OnboardingHub } from "@/components/views/onboarding-hub"
 
 function CommandCenterContent() {
   const [activeView, setActiveView] = useState<LinearView>("pipeline")
@@ -136,6 +137,16 @@ function CommandCenterContent() {
 
       case "intelligence":
         return <IntelligenceCenter />
+
+      case "onboarding":
+        return (
+          <OnboardingHub
+            onClientClick={(clientId) => {
+              const client = mockClients.find((c) => c.id === clientId)
+              if (client) setSelectedClient(client)
+            }}
+          />
+        )
 
       case "tickets":
         return (
