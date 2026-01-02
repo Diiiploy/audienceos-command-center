@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { createRouteHandlerClient } from '@/lib/supabase'
+import { createRouteHandlerClient, getAuthenticatedUser } from '@/lib/supabase'
 import { withRateLimit, sanitizeString, isValidUUID, createErrorResponse } from '@/lib/security'
 import type { TicketCategory, TicketPriority, TicketStatus } from '@/types/database'
 
@@ -18,13 +18,11 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = await createRouteHandlerClient(cookies)
 
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession()
+    // Get authenticated user with server verification (SEC-006)
+    const { user, error: authError } = await getAuthenticatedUser(supabase)
 
-    if (sessionError || !session) {
-      return createErrorResponse(401, 'Unauthorized')
+    if (!user) {
+      return createErrorResponse(401, authError || 'Unauthorized')
     }
 
     // Get query params for filtering
@@ -103,13 +101,11 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createRouteHandlerClient(cookies)
 
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession()
+    // Get authenticated user with server verification (SEC-006)
+    const { user, agencyId, error: authError } = await getAuthenticatedUser(supabase)
 
-    if (sessionError || !session) {
-      return createErrorResponse(401, 'Unauthorized')
+    if (!user || !agencyId) {
+      return createErrorResponse(401, authError || 'Unauthorized')
     }
 
     let body: Record<string, unknown>
@@ -151,22 +147,12 @@ export async function POST(request: NextRequest) {
       ? due_date
       : null
 
-    // Get agency_id from user's profile
-    const { data: profile } = await supabase
-      .from('user')
-      .select('agency_id')
-      .eq('id', session.user.id)
-      .single()
-
-    if (!profile?.agency_id) {
-      return createErrorResponse(400, 'Agency not found for user')
-    }
-
+    // Use agencyId from getAuthenticatedUser (SEC-006 - already fetched from DB)
     // Create ticket
     const { data: ticket, error } = await supabase
       .from('ticket')
       .insert({
-        agency_id: profile.agency_id,
+        agency_id: agencyId,
         client_id: client_id as string,
         title: sanitizedTitle,
         description: sanitizedDescription,
@@ -174,7 +160,7 @@ export async function POST(request: NextRequest) {
         priority: priority as TicketPriority,
         assignee_id: validatedAssigneeId,
         due_date: validatedDueDate,
-        created_by: session.user.id,
+        created_by: user.id,
       })
       .select(`
         *,

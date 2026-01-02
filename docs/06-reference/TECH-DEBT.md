@@ -237,6 +237,9 @@
 
 | Date | Item | Action |
 |------|------|--------|
+| 2026-01-02 | SEC-006 Complete | Migrated ALL 22 remaining `getSession()` calls to `getAuthenticatedUser()` |
+| 2026-01-02 | Security Keys | Added `OAUTH_STATE_SECRET` and `TOKEN_ENCRYPTION_KEY` to `.env.local` |
+| 2026-01-02 | Startup Validation | Created `instrumentation.ts` to fail-fast in production if security keys missing |
 | 2026-01-02 | SEC-001 to SEC-006 | **Fixed** - OAuth signing, token encryption, agency_id, middleware, revocation, getUser |
 | 2026-01-02 | SEC-001 to SEC-006 | Added 6 security items from security audit |
 | 2026-01-02 | TD-001, TD-002, TD-003 | Fixed - setTimeout, duplicate state, DOMPurify |

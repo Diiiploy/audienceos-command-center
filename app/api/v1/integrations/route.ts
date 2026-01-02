@@ -16,14 +16,11 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = await createRouteHandlerClient(cookies)
 
-    // Get current user's session
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession()
+    // Get authenticated user with server verification (SEC-006)
+    const { user, error: authError } = await getAuthenticatedUser(supabase)
 
-    if (sessionError || !session) {
-      return createErrorResponse(401, 'Unauthorized')
+    if (!user) {
+      return createErrorResponse(401, authError || 'Unauthorized')
     }
 
     // Fetch integrations - RLS will filter by agency_id
@@ -54,15 +51,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createRouteHandlerClient(cookies)
 
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession()
-
-    if (sessionError || !session) {
-      return createErrorResponse(401, 'Unauthorized')
-    }
-
+    // Note: Auth check and agencyId lookup done later via getAuthenticatedUser (SEC-006)
     let body: Record<string, unknown>
     try {
       body = await request.json()

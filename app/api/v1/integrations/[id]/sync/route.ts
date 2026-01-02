@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { createRouteHandlerClient } from '@/lib/supabase'
+import { createRouteHandlerClient, getAuthenticatedUser } from '@/lib/supabase'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -12,13 +12,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { id } = await params
     const supabase = await createRouteHandlerClient(cookies)
 
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession()
+    // Get authenticated user with server verification (SEC-006)
+    const { user, error: authError } = await getAuthenticatedUser(supabase)
 
-    if (sessionError || !session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!user) {
+      return NextResponse.json({ error: authError || 'Unauthorized' }, { status: 401 })
     }
 
     // Fetch integration
@@ -87,13 +85,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { id } = await params
     const supabase = await createRouteHandlerClient(cookies)
 
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession()
+    // Get authenticated user with server verification (SEC-006)
+    const { user, error: authError } = await getAuthenticatedUser(supabase)
 
-    if (sessionError || !session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!user) {
+      return NextResponse.json({ error: authError || 'Unauthorized' }, { status: 401 })
     }
 
     const { data: integration, error } = await supabase

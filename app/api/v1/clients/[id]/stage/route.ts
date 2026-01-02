@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { createRouteHandlerClient } from '@/lib/supabase'
+import { createRouteHandlerClient, getAuthenticatedUser } from '@/lib/supabase'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -12,14 +12,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const { id } = await params
     const supabase = await createRouteHandlerClient(cookies)
 
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession()
+    // Get authenticated user with server verification (SEC-006)
+    const { user, error: authError } = await getAuthenticatedUser(supabase)
 
-    if (sessionError || !session) {
+    if (!user) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: authError || 'Unauthorized' },
         { status: 401 }
       )
     }
@@ -77,7 +75,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         client_id: id,
         from_stage: previousStage,
         to_stage: stage,
-        moved_by: session.user.id,
+        moved_by: user.id,
       })
 
     if (eventError) {

@@ -48,6 +48,15 @@ Copy `.env.example` to `.env.local` and configure:
 | `META_APP_ID` | Meta (Facebook) app ID | developers.facebook.com |
 | `META_APP_SECRET` | Meta app secret | developers.facebook.com |
 
+### Security (Required for Production)
+
+| Variable | Description | How to Generate |
+|----------|-------------|-----------------|
+| `OAUTH_STATE_SECRET` | HMAC key for OAuth CSRF protection | `openssl rand -hex 32` |
+| `TOKEN_ENCRYPTION_KEY` | AES-256 key for token encryption | `openssl rand -hex 32` |
+
+**Important:** Production builds will fail without these keys. See `instrumentation.ts` for startup validation.
+
 ### Monitoring (Optional)
 
 | Variable | Description | Where to Get |
@@ -303,12 +312,26 @@ supabase gen types typescript --project-id YOUR_PROJECT_ID > types/database.ts
 
 ## Security Checklist
 
+### Implemented (2026-01-02)
+- [x] OAuth state signing with HMAC-SHA256 (SEC-001)
+- [x] Token encryption with AES-256-GCM (SEC-002)
+- [x] agency_id from database lookup, not JWT (SEC-003)
+- [x] Centralized auth middleware (SEC-004)
+- [x] Token revocation on disconnect (SEC-005)
+- [x] Server-verified auth with `getUser()` (SEC-006)
+- [x] Startup validation fails production if keys missing
+
+### Ongoing
 - [ ] Never commit `.env.local` or secrets
 - [ ] Use Supabase RLS for all tables
 - [ ] Validate all API inputs with Zod
-- [ ] Store OAuth tokens encrypted
 - [ ] Rotate API keys every 90 days
 - [ ] Review Supabase auth policies
+
+### Pre-Beta (P1 Tech Debt)
+- [ ] Add CSRF tokens to state-changing requests (TD-005)
+- [ ] Implement distributed rate limiting (TD-004)
+- [ ] Fix IP spoofing in rate limiter (TD-008)
 
 ---
 

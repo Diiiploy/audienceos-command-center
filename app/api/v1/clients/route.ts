@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { createRouteHandlerClient } from '@/lib/supabase'
+import { createRouteHandlerClient, getAuthenticatedUser } from '@/lib/supabase'
 import { withRateLimit, sanitizeString, sanitizeEmail, createErrorResponse } from '@/lib/security'
 import type { HealthStatus } from '@/types/database'
 
@@ -17,13 +17,11 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = await createRouteHandlerClient(cookies)
 
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession()
+    // Get authenticated user with server verification (SEC-006)
+    const { user, error: authError } = await getAuthenticatedUser(supabase)
 
-    if (sessionError || !session) {
-      return createErrorResponse(401, 'Unauthorized')
+    if (!user) {
+      return createErrorResponse(401, authError || 'Unauthorized')
     }
 
     // Get query params for filtering (sanitize inputs)
@@ -93,13 +91,11 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createRouteHandlerClient(cookies)
 
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession()
+    // Get authenticated user with server verification (SEC-006)
+    const { user, agencyId, error: authError } = await getAuthenticatedUser(supabase)
 
-    if (sessionError || !session) {
-      return createErrorResponse(401, 'Unauthorized')
+    if (!user || !agencyId) {
+      return createErrorResponse(401, authError || 'Unauthorized')
     }
 
     let body: Record<string, unknown>
@@ -137,21 +133,11 @@ export async function POST(request: NextRequest) {
       ? tags.filter((t): t is string => typeof t === 'string').map(t => sanitizeString(t).slice(0, 50)).slice(0, 20)
       : []
 
-    // Get user's agency_id from their profile
-    const { data: userProfile, error: profileError } = await supabase
-      .from('user')
-      .select('agency_id')
-      .eq('id', session.user.id)
-      .single()
-
-    if (profileError || !userProfile?.agency_id) {
-      return createErrorResponse(400, 'User profile not found')
-    }
-
+    // Use agencyId from getAuthenticatedUser (SEC-006 - already fetched from DB)
     const { data: client, error } = await supabase
       .from('client')
       .insert({
-        agency_id: userProfile.agency_id,
+        agency_id: agencyId,
         name: sanitizedName,
         contact_email: sanitizedEmail,
         contact_name: sanitizedContactName,

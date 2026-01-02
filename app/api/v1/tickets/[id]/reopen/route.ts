@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { createRouteHandlerClient } from '@/lib/supabase'
+import { createRouteHandlerClient, getAuthenticatedUser } from '@/lib/supabase'
 import { withRateLimit, isValidUUID, sanitizeString, createErrorResponse } from '@/lib/security'
 
 // POST /api/v1/tickets/[id]/reopen - Reopen a resolved ticket
@@ -22,13 +22,11 @@ export async function POST(
 
     const supabase = await createRouteHandlerClient(cookies)
 
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession()
+    // Get authenticated user with server verification (SEC-006)
+    const { user, error: authError } = await getAuthenticatedUser(supabase)
 
-    if (sessionError || !session) {
-      return createErrorResponse(401, 'Unauthorized')
+    if (!user) {
+      return createErrorResponse(401, authError || 'Unauthorized')
     }
 
     let body: Record<string, unknown> = {}
@@ -94,7 +92,7 @@ export async function POST(
           agency_id: currentTicket.agency_id,
           content: `Ticket reopened: ${sanitizedReason}`,
           is_internal: true,
-          added_by: session.user.id,
+          added_by: user.id,
         })
       }
     }
