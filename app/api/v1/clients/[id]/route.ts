@@ -55,6 +55,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           title,
           status,
           priority,
+          category,
           created_at
         ),
         communications:communication (
@@ -62,6 +63,24 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           platform,
           message_preview,
           sent_at
+        ),
+        stage_events:stage_event (
+          id,
+          from_stage,
+          to_stage,
+          moved_at,
+          notes,
+          moved_by
+        ),
+        tasks:task (
+          id,
+          name,
+          description,
+          stage,
+          is_completed,
+          due_date,
+          assigned_to,
+          sort_order
         )
       `)
       .eq('id', id)
