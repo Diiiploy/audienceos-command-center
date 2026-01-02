@@ -19,6 +19,7 @@ import { IntelligenceCenter } from "@/components/views/intelligence-center"
 import { OnboardingHub } from "@/components/views/onboarding-hub"
 import { SupportTickets } from "@/components/views/support-tickets"
 import { IntegrationsHub } from "@/components/views/integrations-hub"
+import { KnowledgeBase } from "@/components/views/knowledge-base"
 
 function CommandCenterContent() {
   const [activeView, setActiveView] = useState<LinearView>("pipeline")
@@ -155,6 +156,9 @@ function CommandCenterContent() {
 
       case "integrations":
         return <IntegrationsHub />
+
+      case "knowledge":
+        return <KnowledgeBase />
 
       case "settings":
         return (
