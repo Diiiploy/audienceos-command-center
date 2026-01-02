@@ -15,6 +15,7 @@ import { mockClients, type Client, owners } from "@/lib/mock-data"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { Toaster } from "@/components/ui/toaster"
+import { IntelligenceCenter } from "@/components/views/intelligence-center"
 
 function CommandCenterContent() {
   const [activeView, setActiveView] = useState<LinearView>("pipeline")
@@ -132,6 +133,9 @@ function CommandCenterContent() {
             <p className="text-muted-foreground">Dashboard view - wire up existing component...</p>
           </div>
         )
+
+      case "intelligence":
+        return <IntelligenceCenter />
 
       case "tickets":
         return (
