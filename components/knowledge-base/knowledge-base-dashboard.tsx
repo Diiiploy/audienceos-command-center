@@ -282,18 +282,22 @@ export function KnowledgeBaseDashboard() {
           ))}
         </div>
       ) : (
-        <div className="space-y-2">
-          {filteredDocuments.map((doc) => (
-            <DocumentListItem
-              key={doc.id}
-              document={doc}
-              onPreview={handlePreview}
-              onReindex={handleReindex}
-              getFileTypeInfo={getFileTypeInfo}
-              renderIndexStatus={renderIndexStatus}
-            />
-          ))}
-        </div>
+        <Card className="bg-card border-border shadow-sm">
+          <CardContent className="p-0">
+            <div className="divide-y divide-border">
+              {filteredDocuments.map((doc) => (
+                <DocumentListItem
+                  key={doc.id}
+                  document={doc}
+                  onPreview={handlePreview}
+                  onReindex={handleReindex}
+                  getFileTypeInfo={getFileTypeInfo}
+                  renderIndexStatus={renderIndexStatus}
+                />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Empty State */}
@@ -321,20 +325,19 @@ export function KnowledgeBaseDashboard() {
           <CardTitle className="text-[11px] font-medium">Quick Links</CardTitle>
           <CardDescription className="text-[10px]">Frequently accessed resources</CardDescription>
         </CardHeader>
-        <CardContent className="px-3 pb-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+        <CardContent className="p-0">
+          <div className="divide-y divide-border">
             {quickLinks.map((link) => (
-              <Button
+              <a
                 key={link.title}
-                variant="outline"
-                className="justify-start h-auto py-2 text-[10px] bg-transparent"
-                asChild
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 py-2.5 px-3 hover:bg-secondary/50 transition-colors group"
               >
-                <a href={link.url} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-3 w-3 mr-1.5 shrink-0" />
-                  <span className="truncate">{link.title}</span>
-                </a>
-              </Button>
+                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary shrink-0" />
+                <span className="text-[11px] text-foreground group-hover:text-primary truncate">{link.title}</span>
+              </a>
             ))}
           </div>
         </CardContent>
@@ -381,14 +384,14 @@ function DocumentCard({
   const fileInfo = getFileTypeInfo(doc.mime_type)
 
   return (
-    <Card className="group hover:border-primary/50 transition-colors">
-      <CardHeader className="pb-3">
+    <Card className="group hover:border-primary/50 transition-colors bg-card border-border shadow-sm">
+      <CardHeader className="pb-2 pt-3 px-3">
         <div className="flex items-start justify-between gap-2">
           <Badge
             variant="outline"
-            className={cn("text-xs", fileInfo.color, fileInfo.bgColor, "border-transparent")}
+            className={cn("text-[9px] px-1 py-0", fileInfo.color, fileInfo.bgColor, "border-transparent")}
           >
-            <FileType className="mr-1 h-3 w-3" />
+            <FileType className="mr-0.5 h-2.5 w-2.5" />
             {fileInfo.label}
           </Badge>
           <div className="flex items-center gap-1">
@@ -398,33 +401,33 @@ function DocumentCard({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                  <MoreVertical className="h-4 w-4" />
+                  <MoreVertical className="h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onPreview(doc)}>
-                  <Eye className="mr-2 h-4 w-4" />
+                <DropdownMenuItem onClick={() => onPreview(doc)} className="text-[11px]">
+                  <Eye className="mr-1.5 h-3 w-3" />
                   Preview
                 </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Download className="mr-2 h-4 w-4" />
+                <DropdownMenuItem className="text-[11px]">
+                  <Download className="mr-1.5 h-3 w-3" />
                   Download
                 </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Edit className="mr-2 h-4 w-4" />
+                <DropdownMenuItem className="text-[11px]">
+                  <Edit className="mr-1.5 h-3 w-3" />
                   Edit
                 </DropdownMenuItem>
                 {doc.index_status === "failed" && (
-                  <DropdownMenuItem onClick={() => onReindex(doc)}>
-                    <RefreshCw className="mr-2 h-4 w-4" />
+                  <DropdownMenuItem onClick={() => onReindex(doc)} className="text-[11px]">
+                    <RefreshCw className="mr-1.5 h-3 w-3" />
                     Re-index
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive">
-                  <Trash2 className="mr-2 h-4 w-4" />
+                <DropdownMenuItem className="text-[11px] text-destructive">
+                  <Trash2 className="mr-1.5 h-3 w-3" />
                   Delete
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -432,24 +435,24 @@ function DocumentCard({
           </div>
         </div>
         <CardTitle
-          className="text-base font-medium text-foreground group-hover:text-primary transition-colors cursor-pointer line-clamp-2"
+          className="text-[11px] font-medium text-foreground group-hover:text-primary transition-colors cursor-pointer line-clamp-2"
           onClick={() => onPreview(doc)}
         >
           {doc.title}
         </CardTitle>
-        <CardDescription className="line-clamp-2">{doc.description}</CardDescription>
+        <CardDescription className="text-[10px] line-clamp-2">{doc.description}</CardDescription>
       </CardHeader>
-      <CardContent className="pt-0">
+      <CardContent className="pt-0 px-3 pb-3">
         {/* Tags */}
         {doc.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-3">
+          <div className="flex flex-wrap gap-1 mb-2">
             {doc.tags.slice(0, 3).map((tag) => (
-              <Badge key={tag} variant="secondary" className="text-xs px-1.5 py-0">
+              <Badge key={tag} variant="secondary" className="text-[9px] px-1 py-0">
                 {tag}
               </Badge>
             ))}
             {doc.tags.length > 3 && (
-              <Badge variant="secondary" className="text-xs px-1.5 py-0">
+              <Badge variant="secondary" className="text-[9px] px-1 py-0">
                 +{doc.tags.length - 3}
               </Badge>
             )}
@@ -457,16 +460,16 @@ function DocumentCard({
         )}
 
         {/* Metadata */}
-        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1">
-              <Clock className="h-3 w-3" />
+        <div className="flex items-center justify-between gap-2 text-[9px] text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <span className="flex items-center gap-0.5">
+              <Clock className="h-2.5 w-2.5" />
               {new Date(doc.updated_at).toLocaleDateString()}
             </span>
             <span>{formatFileSize(doc.file_size)}</span>
           </div>
           {doc.client_name && (
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-[9px] px-1 py-0">
               {doc.client_name}
             </Badge>
           )}
@@ -476,7 +479,7 @@ function DocumentCard({
   )
 }
 
-// Document List Item Component (List View)
+// Document List Item Component (List View) - Row pattern
 function DocumentListItem({
   document: doc,
   onPreview,
@@ -487,60 +490,71 @@ function DocumentListItem({
   const fileInfo = getFileTypeInfo(doc.mime_type)
 
   return (
-    <div className="group flex items-center gap-4 p-4 bg-card rounded-lg border border-border hover:border-primary/50 transition-colors">
+    <div className="group flex items-center gap-3 py-3 px-4 hover:bg-secondary/50 transition-colors">
       {/* File Type Icon */}
       <div className={cn("p-2 rounded-md shrink-0", fileInfo.bgColor)}>
-        <FileText className={cn("h-5 w-5", fileInfo.color)} />
+        <FileText className={cn("h-4 w-4", fileInfo.color)} />
       </div>
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-center gap-2">
           <h3
-            className="text-sm font-medium text-foreground group-hover:text-primary transition-colors cursor-pointer truncate"
+            className="text-[11px] font-medium text-foreground group-hover:text-primary transition-colors cursor-pointer truncate"
             onClick={() => onPreview(doc)}
           >
             {doc.title}
           </h3>
           {renderIndexStatus(doc.index_status)}
         </div>
-        <p className="text-xs text-muted-foreground line-clamp-1">{doc.description}</p>
-        <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-          <span>{fileInfo.label}</span>
-          <span>{formatFileSize(doc.file_size)}</span>
-          <span>{new Date(doc.updated_at).toLocaleDateString()}</span>
-          {doc.client_name && <Badge variant="outline" className="text-xs">{doc.client_name}</Badge>}
-        </div>
+        <p className="text-[10px] text-muted-foreground truncate mt-0.5">{doc.description}</p>
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onPreview(doc)}>
-          <Eye className="h-4 w-4" />
+      {/* Middle: Metadata (hidden on mobile) */}
+      <div className="hidden md:flex items-center gap-3 px-4 flex-shrink-0 text-[10px] text-muted-foreground">
+        <span>{fileInfo.label}</span>
+        <span>{formatFileSize(doc.file_size)}</span>
+        <span>{new Date(doc.updated_at).toLocaleDateString()}</span>
+        {doc.client_name && <Badge variant="outline" className="text-[9px] px-1 py-0">{doc.client_name}</Badge>}
+      </div>
+
+      {/* Actions - inline right with hover reveal */}
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={() => onPreview(doc)}
+        >
+          <Eye className="h-3 w-3" />
         </Button>
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <Download className="h-4 w-4" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          <Download className="h-3 w-3" />
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreVertical className="h-4 w-4" />
+            <Button variant="ghost" size="icon" className="h-7 w-7">
+              <MoreVertical className="h-3 w-3" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem>
-              <Edit className="mr-2 h-4 w-4" />
+            <DropdownMenuItem className="text-[11px]">
+              <Edit className="mr-1.5 h-3 w-3" />
               Edit
             </DropdownMenuItem>
             {doc.index_status === "failed" && (
-              <DropdownMenuItem onClick={() => onReindex(doc)}>
-                <RefreshCw className="mr-2 h-4 w-4" />
+              <DropdownMenuItem onClick={() => onReindex(doc)} className="text-[11px]">
+                <RefreshCw className="mr-1.5 h-3 w-3" />
                 Re-index
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">
-              <Trash2 className="mr-2 h-4 w-4" />
+            <DropdownMenuItem className="text-[11px] text-destructive">
+              <Trash2 className="mr-1.5 h-3 w-3" />
               Delete
             </DropdownMenuItem>
           </DropdownMenuContent>

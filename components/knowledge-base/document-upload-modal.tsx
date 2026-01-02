@@ -239,9 +239,9 @@ export function DocumentUploadModal({
   const getFileIcon = (mimeType: string) => {
     const info = FILE_TYPE_INFO[mimeType]
     if (info) {
-      return <FileText className={cn("h-8 w-8", info.color)} />
+      return <FileText className={cn("h-6 w-6", info.color)} />
     }
-    return <File className="h-8 w-8 text-muted-foreground" />
+    return <File className="h-6 w-6 text-muted-foreground" />
   }
 
   // Can upload?
@@ -251,22 +251,22 @@ export function DocumentUploadModal({
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>Upload Document</DialogTitle>
-          <DialogDescription>
+        <DialogHeader className="pb-2">
+          <DialogTitle className="text-[14px] font-semibold">Upload Document</DialogTitle>
+          <DialogDescription className="text-[11px]">
             Upload documents for AI-powered search and knowledge retrieval.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-3 py-3">
           {/* Drop Zone */}
           <div
             className={cn(
-              "relative border-2 border-dashed rounded-lg p-6 text-center transition-colors",
+              "relative border-2 border-dashed rounded-lg p-4 text-center transition-colors",
               isDragging
                 ? "border-primary bg-primary/5"
                 : "border-muted-foreground/25 hover:border-muted-foreground/50",
-              files.length > 0 && "pb-4"
+              files.length > 0 && "pb-3"
             )}
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
@@ -282,8 +282,8 @@ export function DocumentUploadModal({
               onChange={handleFileInputChange}
             />
 
-            <Upload className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
-            <p className="text-sm text-muted-foreground mb-1">
+            <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-1.5" />
+            <p className="text-[11px] text-muted-foreground mb-0.5">
               Drag and drop files here, or{" "}
               <button
                 type="button"
@@ -293,19 +293,19 @@ export function DocumentUploadModal({
                 browse
               </button>
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[10px] text-muted-foreground">
               PDF, DOCX, TXT, MD up to {formatFileSize(MAX_FILE_SIZE)}
             </p>
           </div>
 
           {/* File List */}
           {files.length > 0 && (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {files.map((fileWithPreview) => (
                 <div
                   key={fileWithPreview.id}
                   className={cn(
-                    "flex items-center gap-3 p-3 rounded-lg border",
+                    "flex items-center gap-2.5 p-2.5 rounded-lg border",
                     fileWithPreview.status === "error"
                       ? "border-destructive/50 bg-destructive/5"
                       : "border-border bg-muted/50"
@@ -313,15 +313,15 @@ export function DocumentUploadModal({
                 >
                   <div className="shrink-0">{getFileIcon(fileWithPreview.file.type)}</div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{fileWithPreview.file.name}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-[11px] font-medium truncate">{fileWithPreview.file.name}</p>
+                    <p className="text-[10px] text-muted-foreground">
                       {formatFileSize(fileWithPreview.file.size)}
                     </p>
                     {fileWithPreview.error && (
-                      <p className="text-xs text-destructive mt-1">{fileWithPreview.error}</p>
+                      <p className="text-[10px] text-destructive mt-0.5">{fileWithPreview.error}</p>
                     )}
                     {fileWithPreview.status === "uploading" && (
-                      <div className="mt-2 h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                      <div className="mt-1.5 h-1 w-full bg-muted rounded-full overflow-hidden">
                         <div
                           className="h-full bg-primary transition-all duration-300"
                           style={{ width: `${fileWithPreview.progress}%` }}
@@ -334,20 +334,20 @@ export function DocumentUploadModal({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7"
+                        className="h-6 w-6"
                         onClick={() => removeFile(fileWithPreview.id)}
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-3 w-3" />
                       </Button>
                     )}
                     {fileWithPreview.status === "uploading" && (
-                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
                     )}
                     {fileWithPreview.status === "success" && (
-                      <CheckCircle2 className="h-5 w-5 text-green-500" />
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
                     )}
                     {fileWithPreview.status === "error" && (
-                      <AlertCircle className="h-5 w-5 text-destructive" />
+                      <AlertCircle className="h-4 w-4 text-destructive" />
                     )}
                   </div>
                 </div>
@@ -356,30 +356,31 @@ export function DocumentUploadModal({
           )}
 
           {/* Document Details */}
-          <div className="space-y-4 pt-2">
+          <div className="space-y-3 pt-1.5">
             {/* Title */}
-            <div className="space-y-2">
-              <Label htmlFor="title">Title</Label>
+            <div className="space-y-1">
+              <Label htmlFor="title" className="text-[10px]">Title</Label>
               <Input
                 id="title"
                 placeholder="Document title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
+                className="h-7 text-[11px] bg-secondary border-border"
               />
             </div>
 
             {/* Category */}
-            <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
+            <div className="space-y-1">
+              <Label htmlFor="category" className="text-[10px]">Category</Label>
               <Select value={category} onValueChange={(value) => setCategory(value as DocumentCategory)}>
-                <SelectTrigger id="category">
+                <SelectTrigger id="category" className="h-7 text-[11px]">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
                   {(Object.entries(CATEGORY_LABELS) as [DocumentCategory | "all", string][])
                     .filter(([key]) => key !== "all")
                     .map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
+                      <SelectItem key={value} value={value} className="text-[11px]">
                         {label}
                       </SelectItem>
                     ))}
@@ -388,36 +389,37 @@ export function DocumentUploadModal({
             </div>
 
             {/* Description */}
-            <div className="space-y-2">
-              <Label htmlFor="description">Description (optional)</Label>
+            <div className="space-y-1">
+              <Label htmlFor="description" className="text-[10px]">Description (optional)</Label>
               <Textarea
                 id="description"
                 placeholder="Brief description of the document content"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
+                className="text-[11px] bg-secondary border-border"
               />
             </div>
 
             {/* Tags */}
-            <div className="space-y-2">
-              <Label htmlFor="tags">Tags (optional)</Label>
-              <div className="flex flex-wrap gap-1.5 p-2 min-h-[38px] border rounded-md bg-background">
+            <div className="space-y-1">
+              <Label htmlFor="tags" className="text-[10px]">Tags (optional)</Label>
+              <div className="flex flex-wrap gap-1 p-1.5 min-h-[32px] border rounded-md bg-background">
                 {tags.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="text-xs gap-1">
+                  <Badge key={tag} variant="secondary" className="text-[9px] gap-0.5 px-1 py-0">
                     {tag}
                     <button
                       type="button"
                       className="hover:text-foreground"
                       onClick={() => removeTag(tag)}
                     >
-                      <X className="h-3 w-3" />
+                      <X className="h-2.5 w-2.5" />
                     </button>
                   </Badge>
                 ))}
                 <Input
                   id="tags"
-                  className="flex-1 min-w-[120px] border-0 p-0 h-6 text-sm focus-visible:ring-0"
+                  className="flex-1 min-w-[100px] border-0 p-0 h-5 text-[11px] focus-visible:ring-0"
                   placeholder={tags.length === 0 ? "Add tags..." : ""}
                   value={tagInput}
                   onChange={(e) => setTagInput(e.target.value)}
@@ -425,7 +427,7 @@ export function DocumentUploadModal({
                   onBlur={addTag}
                 />
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[9px] text-muted-foreground">
                 Press Enter or comma to add a tag
               </p>
             </div>
@@ -433,18 +435,18 @@ export function DocumentUploadModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={isUploading}>
+          <Button variant="outline" onClick={handleClose} disabled={isUploading} className="h-7 text-[10px]">
             Cancel
           </Button>
-          <Button onClick={handleUpload} disabled={!canUpload}>
+          <Button onClick={handleUpload} disabled={!canUpload} className="h-7 text-[10px]">
             {isUploading ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
                 Uploading...
               </>
             ) : (
               <>
-                <Upload className="mr-2 h-4 w-4" />
+                <Upload className="mr-1.5 h-3 w-3" />
                 Upload
               </>
             )}

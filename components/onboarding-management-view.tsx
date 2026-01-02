@@ -66,17 +66,17 @@ export function OnboardingManagementView({ onClientClick }: OnboardingManagement
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Onboarding Portal</h1>
-          <p className="text-muted-foreground">Manage client onboarding submissions and access grants</p>
+          <h1 className="text-lg font-semibold text-foreground">Onboarding Portal</h1>
+          <p className="text-[11px] text-muted-foreground">Manage client onboarding submissions and access grants</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleCopyPortalLink}>
-            <Copy className="h-4 w-4 mr-2" />
+          <Button variant="outline" onClick={handleCopyPortalLink} className="h-7 text-[10px]">
+            <Copy className="h-3 w-3 mr-1.5" />
             Copy Portal Link
           </Button>
           <Link href="/onboarding/start" target="_blank">
-            <Button>
-              <ExternalLink className="h-4 w-4 mr-2" />
+            <Button className="h-7 text-[10px]">
+              <ExternalLink className="h-3 w-3 mr-1.5" />
               View Client Portal
             </Button>
           </Link>
@@ -85,16 +85,16 @@ export function OnboardingManagementView({ onClientClick }: OnboardingManagement
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-card border-border">
-          <CardHeader className="pb-3">
-            <CardDescription className="text-muted-foreground">Total Submissions</CardDescription>
-            <CardTitle className="text-2xl text-foreground">{onboardingClients.length}</CardTitle>
+        <Card className="bg-card border-border shadow-sm">
+          <CardHeader className="pb-2 pt-3 px-3">
+            <CardDescription className="text-[10px] text-muted-foreground">Total Submissions</CardDescription>
+            <CardTitle className="text-lg font-semibold text-foreground">{onboardingClients.length}</CardTitle>
           </CardHeader>
         </Card>
-        <Card className="bg-card border-border">
-          <CardHeader className="pb-3">
-            <CardDescription className="text-muted-foreground">Complete Access</CardDescription>
-            <CardTitle className="text-2xl text-emerald-500">
+        <Card className="bg-card border-border shadow-sm">
+          <CardHeader className="pb-2 pt-3 px-3">
+            <CardDescription className="text-[10px] text-muted-foreground">Complete Access</CardDescription>
+            <CardTitle className="text-lg font-semibold text-emerald-500">
               {
                 onboardingClients.filter(
                   (c) =>
@@ -106,10 +106,10 @@ export function OnboardingManagementView({ onClientClick }: OnboardingManagement
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card className="bg-card border-border">
-          <CardHeader className="pb-3">
-            <CardDescription className="text-muted-foreground">Pending Access</CardDescription>
-            <CardTitle className="text-2xl text-amber-500">
+        <Card className="bg-card border-border shadow-sm">
+          <CardHeader className="pb-2 pt-3 px-3">
+            <CardDescription className="text-[10px] text-muted-foreground">Pending Access</CardDescription>
+            <CardTitle className="text-lg font-semibold text-amber-500">
               {
                 onboardingClients.filter(
                   (c) =>
@@ -121,42 +121,42 @@ export function OnboardingManagementView({ onClientClick }: OnboardingManagement
             </CardTitle>
           </CardHeader>
         </Card>
-        <Card className="bg-card border-border">
-          <CardHeader className="pb-3">
-            <CardDescription className="text-muted-foreground">Avg Response Time</CardDescription>
-            <CardTitle className="text-2xl text-foreground">2.3 days</CardTitle>
+        <Card className="bg-card border-border shadow-sm">
+          <CardHeader className="pb-2 pt-3 px-3">
+            <CardDescription className="text-[10px] text-muted-foreground">Avg Response Time</CardDescription>
+            <CardTitle className="text-lg font-semibold text-foreground">2.3 days</CardTitle>
           </CardHeader>
         </Card>
       </div>
 
       {/* Filters */}
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle className="text-foreground">Onboarding Submissions</CardTitle>
-          <CardDescription className="text-muted-foreground">
+      <Card className="bg-card border-border shadow-sm">
+        <CardHeader className="pb-2 pt-3 px-3">
+          <CardTitle className="text-[11px] font-medium text-foreground">Onboarding Submissions</CardTitle>
+          <CardDescription className="text-[10px] text-muted-foreground">
             View and manage all client onboarding data
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <CardContent className="px-3 pb-3">
+          <div className="flex flex-col sm:flex-row gap-3 mb-4">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
               <Input
                 placeholder="Search by client name..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 bg-background border-border"
+                className="pl-7 h-7 text-[11px] bg-secondary border-border"
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-48 bg-background border-border">
-                <Filter className="h-4 w-4 mr-2" />
+              <SelectTrigger className="w-full sm:w-48 h-7 text-[11px] bg-secondary border-border">
+                <Filter className="h-3 w-3 mr-1.5" />
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Submissions</SelectItem>
-                <SelectItem value="complete">Complete Access</SelectItem>
-                <SelectItem value="pending">Pending Access</SelectItem>
+                <SelectItem value="all" className="text-[11px]">All Submissions</SelectItem>
+                <SelectItem value="complete" className="text-[11px]">Complete Access</SelectItem>
+                <SelectItem value="pending" className="text-[11px]">Pending Access</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -192,35 +192,35 @@ export function OnboardingManagementView({ onClientClick }: OnboardingManagement
                         className="hover:bg-muted/30 cursor-pointer"
                       >
                         <TableCell>
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                              <span className="text-sm font-semibold text-primary">{client.name.charAt(0)}</span>
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-md bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                              <span className="text-[11px] font-semibold text-primary">{client.name.charAt(0)}</span>
                             </div>
                             <div>
-                              <p className="font-medium text-foreground">{client.name}</p>
-                              <p className="text-xs text-muted-foreground">{data.contactEmail}</p>
+                              <p className="text-[11px] font-medium text-foreground">{client.name}</p>
+                              <p className="text-[10px] text-muted-foreground">{data.contactEmail}</p>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Clock className="h-4 w-4" />
+                          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                            <Clock className="h-3 w-3" />
                             {data.submittedAt}
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col gap-1">
-                            <code className="text-xs font-mono text-foreground bg-muted px-2 py-0.5 rounded">
+                            <code className="text-[9px] font-mono text-foreground bg-muted px-1.5 py-0.5 rounded">
                               {data.shopifyUrl}
                             </code>
                             <div className="flex gap-1">
                               {data.gtmContainerId && (
-                                <Badge variant="outline" className="text-xs">
+                                <Badge variant="outline" className="text-[9px] px-1 py-0">
                                   GTM
                                 </Badge>
                               )}
                               {data.metaPixelId && (
-                                <Badge variant="outline" className="text-xs">
+                                <Badge variant="outline" className="text-[9px] px-1 py-0">
                                   Meta
                                 </Badge>
                               )}
@@ -247,17 +247,17 @@ export function OnboardingManagementView({ onClientClick }: OnboardingManagement
                             </Badge>
                             <div className="flex gap-1">
                               {!data.accessGrants.meta && (
-                                <Badge variant="outline" className="text-xs text-rose-500">
+                                <Badge variant="outline" className="text-[9px] px-1 py-0 text-rose-500">
                                   Meta Pending
                                 </Badge>
                               )}
                               {!data.accessGrants.gtm && (
-                                <Badge variant="outline" className="text-xs text-rose-500">
+                                <Badge variant="outline" className="text-[9px] px-1 py-0 text-rose-500">
                                   GTM Pending
                                 </Badge>
                               )}
                               {!data.accessGrants.shopify && (
-                                <Badge variant="outline" className="text-xs text-rose-500">
+                                <Badge variant="outline" className="text-[9px] px-1 py-0 text-rose-500">
                                   Shopify Pending
                                 </Badge>
                               )}
@@ -265,13 +265,13 @@ export function OnboardingManagementView({ onClientClick }: OnboardingManagement
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                            <Button size="sm" variant="outline">
-                              <Mail className="h-4 w-4 mr-1" />
+                          <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
+                            <Button variant="outline" className="h-6 text-[9px] px-2">
+                              <Mail className="h-2.5 w-2.5 mr-1" />
                               Email
                             </Button>
-                            <Button size="sm" variant="outline">
-                              <Download className="h-4 w-4 mr-1" />
+                            <Button variant="outline" className="h-6 text-[9px] px-2">
+                              <Download className="h-2.5 w-2.5 mr-1" />
                               Export
                             </Button>
                           </div>

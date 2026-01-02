@@ -92,8 +92,8 @@ export function DocumentPreviewModal({
     if (doc.mime_type === "text/markdown" || doc.mime_type === "text/plain") {
       return (
         <ScrollArea className="h-full">
-          <div className="p-6 prose prose-sm dark:prose-invert max-w-none">
-            <pre className="text-sm whitespace-pre-wrap font-mono bg-muted p-4 rounded-lg">
+          <div className="p-4 prose prose-sm dark:prose-invert max-w-none">
+            <pre className="text-[10px] whitespace-pre-wrap font-mono bg-muted p-3 rounded-lg">
               {`# ${doc.title}
 
 ${doc.description || "No description available."}
@@ -121,47 +121,47 @@ ${doc.tags.map((tag) => `- ${tag}`).join("\n")}
       return (
         <div className="flex flex-col h-full">
           {/* PDF Controls */}
-          <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/50">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between px-3 py-1.5 border-b bg-muted/50">
+            <div className="flex items-center gap-1.5">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8"
+                className="h-6 w-6"
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
               >
-                <ChevronLeft className="h-4 w-4" />
+                <ChevronLeft className="h-3 w-3" />
               </Button>
-              <span className="text-sm">
+              <span className="text-[10px]">
                 Page {currentPage} of {doc.page_count || 1}
               </span>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8"
+                className="h-6 w-6"
                 onClick={() => setCurrentPage((p) => Math.min(doc.page_count || 1, p + 1))}
                 disabled={currentPage === (doc.page_count || 1)}
               >
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="h-3 w-3" />
               </Button>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8"
+                className="h-6 w-6"
                 onClick={() => setZoom((z) => Math.max(50, z - 25))}
               >
-                <ZoomOut className="h-4 w-4" />
+                <ZoomOut className="h-3 w-3" />
               </Button>
-              <span className="text-sm w-12 text-center">{zoom}%</span>
+              <span className="text-[10px] w-10 text-center">{zoom}%</span>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8"
+                className="h-6 w-6"
                 onClick={() => setZoom((z) => Math.min(200, z + 25))}
               >
-                <ZoomIn className="h-4 w-4" />
+                <ZoomIn className="h-3 w-3" />
               </Button>
             </div>
           </div>
@@ -177,13 +177,13 @@ ${doc.tags.map((tag) => `- ${tag}`).join("\n")}
                 maxHeight: "100%",
               }}
             >
-              <div className="text-center p-8">
-                <FileText className="h-16 w-16 mx-auto mb-4 text-red-500/50" />
-                <p className="text-sm font-medium text-gray-600">PDF Preview</p>
-                <p className="text-xs text-gray-400 mt-1">
+              <div className="text-center p-6">
+                <FileText className="h-12 w-12 mx-auto mb-3 text-red-500/50" />
+                <p className="text-[11px] font-medium text-gray-600">PDF Preview</p>
+                <p className="text-[10px] text-gray-400 mt-1">
                   Page {currentPage} of {doc.page_count || 1}
                 </p>
-                <p className="text-xs text-gray-400 mt-4">
+                <p className="text-[9px] text-gray-400 mt-3">
                   In production, this would render the actual PDF using PDF.js
                 </p>
               </div>
@@ -196,15 +196,15 @@ ${doc.tags.map((tag) => `- ${tag}`).join("\n")}
     // DOCX preview placeholder
     return (
       <div className="flex items-center justify-center h-full bg-muted/30">
-        <div className="text-center p-8">
-          <FileText className="h-16 w-16 mx-auto mb-4 text-blue-500/50" />
-          <p className="text-sm font-medium text-foreground">Document Preview</p>
-          <p className="text-xs text-muted-foreground mt-1">{doc.file_name}</p>
-          <p className="text-xs text-muted-foreground mt-4">
+        <div className="text-center p-6">
+          <FileText className="h-12 w-12 mx-auto mb-3 text-blue-500/50" />
+          <p className="text-[11px] font-medium text-foreground">Document Preview</p>
+          <p className="text-[10px] text-muted-foreground mt-1">{doc.file_name}</p>
+          <p className="text-[10px] text-muted-foreground mt-3">
             {doc.word_count ? `${doc.word_count.toLocaleString()} words` : ""}
           </p>
-          <Button variant="outline" size="sm" className="mt-4">
-            <Download className="mr-2 h-4 w-4" />
+          <Button variant="outline" size="sm" className="mt-3 h-7 text-[10px]">
+            <Download className="mr-1.5 h-3 w-3" />
             Download to View
           </Button>
         </div>
@@ -215,18 +215,18 @@ ${doc.tags.map((tag) => `- ${tag}`).join("\n")}
   // Render details tab
   const renderDetails = () => (
     <ScrollArea className="h-full">
-      <div className="p-6 space-y-6">
+      <div className="p-4 space-y-4">
         {/* File Information */}
-        <div className="space-y-4">
-          <h3 className="text-sm font-medium text-foreground">File Information</h3>
-          <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="space-y-3">
+          <h3 className="text-[11px] font-medium text-foreground">File Information</h3>
+          <div className="grid grid-cols-2 gap-3 text-[10px]">
             <div>
               <p className="text-muted-foreground">File Name</p>
               <p className="font-medium">{doc.file_name}</p>
             </div>
             <div>
               <p className="text-muted-foreground">File Type</p>
-              <Badge variant="outline" className={cn(fileInfo.color, fileInfo.bgColor, "border-transparent")}>
+              <Badge variant="outline" className={cn("text-[9px] px-1 py-0", fileInfo.color, fileInfo.bgColor, "border-transparent")}>
                 {fileInfo.label}
               </Badge>
             </div>
@@ -251,20 +251,20 @@ ${doc.tags.map((tag) => `- ${tag}`).join("\n")}
 
         {/* Description */}
         {doc.description && (
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium text-foreground">Description</h3>
-            <p className="text-sm text-muted-foreground">{doc.description}</p>
+          <div className="space-y-1.5">
+            <h3 className="text-[11px] font-medium text-foreground">Description</h3>
+            <p className="text-[10px] text-muted-foreground">{doc.description}</p>
           </div>
         )}
 
         {/* Tags */}
         {doc.tags.length > 0 && (
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium text-foreground">Tags</h3>
-            <div className="flex flex-wrap gap-1.5">
+          <div className="space-y-1.5">
+            <h3 className="text-[11px] font-medium text-foreground">Tags</h3>
+            <div className="flex flex-wrap gap-1">
               {doc.tags.map((tag) => (
-                <Badge key={tag} variant="secondary" className="text-xs">
-                  <Tag className="mr-1 h-3 w-3" />
+                <Badge key={tag} variant="secondary" className="text-[9px] px-1 py-0">
+                  <Tag className="mr-0.5 h-2.5 w-2.5" />
                   {tag}
                 </Badge>
               ))}
@@ -274,28 +274,28 @@ ${doc.tags.map((tag) => `- ${tag}`).join("\n")}
 
         {/* Client */}
         {doc.client_name && (
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium text-foreground">Client</h3>
-            <Badge variant="outline">{doc.client_name}</Badge>
+          <div className="space-y-1.5">
+            <h3 className="text-[11px] font-medium text-foreground">Client</h3>
+            <Badge variant="outline" className="text-[9px] px-1 py-0">{doc.client_name}</Badge>
           </div>
         )}
 
         {/* Index Status */}
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium text-foreground">Index Status</h3>
+        <div className="space-y-1.5">
+          <h3 className="text-[11px] font-medium text-foreground">Index Status</h3>
           <div className="flex items-center gap-2">
             <Badge
               variant="outline"
-              className={cn(indexInfo.color, indexInfo.bgColor, "border-transparent")}
+              className={cn("text-[9px] px-1 py-0", indexInfo.color, indexInfo.bgColor, "border-transparent")}
             >
-              {doc.index_status === "indexed" && <CheckCircle2 className="mr-1 h-3 w-3" />}
-              {doc.index_status === "indexing" && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
-              {doc.index_status === "failed" && <AlertCircle className="mr-1 h-3 w-3" />}
+              {doc.index_status === "indexed" && <CheckCircle2 className="mr-0.5 h-2.5 w-2.5" />}
+              {doc.index_status === "indexing" && <Loader2 className="mr-0.5 h-2.5 w-2.5 animate-spin" />}
+              {doc.index_status === "failed" && <AlertCircle className="mr-0.5 h-2.5 w-2.5" />}
               {indexInfo.label}
             </Badge>
             {doc.index_status === "failed" && (
-              <Button variant="outline" size="sm">
-                <RefreshCw className="mr-2 h-3 w-3" />
+              <Button variant="outline" size="sm" className="h-6 text-[9px]">
+                <RefreshCw className="mr-1 h-2.5 w-2.5" />
                 Re-index
               </Button>
             )}
@@ -303,24 +303,24 @@ ${doc.tags.map((tag) => `- ${tag}`).join("\n")}
         </div>
 
         {/* Metadata */}
-        <div className="space-y-4">
-          <h3 className="text-sm font-medium text-foreground">Metadata</h3>
-          <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="space-y-3">
+          <h3 className="text-[11px] font-medium text-foreground">Metadata</h3>
+          <div className="grid grid-cols-2 gap-3 text-[10px]">
             <div>
-              <p className="text-muted-foreground flex items-center gap-1">
-                <User className="h-3 w-3" /> Uploaded By
+              <p className="text-muted-foreground flex items-center gap-0.5">
+                <User className="h-2.5 w-2.5" /> Uploaded By
               </p>
               <p className="font-medium">{doc.uploader_name || "Unknown"}</p>
             </div>
             <div>
-              <p className="text-muted-foreground flex items-center gap-1">
-                <Clock className="h-3 w-3" /> Upload Date
+              <p className="text-muted-foreground flex items-center gap-0.5">
+                <Clock className="h-2.5 w-2.5" /> Upload Date
               </p>
               <p className="font-medium">{new Date(doc.created_at).toLocaleDateString()}</p>
             </div>
             <div>
-              <p className="text-muted-foreground flex items-center gap-1">
-                <Clock className="h-3 w-3" /> Last Updated
+              <p className="text-muted-foreground flex items-center gap-0.5">
+                <Clock className="h-2.5 w-2.5" /> Last Updated
               </p>
               <p className="font-medium">{new Date(doc.updated_at).toLocaleDateString()}</p>
             </div>
@@ -333,49 +333,49 @@ ${doc.tags.map((tag) => `- ${tag}`).join("\n")}
   // Render analytics tab
   const renderAnalytics = () => (
     <ScrollArea className="h-full">
-      <div className="p-6 space-y-6">
+      <div className="p-4 space-y-4">
         {/* Usage Statistics */}
-        <div className="space-y-4">
-          <h3 className="text-sm font-medium text-foreground">Usage Statistics</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 bg-muted/50 rounded-lg">
-              <p className="text-2xl font-semibold">{doc.usage_count}</p>
-              <p className="text-xs text-muted-foreground">AI Citations</p>
+        <div className="space-y-3">
+          <h3 className="text-[11px] font-medium text-foreground">Usage Statistics</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <p className="text-lg font-semibold">{doc.usage_count}</p>
+              <p className="text-[9px] text-muted-foreground">AI Citations</p>
             </div>
-            <div className="p-4 bg-muted/50 rounded-lg">
-              <p className="text-2xl font-semibold">--</p>
-              <p className="text-xs text-muted-foreground">Views This Month</p>
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <p className="text-lg font-semibold">--</p>
+              <p className="text-[9px] text-muted-foreground">Views This Month</p>
             </div>
           </div>
         </div>
 
         {/* Usage Trend */}
-        <div className="space-y-4">
-          <h3 className="text-sm font-medium text-foreground">Usage Trend</h3>
-          <div className="h-32 bg-muted/50 rounded-lg flex items-center justify-center">
+        <div className="space-y-3">
+          <h3 className="text-[11px] font-medium text-foreground">Usage Trend</h3>
+          <div className="h-24 bg-muted/50 rounded-lg flex items-center justify-center">
             <div className="text-center text-muted-foreground">
-              <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-xs">Chart available in production</p>
+              <BarChart3 className="h-6 w-6 mx-auto mb-1.5 opacity-50" />
+              <p className="text-[9px]">Chart available in production</p>
             </div>
           </div>
         </div>
 
         {/* Recent Citations */}
-        <div className="space-y-4">
-          <h3 className="text-sm font-medium text-foreground">Recent Citations</h3>
+        <div className="space-y-3">
+          <h3 className="text-[11px] font-medium text-foreground">Recent Citations</h3>
           {doc.usage_count > 0 ? (
             <div className="space-y-2">
-              <div className="p-3 bg-muted/50 rounded-lg text-sm">
-                <p className="text-muted-foreground text-xs">Dec 15, 2024</p>
-                <p className="mt-1">Referenced in chat about pixel installation</p>
+              <div className="p-2.5 bg-muted/50 rounded-lg">
+                <p className="text-muted-foreground text-[9px]">Dec 15, 2024</p>
+                <p className="mt-0.5 text-[10px]">Referenced in chat about pixel installation</p>
               </div>
-              <div className="p-3 bg-muted/50 rounded-lg text-sm">
-                <p className="text-muted-foreground text-xs">Dec 12, 2024</p>
-                <p className="mt-1">Used to answer GTM configuration question</p>
+              <div className="p-2.5 bg-muted/50 rounded-lg">
+                <p className="text-muted-foreground text-[9px]">Dec 12, 2024</p>
+                <p className="mt-0.5 text-[10px]">Used to answer GTM configuration question</p>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">No citations yet</p>
+            <p className="text-[10px] text-muted-foreground">No citations yet</p>
           )}
         </div>
       </div>
@@ -386,27 +386,27 @@ ${doc.tags.map((tag) => `- ${tag}`).join("\n")}
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-4xl h-[80vh] flex flex-col p-0">
         {/* Header */}
-        <DialogHeader className="px-6 py-4 border-b shrink-0">
+        <DialogHeader className="px-4 py-3 border-b shrink-0">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <DialogTitle className="text-lg font-medium truncate">{doc.title}</DialogTitle>
-              <div className="flex items-center gap-2 mt-1">
-                <Badge variant="outline" className={cn("text-xs", fileInfo.color, fileInfo.bgColor, "border-transparent")}>
+              <DialogTitle className="text-[14px] font-medium truncate">{doc.title}</DialogTitle>
+              <div className="flex items-center gap-1.5 mt-1">
+                <Badge variant="outline" className={cn("text-[9px] px-1 py-0", fileInfo.color, fileInfo.bgColor, "border-transparent")}>
                   {fileInfo.label}
                 </Badge>
-                <span className="text-xs text-muted-foreground">{formatFileSize(doc.file_size)}</span>
+                <span className="text-[10px] text-muted-foreground">{formatFileSize(doc.file_size)}</span>
                 {doc.client_name && (
-                  <Badge variant="outline" className="text-xs">{doc.client_name}</Badge>
+                  <Badge variant="outline" className="text-[9px] px-1 py-0">{doc.client_name}</Badge>
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Button variant="outline" size="sm">
-                <Download className="mr-2 h-4 w-4" />
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Button variant="outline" size="sm" className="h-7 text-[10px]">
+                <Download className="mr-1.5 h-3 w-3" />
                 Download
               </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
-                <X className="h-4 w-4" />
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
+                <X className="h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
@@ -414,10 +414,10 @@ ${doc.tags.map((tag) => `- ${tag}`).join("\n")}
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="flex-1 flex flex-col min-h-0">
-          <TabsList className="shrink-0 mx-6 mt-2 w-fit">
-            <TabsTrigger value="preview">Preview</TabsTrigger>
-            <TabsTrigger value="details">Details</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsList className="shrink-0 mx-4 mt-2 w-fit h-7">
+            <TabsTrigger value="preview" className="text-[10px] h-6 px-2.5">Preview</TabsTrigger>
+            <TabsTrigger value="details" className="text-[10px] h-6 px-2.5">Details</TabsTrigger>
+            <TabsTrigger value="analytics" className="text-[10px] h-6 px-2.5">Analytics</TabsTrigger>
           </TabsList>
 
           <TabsContent value="preview" className="flex-1 m-0 overflow-hidden">

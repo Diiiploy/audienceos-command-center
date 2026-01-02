@@ -159,60 +159,60 @@ export function AutomationsDashboard({
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Automations</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h1 className="text-lg font-semibold text-foreground">Automations</h1>
+          <p className="text-[11px] text-muted-foreground mt-0.5">
             Build IF/THEN workflows to automate your client management
           </p>
         </div>
-        <Button onClick={handleCreate} className="bg-emerald-600 hover:bg-emerald-700">
-          <Plus className="h-4 w-4 mr-2" />
+        <Button onClick={handleCreate} className="h-7 text-[10px] bg-emerald-600 hover:bg-emerald-700">
+          <Plus className="h-3 w-3 mr-1.5" />
           Create Automation
         </Button>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-card border-border">
-          <CardContent className="pt-6">
+        <Card className="bg-card border-border shadow-sm">
+          <CardContent className="pt-3 pb-3 px-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total Workflows</p>
-                <p className="text-2xl font-bold">{workflows.length}</p>
+                <p className="text-[10px] text-muted-foreground">Total Workflows</p>
+                <p className="text-lg font-semibold">{workflows.length}</p>
               </div>
-              <Zap className="h-8 w-8 text-muted-foreground/30" />
+              <Zap className="h-5 w-5 text-muted-foreground/30" />
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-card border-border">
-          <CardContent className="pt-6">
+        <Card className="bg-card border-border shadow-sm">
+          <CardContent className="pt-3 pb-3 px-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Active</p>
-                <p className="text-2xl font-bold text-emerald-500">{activeCount}</p>
+                <p className="text-[10px] text-muted-foreground">Active</p>
+                <p className="text-lg font-semibold text-emerald-500">{activeCount}</p>
               </div>
-              <Play className="h-8 w-8 text-emerald-500/30" />
+              <Play className="h-5 w-5 text-emerald-500/30" />
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-card border-border">
-          <CardContent className="pt-6">
+        <Card className="bg-card border-border shadow-sm">
+          <CardContent className="pt-3 pb-3 px-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total Runs</p>
-                <p className="text-2xl font-bold">{totalRuns}</p>
+                <p className="text-[10px] text-muted-foreground">Total Runs</p>
+                <p className="text-lg font-semibold">{totalRuns}</p>
               </div>
-              <RefreshCw className="h-8 w-8 text-muted-foreground/30" />
+              <RefreshCw className="h-5 w-5 text-muted-foreground/30" />
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-card border-border">
-          <CardContent className="pt-6">
+        <Card className="bg-card border-border shadow-sm">
+          <CardContent className="pt-3 pb-3 px-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Success Rate</p>
-                <p className="text-2xl font-bold">{overallSuccessRate}%</p>
+                <p className="text-[10px] text-muted-foreground">Success Rate</p>
+                <p className="text-lg font-semibold">{overallSuccessRate}%</p>
               </div>
-              <CheckCircle2 className="h-8 w-8 text-muted-foreground/30" />
+              <CheckCircle2 className="h-5 w-5 text-muted-foreground/30" />
             </div>
           </CardContent>
         </Card>
@@ -220,9 +220,9 @@ export function AutomationsDashboard({
 
       {/* Tabs */}
       <Tabs defaultValue="workflows" className="w-full">
-        <TabsList className="bg-muted">
-          <TabsTrigger value="workflows">Workflows</TabsTrigger>
-          <TabsTrigger value="history">Execution History</TabsTrigger>
+        <TabsList className="bg-muted h-7">
+          <TabsTrigger value="workflows" className="text-[10px] h-6 px-2.5">Workflows</TabsTrigger>
+          <TabsTrigger value="history" className="text-[10px] h-6 px-2.5">Execution History</TabsTrigger>
         </TabsList>
 
         {/* Workflows Tab */}
@@ -243,82 +243,86 @@ export function AutomationsDashboard({
             </Card>
           ) : workflows.length === 0 ? (
             <Card className="border-2 border-dashed border-muted-foreground/30">
-              <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
-                <div className="p-4 rounded-full bg-secondary">
-                  <Zap className="h-8 w-8 text-muted-foreground" />
+              <CardContent className="flex flex-col items-center justify-center py-8 space-y-3">
+                <div className="p-3 rounded-full bg-secondary">
+                  <Zap className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div className="text-center">
-                  <h3 className="font-semibold text-foreground">No automations yet</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <h3 className="text-[12px] font-medium text-foreground">No automations yet</h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
                     Create your first IF/THEN workflow to automate tasks
                   </p>
                 </div>
-                <Button onClick={handleCreate}>
-                  <Plus className="h-4 w-4 mr-2" />
+                <Button onClick={handleCreate} className="h-7 text-[10px]">
+                  <Plus className="h-3 w-3 mr-1.5" />
                   Create Automation
                 </Button>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {workflows.map((workflow) => (
-                <AutomationCard
-                  key={workflow.id}
-                  workflow={workflow}
-                  onToggle={handleToggle}
-                  onEdit={handleEdit}
-                />
-              ))}
-            </div>
+            <Card className="bg-card border-border shadow-sm">
+              <CardContent className="p-0">
+                <div className="divide-y divide-border">
+                  {workflows.map((workflow) => (
+                    <AutomationCard
+                      key={workflow.id}
+                      workflow={workflow}
+                      onToggle={handleToggle}
+                      onEdit={handleEdit}
+                    />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
 
         {/* Execution History Tab */}
-        <TabsContent value="history" className="space-y-4 mt-6">
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-base">Recent Executions</CardTitle>
-              <CardDescription>Live workflow execution history</CardDescription>
+        <TabsContent value="history" className="space-y-4 mt-4">
+          <Card className="bg-card border-border shadow-sm">
+            <CardHeader className="pb-2 pt-3 px-3">
+              <CardTitle className="text-[11px] font-medium">Recent Executions</CardTitle>
+              <CardDescription className="text-[10px]">Live workflow execution history</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-3 pb-3">
               {runsLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 </div>
               ) : runs.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
+                <div className="text-center py-6 text-[11px] text-muted-foreground">
                   No executions yet. Runs will appear here when workflows are triggered.
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {runs.map((run) => (
                     <div
                       key={run.id}
-                      className="flex items-center justify-between p-3 rounded-lg border border-border bg-secondary/30"
+                      className="flex items-center justify-between p-2.5 rounded-md border border-border bg-secondary/30"
                     >
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="flex items-center gap-2.5 flex-1 min-w-0">
                         {run.status === 'completed' ? (
-                          <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
                         ) : run.status === 'failed' ? (
-                          <XCircle className="h-5 w-5 text-rose-500 shrink-0" />
+                          <XCircle className="h-3.5 w-3.5 text-rose-500 shrink-0" />
                         ) : run.status === 'running' ? (
-                          <Loader2 className="h-5 w-5 text-blue-500 animate-spin shrink-0" />
+                          <Loader2 className="h-3.5 w-3.5 text-blue-500 animate-spin shrink-0" />
                         ) : (
-                          <Clock className="h-5 w-5 text-amber-500 shrink-0" />
+                          <Clock className="h-3.5 w-3.5 text-amber-500 shrink-0" />
                         )}
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">
+                          <p className="text-[11px] font-medium text-foreground truncate">
                             {(run as WorkflowRun & { workflow_name?: string }).workflow_name || 'Unknown Workflow'}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-[10px] text-muted-foreground">
                             {run.error_message || `Executed ${(run.results as unknown[])?.length || 0} actions`}
                           </p>
                         </div>
                       </div>
-                      <div className="text-right shrink-0 ml-4">
+                      <div className="text-right shrink-0 ml-3">
                         <Badge
                           variant="outline"
-                          className={
+                          className={`text-[9px] px-1 py-0 ${
                             run.status === 'completed'
                               ? 'border-emerald-500/50 text-emerald-400'
                               : run.status === 'failed'
@@ -326,11 +330,11 @@ export function AutomationsDashboard({
                               : run.status === 'running'
                               ? 'border-blue-500/50 text-blue-400'
                               : 'border-amber-500/50 text-amber-400'
-                          }
+                          }`}
                         >
                           {run.status}
                         </Badge>
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="text-[9px] text-muted-foreground mt-0.5">
                           {formatRelativeTime(run.created_at)}
                         </p>
                       </div>

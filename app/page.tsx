@@ -297,11 +297,8 @@ function CommandCenterContent() {
         return <DashboardView clients={clients} onClientClick={handleClientClick} />
       case "pipeline":
         return (
-          <div className="space-y-6">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Pipeline</h1>
-              <p className="text-muted-foreground">Drag and drop clients between stages</p>
-            </div>
+          <div className="space-y-4">
+            {/* Linear-style: minimal filter bar, no big title */}
             <FilterChips
               filters={filters}
               onFilterChange={handleFilterChange}

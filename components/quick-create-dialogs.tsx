@@ -150,7 +150,7 @@ export function QuickCreateDialogs({ type, open, onOpenChange }: QuickCreateDial
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="bg-slate-900 border-slate-800 text-slate-100 max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-xl">Add New Client</DialogTitle>
+            <DialogTitle className="text-[14px] font-semibold">Add New Client</DialogTitle>
             <DialogDescription className="text-slate-400">
               Create a new client record and send them the onboarding link
             </DialogDescription>
@@ -198,7 +198,7 @@ export function QuickCreateDialogs({ type, open, onOpenChange }: QuickCreateDial
                 <Input
                   value={onboardingUrl}
                   readOnly
-                  className="bg-slate-950 border-slate-700 text-slate-400 font-mono text-sm"
+                  className="bg-slate-950 border-slate-700 text-slate-400 font-mono text-[10px] h-7"
                 />
                 <Button
                   variant="outline"
@@ -217,7 +217,7 @@ export function QuickCreateDialogs({ type, open, onOpenChange }: QuickCreateDial
                   <ExternalLink className="h-4 w-4" />
                 </Button>
               </div>
-              <p className="text-xs text-slate-500">
+              <p className="text-[9px] text-slate-500">
                 Share this link with your client to begin their onboarding journey
               </p>
             </div>
@@ -245,7 +245,7 @@ export function QuickCreateDialogs({ type, open, onOpenChange }: QuickCreateDial
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="bg-slate-900 border-slate-800 text-slate-100 max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-xl">Create Support Ticket</DialogTitle>
+            <DialogTitle className="text-[14px] font-semibold">Create Support Ticket</DialogTitle>
             <DialogDescription className="text-slate-400">
               Log a new support issue for client assistance
             </DialogDescription>
@@ -319,7 +319,7 @@ export function QuickCreateDialogs({ type, open, onOpenChange }: QuickCreateDial
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="bg-slate-900 border-slate-800 text-slate-100 max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-xl">Create New Project</DialogTitle>
+            <DialogTitle className="text-[14px] font-semibold">Create New Project</DialogTitle>
             <DialogDescription className="text-slate-400">Add a new project or campaign to track</DialogDescription>
           </DialogHeader>
 

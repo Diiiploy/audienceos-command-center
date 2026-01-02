@@ -45,7 +45,7 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="p-8 text-center">
-          <h1 className="text-2xl font-bold text-foreground mb-4">Client Not Found</h1>
+          <h1 className="text-lg font-semibold text-foreground mb-4">Client Not Found</h1>
           <Button onClick={() => router.push("/")}>Return to Dashboard</Button>
         </Card>
       </div>
@@ -71,19 +71,19 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
               </Button>
 
               <div className="w-10 h-10 rounded bg-secondary flex items-center justify-center">
-                <span className="text-sm font-bold text-secondary-foreground">{client.logo}</span>
+                <span className="text-[11px] font-bold text-secondary-foreground">{client.logo}</span>
               </div>
 
               <div>
-                <h1 className="text-xl font-bold text-foreground">{client.name}</h1>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge variant="outline" className="text-xs">
+                <h1 className="text-lg font-semibold text-foreground">{client.name}</h1>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <Badge variant="outline" className="text-[9px] px-1 py-0">
                     {client.tier}
                   </Badge>
-                  <Badge variant="outline" className="text-xs">
+                  <Badge variant="outline" className="text-[9px] px-1 py-0">
                     {client.stage}
                   </Badge>
-                  <span className="text-xs text-muted-foreground">{client.daysInStage} days in stage</span>
+                  <span className="text-[10px] text-muted-foreground">{client.daysInStage} days in stage</span>
                 </div>
               </div>
             </div>
@@ -92,7 +92,7 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
               <Avatar className={cn("h-8 w-8", owner?.color)}>
                 <AvatarFallback className={cn(owner?.color, "text-xs text-white")}>{owner?.avatar}</AvatarFallback>
               </Avatar>
-              <span className="text-sm text-muted-foreground">Owner: {client.owner}</span>
+              <span className="text-[10px] text-muted-foreground">Owner: {client.owner}</span>
 
               <Button variant="outline" size="sm" className="ml-4 gap-2 bg-transparent">
                 <Share2 className="h-4 w-4" />
@@ -143,7 +143,7 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
 
               <Card className="p-4">
                 <p className="text-sm text-muted-foreground mb-1">Support Tickets</p>
-                <p className="text-2xl font-bold text-foreground">2</p>
+                <p className="text-lg font-semibold text-foreground">2</p>
                 <p className="text-xs text-muted-foreground mt-1">1 open, 1 resolved</p>
               </Card>
 
@@ -155,7 +155,7 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
 
               <Card className="p-4">
                 <p className="text-sm text-muted-foreground mb-1">Install Progress</p>
-                <p className="text-2xl font-bold text-foreground">75%</p>
+                <p className="text-lg font-semibold text-foreground">75%</p>
                 <p className="text-xs text-muted-foreground mt-1">3 of 4 steps complete</p>
               </Card>
             </div>

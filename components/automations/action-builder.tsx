@@ -96,7 +96,7 @@ export function ActionBuilder({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">Actions ({actions.length})</Label>
+        <Label className="text-[11px] font-medium">Actions ({actions.length})</Label>
         <Button
           variant="ghost"
           size="sm"
@@ -127,7 +127,7 @@ export function ActionBuilder({
       {(showTypeSelector || actions.length === 0) && (
         <Card className="border-2 border-dashed border-muted-foreground/30">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Add Action</CardTitle>
+            <CardTitle className="text-[11px]">Add Action</CardTitle>
             <CardDescription className="text-xs">
               Choose what should happen when this automation runs
             </CardDescription>
@@ -234,7 +234,7 @@ function ActionConfigCard({
               <Badge variant="outline" className="text-xs border-emerald-500/50 text-emerald-400">
                 {index + 1}
               </Badge>
-              <span className="text-sm font-medium">{meta.name}</span>
+              <span className="text-[11px] font-medium">{meta.name}</span>
             </div>
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onRemove}>
               <X className="h-3 w-3" />

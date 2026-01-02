@@ -101,7 +101,7 @@ function getBlockerColor(blocker: string | null | undefined) {
   }
 }
 
-// Draggable Client Card Component
+// Draggable Client Card Component - Linear minimal style
 interface DraggableClientCardProps {
   client: Client
   onClick: () => void
@@ -122,13 +122,48 @@ function DraggableClientCard({ client, onClick, isDragOverlay = false }: Draggab
       }
     : undefined
 
-  // If this is the overlay version, don't use drag attributes
+  // Linear-style minimal card
+  const cardContent = (
+    <>
+      {/* Line 1: ID left, Avatar right */}
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[10px] text-muted-foreground/70 font-mono">{client.logo}</span>
+        {owner && (
+          <Avatar className="h-4 w-4">
+            <AvatarFallback className={cn(owner.color, "text-[8px] text-white")}>{owner.avatar}</AvatarFallback>
+          </Avatar>
+        )}
+      </div>
+      {/* Line 2: Title only */}
+      <Link
+        href={`/client/${client.id}`}
+        onClick={(e) => e.stopPropagation()}
+        className="text-[12px] text-foreground hover:text-primary transition-colors line-clamp-2 leading-tight"
+      >
+        {client.name}
+      </Link>
+      {/* Line 3: Minimal metadata */}
+      <div className="flex items-center gap-2 mt-1.5">
+        {client.blocker && (
+          <Badge
+            variant="outline"
+            className={cn("text-[8px] px-1 py-0 font-normal", getBlockerColor(client.blocker))}
+          >
+            {client.blocker}
+          </Badge>
+        )}
+        {!client.blocker && client.daysInStage > 4 && (
+          <span className="text-[9px] text-rose-500">{client.daysInStage}d</span>
+        )}
+        <div className={cn("w-1.5 h-1.5 rounded-full ml-auto", getHealthDotColor(client.health))} />
+      </div>
+    </>
+  )
+
   if (isDragOverlay) {
     return (
-      <div
-        className="bg-card border border-border rounded-md p-2.5 cursor-grabbing shadow-lg ring-1 ring-primary/30 scale-[1.02]"
-      >
-        <ClientCardContent client={client} owner={owner} />
+      <div className="bg-card border border-primary/30 rounded p-2 cursor-grabbing shadow-md">
+        {cardContent}
       </div>
     )
   }
@@ -138,101 +173,22 @@ function DraggableClientCard({ client, onClick, isDragOverlay = false }: Draggab
       ref={setNodeRef}
       style={style}
       className={cn(
-        "bg-card border border-border rounded-md p-2.5 cursor-grab transition-all hover:shadow-sm hover:border-border/80",
+        "bg-card border border-border/60 rounded p-2 cursor-grab transition-all hover:border-border",
         "touch-none",
         isDragging && "opacity-30"
       )}
       onClick={(e) => {
-        // Only trigger click if not dragging
         if (!isDragging) onClick()
       }}
+      {...attributes}
+      {...listeners}
     >
-      <div className="flex items-start gap-1.5 mb-2" {...attributes} {...listeners}>
-        <GripVertical className="h-3.5 w-3.5 text-muted-foreground/50 cursor-grab mt-0.5 shrink-0" />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <Link
-              href={`/client/${client.id}`}
-              onClick={(e) => e.stopPropagation()}
-              className="w-5 h-5 rounded bg-muted flex items-center justify-center shrink-0 hover:bg-muted/80 transition-all"
-            >
-              <span className="text-[9px] font-semibold text-muted-foreground">{client.logo}</span>
-            </Link>
-            <Link
-              href={`/client/${client.id}`}
-              onClick={(e) => e.stopPropagation()}
-              className="font-medium text-[12px] text-foreground truncate hover:text-primary transition-colors"
-            >
-              {client.name}
-            </Link>
-          </div>
-          <Badge variant="outline" className={cn("text-[9px] px-1 py-0 font-normal", getTierBadgeStyle(client.tier))}>
-            {client.tier}
-          </Badge>
-        </div>
-      </div>
-
-      <ClientCardContent client={client} owner={owner} />
+      {cardContent}
     </div>
   )
 }
 
-// Shared card content (used by both draggable and overlay)
-function ClientCardContent({
-  client,
-  owner,
-}: {
-  client: Client
-  owner: { name: string; avatar: string; color: string } | undefined
-}) {
-  return (
-    <>
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-1.5">
-          <Avatar className={cn("h-4 w-4", owner?.color)}>
-            <AvatarFallback className={cn(owner?.color, "text-[9px] text-white")}>{owner?.avatar}</AvatarFallback>
-          </Avatar>
-          <span className="text-[10px] text-muted-foreground">{client.owner}</span>
-        </div>
-        <div className={cn("tabular-nums", getDaysColor(client.daysInStage))}>
-          {client.daysInStage}d
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1 flex-1 min-w-0">
-          {client.blocker && (
-            <Badge
-              variant="outline"
-              className={cn("text-[8px] px-1 py-0 shrink-0 font-normal", getBlockerColor(client.blocker))}
-            >
-              <AlertTriangle className="h-2 w-2 mr-0.5" />
-              {client.blocker}
-            </Badge>
-          )}
-          {client.health !== "Blocked" && client.statusNote && (
-            <span className="text-[9px] text-muted-foreground truncate max-w-[80px]">{client.statusNote}</span>
-          )}
-        </div>
-        <div className="flex items-center gap-1">
-          <div className={cn("w-1.5 h-1.5 rounded-full", getHealthDotColor(client.health))} title={client.health} />
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-4 w-4 p-0 text-muted-foreground hover:text-foreground"
-            onClick={(e) => {
-              e.stopPropagation()
-            }}
-          >
-            <MessageSquare className="h-2.5 w-2.5" />
-          </Button>
-        </div>
-      </div>
-    </>
-  )
-}
-
-// Droppable Column Component
+// Droppable Column Component - Linear style (no Card wrapper)
 interface DroppableColumnProps {
   stage: Stage
   clients: Client[]
@@ -252,43 +208,36 @@ function DroppableColumn({ stage, clients, onClientClick }: DroppableColumnProps
   const hasMore = clients.length > CARDS_PER_PAGE
 
   return (
-    <div className="w-full md:flex-shrink-0 md:w-60">
-      <Card className={cn(
-        "bg-muted/30 border-border/50 rounded-lg transition-colors duration-200",
-        isOver && "border-primary/30 bg-primary/5 ring-1 ring-primary/20"
-      )}>
-        <CardHeader className="py-2 px-2.5">
-          <CardTitle className="text-[12px] font-medium flex items-center justify-between">
-            <span className="text-muted-foreground">{stage}</span>
-            <span className="text-[10px] text-muted-foreground/70 tabular-nums bg-muted px-1.5 py-0.5 rounded">{clients.length}</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent ref={setNodeRef} className="p-1.5 space-y-1.5 min-h-[400px]">
-          {visibleClients.map((client) => (
-            <DraggableClientCard
-              key={client.id}
-              client={client}
-              onClick={() => onClientClick(client)}
-            />
-          ))}
+    <div className={cn(
+      "w-full md:flex-shrink-0 md:w-56 transition-colors duration-200",
+      isOver && "bg-primary/5"
+    )}>
+      {/* Linear-style column header - no Card, just inline */}
+      <div className="flex items-center gap-2 py-1.5 px-1 mb-2">
+        <span className="text-[11px] font-medium text-muted-foreground">{stage}</span>
+        <span className="text-[10px] text-muted-foreground/60 tabular-nums">{clients.length}</span>
+      </div>
 
-          {/* Show more/less button */}
-          {hasMore && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full text-muted-foreground hover:text-foreground"
-              onClick={() => setShowAll(!showAll)}
-            >
-              {showAll ? (
-                <>Show less</>
-              ) : (
-                <>+{hiddenCount} more</>
-              )}
-            </Button>
-          )}
-        </CardContent>
-      </Card>
+      {/* Cards container */}
+      <div ref={setNodeRef} className="space-y-1.5 min-h-[400px]">
+        {visibleClients.map((client) => (
+          <DraggableClientCard
+            key={client.id}
+            client={client}
+            onClick={() => onClientClick(client)}
+          />
+        ))}
+
+        {/* Show more/less */}
+        {hasMore && (
+          <button
+            className="w-full py-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => setShowAll(!showAll)}
+          >
+            {showAll ? "Show less" : `+${hiddenCount} more`}
+          </button>
+        )}
+      </div>
     </div>
   )
 }

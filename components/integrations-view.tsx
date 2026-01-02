@@ -374,121 +374,112 @@ export function IntegrationsView() {
         </div>
       </div>
 
-      {/* Integration Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {displayIntegrations.map((integration) => {
-          const isConnected = integration.is_connected
-          const isTestingThis = isTesting[integration.id] || false
-          const isSyncingThis = isSyncing[integration.id] || false
-          const isAvailable = integration.id.startsWith('available-')
+      {/* Integration List - Linear Style */}
+      <Card className="bg-card border-border shadow-sm">
+        <CardHeader className="pb-2 pt-3 px-3">
+          <CardTitle className="text-[11px] font-medium">Connected Services</CardTitle>
+          <CardDescription className="text-[10px]">Manage your integrations</CardDescription>
+        </CardHeader>
+        <CardContent className="px-0 pb-0">
+          <div className="divide-y divide-border">
+            {displayIntegrations.map((integration) => {
+              const isConnected = integration.is_connected
+              const isTestingThis = isTesting[integration.id] || false
+              const isSyncingThis = isSyncing[integration.id] || false
+              const isAvailable = integration.id.startsWith('available-')
 
-          return (
-            <Card
-              key={integration.id}
-              className={cn(
-                "bg-card border-border transition-all shadow-sm",
-                isConnected && "cursor-pointer hover:border-primary/50 hover:shadow-md hover:shadow-primary/5",
-              )}
-              onClick={() => isConnected && openConfigModal(integration as IntegrationWithMeta)}
-            >
-              <CardContent className="p-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-md bg-secondary">{integration.icon}</div>
-                    <div>
-                      <h4 className="text-[11px] font-medium text-foreground">{integration.name}</h4>
-                      <p className="text-[10px] text-muted-foreground">{integration.description}</p>
+              return (
+                <div
+                  key={integration.id}
+                  className={cn(
+                    "flex items-center justify-between py-2.5 px-3 transition-colors",
+                    isConnected && "cursor-pointer hover:bg-secondary/50",
+                  )}
+                  onClick={() => isConnected && openConfigModal(integration as IntegrationWithMeta)}
+                >
+                  {/* Left: Icon + Content */}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-md bg-secondary flex items-center justify-center">
+                      {integration.icon}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-medium text-foreground">{integration.name}</span>
+                        {integration.supportsMcpFallback && !isConnected && (
+                          <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
+                            <Zap className="h-2 w-2" />
+                            MCP
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground truncate">
+                        {isConnected
+                          ? `Last sync: ${formatRelativeTime(integration.last_sync_at)}`
+                          : integration.description}
+                      </p>
                     </div>
                   </div>
-                </div>
 
-                {/* MCP Fallback Badge */}
-                {integration.supportsMcpFallback && !isConnected && (
-                  <div className="mt-2 flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                    <Zap className="h-2.5 w-2.5" />
-                    <span>MCP available: {integration.mcpFallbackNote}</span>
-                  </div>
-                )}
+                  {/* Right: Status + Actions */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {/* Status indicator */}
+                    <div className="flex items-center gap-1.5">
+                      {isConnected ? (
+                        <>
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          <span className="text-[10px] text-muted-foreground hidden sm:inline">Connected</span>
+                        </>
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground hidden sm:inline">Not connected</span>
+                      )}
+                    </div>
 
-                <div className="mt-3 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
+                    {/* Actions */}
                     {isConnected ? (
-                      <>
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                        <span className="text-[10px] text-emerald-500">Connected</span>
-                      </>
+                      <div className="flex items-center gap-0.5">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          disabled={isSyncingThis}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleSync(integration.id)
+                          }}
+                        >
+                          <RefreshCw className={cn("h-3 w-3", isSyncingThis && "animate-spin")} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openConfigModal(integration as IntegrationWithMeta)
+                          }}
+                        >
+                          <Settings className="h-3 w-3" />
+                        </Button>
+                      </div>
                     ) : (
-                      <>
-                        <XCircle className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className="text-[10px] text-muted-foreground">Not connected</span>
-                      </>
+                      <Button
+                        size="sm"
+                        className="h-6 text-[9px] px-2"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleConnect(integration.provider as IntegrationProvider)
+                        }}
+                      >
+                        Connect
+                      </Button>
                     )}
                   </div>
-
-                  {isAvailable ? (
-                    <Button
-                      size="sm"
-                      className="h-7 text-[10px]"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleConnect(integration.provider as IntegrationProvider)
-                      }}
-                    >
-                      Connect
-                    </Button>
-                  ) : (
-                    <Switch
-                      checked={isConnected}
-                      onCheckedChange={() => {
-                        if (isConnected) {
-                          handleDisconnect(integration.id)
-                        } else {
-                          handleConnect(integration.provider as IntegrationProvider)
-                        }
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                      className="scale-90"
-                    />
-                  )}
                 </div>
-
-                {isConnected && (
-                  <div className="mt-2 pt-2 border-t border-border flex items-center justify-between">
-                    <span className="text-[10px] text-muted-foreground">
-                      Last sync: {formatRelativeTime(integration.last_sync_at)}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        disabled={isSyncingThis}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleSync(integration.id)
-                        }}
-                      >
-                        <RefreshCw className={cn("h-3 w-3", isSyncingThis && "animate-spin")} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          openConfigModal(integration as IntegrationWithMeta)
-                        }}
-                      >
-                        <Settings className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Config Modal */}
       <Dialog open={configModal.isOpen} onOpenChange={(open) => setConfigModal((prev) => ({ ...prev, isOpen: open }))}>

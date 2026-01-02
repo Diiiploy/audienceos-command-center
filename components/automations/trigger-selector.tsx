@@ -92,7 +92,7 @@ export function TriggerSelector({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">
+        <Label className="text-[11px] font-medium">
           Triggers {triggers.length > 0 && `(${triggers.length}/${maxTriggers})`}
         </Label>
         {triggers.length > 0 && triggers.length < maxTriggers && (
@@ -124,7 +124,7 @@ export function TriggerSelector({
       {(showTypeSelector || triggers.length === 0) && triggers.length < maxTriggers && (
         <Card className="border-2 border-dashed border-muted-foreground/30">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Select Trigger Type</CardTitle>
+            <CardTitle className="text-[11px]">Select Trigger Type</CardTitle>
             <CardDescription className="text-xs">
               Choose what event will start this automation
             </CardDescription>
@@ -185,7 +185,7 @@ function TriggerConfigCard({
             <Badge variant="outline" className="text-xs border-blue-500/50 text-blue-400">
               TRIGGER
             </Badge>
-            <span className="text-sm font-medium">{meta.name}</span>
+            <span className="text-[11px] font-medium">{meta.name}</span>
           </div>
           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onRemove}>
             <X className="h-3 w-3" />
