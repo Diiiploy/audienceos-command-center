@@ -17,6 +17,8 @@ import { Plus } from "lucide-react"
 import { Toaster } from "@/components/ui/toaster"
 import { IntelligenceCenter } from "@/components/views/intelligence-center"
 import { OnboardingHub } from "@/components/views/onboarding-hub"
+import { SupportTickets } from "@/components/views/support-tickets"
+import { IntegrationsHub } from "@/components/views/integrations-hub"
 
 function CommandCenterContent() {
   const [activeView, setActiveView] = useState<LinearView>("pipeline")
@@ -149,12 +151,10 @@ function CommandCenterContent() {
         )
 
       case "tickets":
-        return (
-          <div className="p-6">
-            <h1 className="text-lg font-semibold mb-4">Support Tickets</h1>
-            <p className="text-muted-foreground">Tickets view - wire up existing component...</p>
-          </div>
-        )
+        return <SupportTickets />
+
+      case "integrations":
+        return <IntegrationsHub />
 
       case "settings":
         return (

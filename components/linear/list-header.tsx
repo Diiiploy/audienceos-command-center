@@ -11,6 +11,7 @@ interface ListHeaderProps {
   count?: number
   onSearch?: (query: string) => void
   searchValue?: string
+  searchPlaceholder?: string
   viewMode?: "list" | "board"
   onViewModeChange?: (mode: "list" | "board") => void
   actions?: React.ReactNode
@@ -21,6 +22,7 @@ export function ListHeader({
   count,
   onSearch,
   searchValue = "",
+  searchPlaceholder = "Search...",
   viewMode = "list",
   onViewModeChange,
   actions,
@@ -40,7 +42,7 @@ export function ListHeader({
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search..."
+              placeholder={searchPlaceholder}
               value={searchValue}
               onChange={(e) => onSearch(e.target.value)}
               className="pl-8 h-8 w-48 bg-secondary border-border text-sm"
