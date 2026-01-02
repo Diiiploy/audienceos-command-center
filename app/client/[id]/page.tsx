@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, use } from "react"
+import { useState, use, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -23,29 +23,85 @@ import {
   Check,
   Share2,
 } from "lucide-react"
-import { mockClients, owners } from "@/lib/mock-data"
+import { owners } from "@/lib/mock-data"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
+import { usePipelineStore } from "@/stores/pipeline-store"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function ClientPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const resolvedParams = use(params)
   const clientId = resolvedParams.id
 
-  const client = mockClients.find((c) => c.id === clientId)
+  // Auth and pipeline store
+  const { isAuthenticated } = useAuth()
+  const { clients, isLoading, fetchClients } = usePipelineStore()
+
+  // Fetch clients if not already loaded
+  useEffect(() => {
+    if (isAuthenticated && clients.length === 0) {
+      fetchClients()
+    }
+  }, [isAuthenticated, clients.length, fetchClients])
+
+  // Find client from store (transforms to UI format)
+  const storeClient = clients.find((c) => c.id === clientId)
+
+  // Types for UI client fields not yet in API
+  type Task = { id: string; name: string; completed: boolean; stage: string; assignee: string; dueDate?: string }
+  type Comm = { id: string; sender: string; avatar: string; message: string; timestamp: string; isInternal: boolean; subject?: string }
+
+  // Transform store client to UI client format
+  const client = storeClient ? {
+    id: storeClient.id,
+    name: storeClient.name,
+    logo: storeClient.name.substring(0, 2).toUpperCase(),
+    stage: storeClient.stage,
+    health: storeClient.health_status,
+    owner: storeClient.owner || 'Unassigned',
+    daysInStage: storeClient.days_in_stage,
+    tier: "Core" as const,
+    tasks: [] as Task[],
+    comms: [] as Comm[],
+    // Extended fields from store
+    contact_email: storeClient.contact_email,
+    contact_name: storeClient.contact_name,
+    notes: storeClient.notes,
+    tags: storeClient.tags,
+    // Placeholder fields - will be fetched from dedicated APIs later
+    metaAds: null as { spend: number; roas: number; cpa: number; trend: 'up' | 'down' | 'flat' } | null,
+    googleAds: null as { impressions: number; clicks: number; conversions: number; trend: 'up' | 'down' | 'flat' } | null,
+    performanceData: [] as { date: string; adSpend: number; roas: number }[],
+    onboardingData: null as { shopifyUrl: string; gtmContainerId: string; metaPixelId: string; klaviyoApiKey: string } | null,
+  } : null
+
   const [message, setMessage] = useState("")
   const [accessStatus, setAccessStatus] = useState({
-    meta: client?.onboardingData?.metaAccessVerified || false,
-    gtm: client?.onboardingData?.gtmAccessVerified || false,
-    shopify: client?.onboardingData?.shopifyAccessVerified || false,
+    meta: false,
+    gtm: false,
+    shopify: false,
   })
 
+  // Show loading state while fetching
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Loading client...</div>
+      </div>
+    )
+  }
+
+  // Show not found after loading completes
   if (!client) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="p-8 text-center">
           <h1 className="text-lg font-semibold text-foreground mb-4">Client Not Found</h1>
+          <p className="text-sm text-muted-foreground mb-4">
+            {!isAuthenticated ? "Please sign in to view client details." : "This client doesn't exist or you don't have access."}
+          </p>
           <Button onClick={() => router.push("/")}>Return to Dashboard</Button>
         </Card>
       </div>
@@ -214,27 +270,34 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
             {/* Full communications tab content from client-detail-sheet */}
             <Card className="p-6">
               <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
-                {client.comms.map((comm) => (
-                  <div
-                    key={comm.id}
-                    className={cn(
-                      "p-4 rounded-lg border",
-                      comm.isInternal ? "bg-secondary/50 border-border" : "bg-blue-500/10 border-blue-500/30",
-                    )}
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <Avatar className="h-6 w-6 bg-secondary">
-                        <AvatarFallback className="bg-secondary text-secondary-foreground text-xs">
-                          {comm.avatar}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm font-medium text-foreground">{comm.sender}</span>
-                      <span className="text-xs text-muted-foreground ml-auto">{comm.timestamp}</span>
-                    </div>
-                    {comm.subject && <p className="text-xs text-muted-foreground mb-1 pl-6">Subject: {comm.subject}</p>}
-                    <p className="text-sm text-muted-foreground pl-6">{comm.message}</p>
+                {client.comms.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p className="text-sm">No communications yet.</p>
+                    <p className="text-xs mt-1">Connect Slack or Gmail to sync messages.</p>
                   </div>
-                ))}
+                ) : (
+                  client.comms.map((comm) => (
+                    <div
+                      key={comm.id}
+                      className={cn(
+                        "p-4 rounded-lg border",
+                        comm.isInternal ? "bg-secondary/50 border-border" : "bg-blue-500/10 border-blue-500/30",
+                      )}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <Avatar className="h-6 w-6 bg-secondary">
+                          <AvatarFallback className="bg-secondary text-secondary-foreground text-xs">
+                            {comm.avatar}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm font-medium text-foreground">{comm.sender}</span>
+                        <span className="text-xs text-muted-foreground ml-auto">{comm.timestamp}</span>
+                      </div>
+                      {comm.subject && <p className="text-xs text-muted-foreground mb-1 pl-6">Subject: {comm.subject}</p>}
+                      <p className="text-sm text-muted-foreground pl-6">{comm.message}</p>
+                    </div>
+                  ))
+                )}
               </div>
 
               <div className="space-y-3 pt-4 border-t border-border mt-4">
@@ -260,181 +323,199 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
           <TabsContent value="tasks" className="space-y-4">
             {/* Full tasks content */}
             <Card className="p-6">
-              {Array.from(new Set(client.tasks.map((t) => t.stage))).map((stage) => (
-                <div key={stage} className="mb-6">
-                  <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">{stage}</h4>
-                  <div className="space-y-2">
-                    {client.tasks
-                      .filter((t) => t.stage === stage)
-                      .map((task) => (
-                        <div
-                          key={task.id}
-                          className="flex items-center justify-between gap-3 p-4 rounded-lg bg-secondary/30 border border-border"
-                        >
-                          <div className="flex items-center gap-3 flex-1">
-                            {task.completed ? (
-                              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                            ) : (
-                              <Circle className="h-5 w-5 text-muted-foreground" />
-                            )}
-                            <span
-                              className={cn(
-                                "text-sm",
-                                task.completed ? "text-muted-foreground line-through" : "text-foreground",
-                              )}
-                            >
-                              {task.name}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Select defaultValue={task.assignee}>
-                              <SelectTrigger className="w-[120px] h-9">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {owners.map((o) => (
-                                  <SelectItem key={o.name} value={o.name}>
-                                    {o.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            {task.dueDate && <span className="text-xs text-muted-foreground">{task.dueDate}</span>}
-                          </div>
-                        </div>
-                      ))}
-                  </div>
+              {client.tasks.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p className="text-sm">No tasks yet.</p>
+                  <p className="text-xs mt-1">Tasks will appear as client progresses through stages.</p>
                 </div>
-              ))}
+              ) : (
+                Array.from(new Set(client.tasks.map((t) => t.stage))).map((stage) => (
+                  <div key={stage} className="mb-6">
+                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">{stage}</h4>
+                    <div className="space-y-2">
+                      {client.tasks
+                        .filter((t) => t.stage === stage)
+                        .map((task) => (
+                          <div
+                            key={task.id}
+                            className="flex items-center justify-between gap-3 p-4 rounded-lg bg-secondary/30 border border-border"
+                          >
+                            <div className="flex items-center gap-3 flex-1">
+                              {task.completed ? (
+                                <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                              ) : (
+                                <Circle className="h-5 w-5 text-muted-foreground" />
+                              )}
+                              <span
+                                className={cn(
+                                  "text-sm",
+                                  task.completed ? "text-muted-foreground line-through" : "text-foreground",
+                                )}
+                              >
+                                {task.name}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Select defaultValue={task.assignee}>
+                                <SelectTrigger className="w-[120px] h-9">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {owners.map((o) => (
+                                    <SelectItem key={o.name} value={o.name}>
+                                      {o.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              {task.dueDate && <span className="text-xs text-muted-foreground">{task.dueDate}</span>}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                ))
+              )}
             </Card>
           </TabsContent>
 
           <TabsContent value="performance" className="space-y-4">
             {/* Performance charts and metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {client.metaAds && (
-                <Card className="p-6 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-medium text-foreground">Meta Ads</h4>
-                    {client.metaAds.trend === "up" ? (
-                      <TrendingUp className="h-4 w-4 text-emerald-500" />
-                    ) : client.metaAds.trend === "down" ? (
-                      <TrendingDown className="h-4 w-4 text-rose-500" />
-                    ) : (
-                      <Minus className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Spend</p>
-                      <p className="text-lg font-semibold text-foreground">${client.metaAds.spend.toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">ROAS</p>
-                      <p
-                        className={cn(
-                          "text-lg font-semibold",
-                          client.metaAds.roas >= 2 ? "text-emerald-400" : "text-rose-400",
+            {!client.metaAds && !client.googleAds && client.performanceData.length === 0 ? (
+              <Card className="p-8 text-center">
+                <p className="text-sm text-muted-foreground">No performance data yet.</p>
+                <p className="text-xs text-muted-foreground mt-1">Connect Google Ads or Meta to sync performance metrics.</p>
+              </Card>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {client.metaAds && (
+                    <Card className="p-6 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-medium text-foreground">Meta Ads</h4>
+                        {client.metaAds.trend === "up" ? (
+                          <TrendingUp className="h-4 w-4 text-emerald-500" />
+                        ) : client.metaAds.trend === "down" ? (
+                          <TrendingDown className="h-4 w-4 text-rose-500" />
+                        ) : (
+                          <Minus className="h-4 w-4 text-muted-foreground" />
                         )}
-                      >
-                        {client.metaAds.roas}x
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">CPA</p>
-                      <p className="text-lg font-semibold text-foreground">${client.metaAds.cpa}</p>
-                    </div>
-                  </div>
-                </Card>
-              )}
+                      </div>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Spend</p>
+                          <p className="text-lg font-semibold text-foreground">${client.metaAds.spend.toLocaleString()}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">ROAS</p>
+                          <p
+                            className={cn(
+                              "text-lg font-semibold",
+                              client.metaAds.roas >= 2 ? "text-emerald-400" : "text-rose-400",
+                            )}
+                          >
+                            {client.metaAds.roas}x
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">CPA</p>
+                          <p className="text-lg font-semibold text-foreground">${client.metaAds.cpa}</p>
+                        </div>
+                      </div>
+                    </Card>
+                  )}
 
-              {client.googleAds && (
-                <Card className="p-6 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-medium text-foreground">Google Ads</h4>
-                    {client.googleAds.trend === "up" ? (
-                      <TrendingUp className="h-4 w-4 text-emerald-500" />
-                    ) : client.googleAds.trend === "down" ? (
-                      <TrendingDown className="h-4 w-4 text-rose-500" />
-                    ) : (
-                      <Minus className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Impressions</p>
-                      <p className="text-lg font-semibold text-foreground">
-                        {(client.googleAds.impressions / 1000).toFixed(0)}k
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Clicks</p>
-                      <p className="text-lg font-semibold text-foreground">
-                        {(client.googleAds.clicks / 1000).toFixed(1)}k
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Conversions</p>
-                      <p className="text-lg font-semibold text-foreground">{client.googleAds.conversions}</p>
-                    </div>
-                  </div>
-                </Card>
-              )}
-            </div>
+                  {client.googleAds && (
+                    <Card className="p-6 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-medium text-foreground">Google Ads</h4>
+                        {client.googleAds.trend === "up" ? (
+                          <TrendingUp className="h-4 w-4 text-emerald-500" />
+                        ) : client.googleAds.trend === "down" ? (
+                          <TrendingDown className="h-4 w-4 text-rose-500" />
+                        ) : (
+                          <Minus className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Impressions</p>
+                          <p className="text-lg font-semibold text-foreground">
+                            {(client.googleAds.impressions / 1000).toFixed(0)}k
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Clicks</p>
+                          <p className="text-lg font-semibold text-foreground">
+                            {(client.googleAds.clicks / 1000).toFixed(1)}k
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Conversions</p>
+                          <p className="text-lg font-semibold text-foreground">{client.googleAds.conversions}</p>
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+                </div>
 
-            <Card className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-sm font-medium text-foreground">Performance Over Time</h4>
-                <Button variant="outline" size="sm">
-                  <RefreshCw className="h-3.5 w-3.5 mr-2" />
-                  Sync Now
-                </Button>
-              </div>
-              <div className="h-80 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={client.performanceData}>
-                    <defs>
-                      <linearGradient id="adSpendGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="roasGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                    <XAxis dataKey="date" tick={{ fill: "#71717a", fontSize: 10 }} />
-                    <YAxis yAxisId="left" tick={{ fill: "#71717a", fontSize: 10 }} />
-                    <YAxis yAxisId="right" orientation="right" tick={{ fill: "#71717a", fontSize: 10 }} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#18181b",
-                        border: "1px solid #27272a",
-                        borderRadius: "8px",
-                      }}
-                    />
-                    <Legend />
-                    <Area
-                      yAxisId="left"
-                      type="monotone"
-                      dataKey="adSpend"
-                      stroke="#10b981"
-                      fill="url(#adSpendGradient)"
-                      name="Ad Spend"
-                    />
-                    <Area
-                      yAxisId="right"
-                      type="monotone"
-                      dataKey="roas"
-                      stroke="#3b82f6"
-                      fill="url(#roasGradient)"
-                      name="ROAS"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
+                {client.performanceData.length > 0 && (
+                  <Card className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-sm font-medium text-foreground">Performance Over Time</h4>
+                      <Button variant="outline" size="sm">
+                        <RefreshCw className="h-3.5 w-3.5 mr-2" />
+                        Sync Now
+                      </Button>
+                    </div>
+                    <div className="h-80 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={client.performanceData}>
+                          <defs>
+                            <linearGradient id="adSpendGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                              <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                            </linearGradient>
+                            <linearGradient id="roasGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
+                              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                          <XAxis dataKey="date" tick={{ fill: "#71717a", fontSize: 10 }} />
+                          <YAxis yAxisId="left" tick={{ fill: "#71717a", fontSize: 10 }} />
+                          <YAxis yAxisId="right" orientation="right" tick={{ fill: "#71717a", fontSize: 10 }} />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "#18181b",
+                              border: "1px solid #27272a",
+                              borderRadius: "8px",
+                            }}
+                          />
+                          <Legend />
+                          <Area
+                            yAxisId="left"
+                            type="monotone"
+                            dataKey="adSpend"
+                            stroke="#10b981"
+                            fill="url(#adSpendGradient)"
+                            name="Ad Spend"
+                          />
+                          <Area
+                            yAxisId="right"
+                            type="monotone"
+                            dataKey="roas"
+                            stroke="#3b82f6"
+                            fill="url(#roasGradient)"
+                            name="ROAS"
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </Card>
+                )}
+              </>
+            )}
           </TabsContent>
 
           <TabsContent value="media" className="space-y-4">

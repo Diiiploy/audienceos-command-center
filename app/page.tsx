@@ -18,7 +18,7 @@ import { OnboardingHubView } from "@/components/onboarding-hub-view"
 import { QuickCreateDialogs } from "@/components/quick-create-dialogs"
 import { Toaster } from "@/components/ui/toaster"
 import { useToast } from "@/hooks/use-toast"
-import { mockClients, type Client, type Stage, type HealthStatus, type Owner } from "@/lib/mock-data"
+import { type Client, type Stage, type HealthStatus, type Owner } from "@/lib/mock-data"
 import { useAuth } from "@/hooks/use-auth"
 import { usePipelineStore } from "@/stores/pipeline-store"
 import { FilterChips, type PipelineFilters, defaultFilters, countActiveFilters } from "@/components/filter-chips"
@@ -53,17 +53,22 @@ function CommandCenterContent() {
   }, [isAuthenticated, fetchClients])
 
   // Transform pipeline clients to Client type using useMemo (TD-001, TD-002 fix)
-  // Use mockClients as fallback when no API data available
+  // Returns empty array when no data - NO mock fallback (fixed: Issue 1)
   const baseClients = useMemo(() => {
-    if (pipelineClients.length === 0) return mockClients
+    if (pipelineClients.length === 0) return []
     return pipelineClients.map((pc) => ({
-      ...mockClients[0],
       id: pc.id,
       name: pc.name,
+      logo: "",
       stage: pc.stage as Stage,
       health: pc.health_status as HealthStatus,
       owner: (pc.owner || 'Luke') as Owner,
       daysInStage: pc.days_in_stage,
+      supportTickets: 0,
+      installTime: 0,
+      tasks: [],
+      comms: [],
+      tier: "Core" as const,
     })) as Client[]
   }, [pipelineClients])
 
@@ -330,7 +335,7 @@ function CommandCenterContent() {
       case "settings":
         return <SettingsView />
       default:
-        return <DashboardView clients={mockClients} onClientClick={handleClientClick} />
+        return <DashboardView clients={clients} onClientClick={handleClientClick} />
     }
   }
 
