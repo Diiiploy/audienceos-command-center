@@ -14,9 +14,15 @@ const PUBLIC_ROUTES = [
   '/api/v1/oauth/callback', // OAuth callback needs to work without auth
 ]
 
+// Page routes that allow demo mode (show demo data without auth)
+const DEMO_ALLOWED_PAGE_ROUTES = [
+  '/client', // Client detail pages work with demo data
+]
+
 // API routes that allow demo mode (return mock data instead of 401)
 const DEMO_ALLOWED_API_ROUTES = [
   '/api/v1/workflows', // GET returns demo data for unauthenticated users
+  '/api/v1/clients',   // GET returns demo data for unauthenticated users
 ]
 
 // Static files and Next.js internals to skip
@@ -94,7 +100,11 @@ export async function middleware(request: NextRequest) {
   }
 
   // For page routes - redirect to login if not authenticated
+  // (except demo-allowed pages which handle auth internally)
   if (error || !user) {
+    if (DEMO_ALLOWED_PAGE_ROUTES.some(route => pathname.startsWith(route))) {
+      return response // Allow demo pages to handle their own auth
+    }
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('redirect', pathname)
     return NextResponse.redirect(loginUrl)
