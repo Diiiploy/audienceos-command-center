@@ -181,7 +181,7 @@ function ClientsByStageWidget({ clients }: { clients: Client[] }) {
             <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
               <div
                 className={cn("h-full rounded-full", stage.color)}
-                style={{ width: `${(stage.count / total) * 100}%` }}
+                style={{ width: `${total > 0 ? (stage.count / total) * 100 : 0}%` }}
               />
             </div>
             <span className="text-sm text-foreground w-8 text-right">{stage.count}</span>
@@ -218,7 +218,7 @@ function TasksByAssigneeWidget({ clients }: { clients: Client[] }) {
                 <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                   <div
                     className={cn("h-full rounded-full", ownerData?.color || "bg-gray-500")}
-                    style={{ width: `${(count / totalTasks) * 100}%` }}
+                    style={{ width: `${totalTasks > 0 ? (count / totalTasks) * 100 : 0}%` }}
                   />
                 </div>
                 <span className="text-xs text-foreground w-6 text-right">{count}</span>
