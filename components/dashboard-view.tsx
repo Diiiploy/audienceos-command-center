@@ -949,7 +949,7 @@ export function DashboardView({ clients, onClientClick, onNavigateToChat }: Dash
             </div>
             {/* Drawer */}
             {selectedTask && (
-              <div className="w-80 shrink-0">
+              <div className="w-96 shrink-0">
                 <TaskDetailDrawer item={selectedTask} onClose={() => setSelectedTaskId(null)} />
               </div>
             )}
@@ -998,7 +998,7 @@ export function DashboardView({ clients, onClientClick, onNavigateToChat }: Dash
             </div>
             {/* Drawer */}
             {selectedClient && (
-              <div className="w-80 shrink-0">
+              <div className="w-96 shrink-0">
                 <ClientDetailDrawer client={selectedClient} onClose={() => setSelectedClientId(null)} />
               </div>
             )}
@@ -1038,7 +1038,7 @@ export function DashboardView({ clients, onClientClick, onNavigateToChat }: Dash
             </div>
             {/* Drawer */}
             {selectedAlert && (
-              <div className="w-80 shrink-0">
+              <div className="w-96 shrink-0">
                 <AlertDetailDrawer item={selectedAlert} onClose={() => setSelectedAlertId(null)} />
               </div>
             )}
@@ -1082,7 +1082,7 @@ export function DashboardView({ clients, onClientClick, onNavigateToChat }: Dash
             </div>
             {/* Drawer */}
             {selectedPerf && (
-              <div className="w-80 shrink-0">
+              <div className="w-96 shrink-0">
                 <PerformanceDetailDrawer item={selectedPerf} onClose={() => setSelectedPerfId(null)} />
               </div>
             )}
