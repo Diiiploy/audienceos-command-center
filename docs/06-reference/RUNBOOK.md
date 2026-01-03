@@ -402,6 +402,46 @@ When infinite loops occur, check:
 
 See `~/.claude/troubleshooting/error-patterns.md` EP-057 for full pattern.
 
+### Dev Server Lock File / Port Conflicts (2025-01-02)
+
+When dev server fails to start with "Unable to acquire lock" or port conflicts:
+
+```bash
+# 1. Check what's using ports 3000-3003
+lsof -i :3000 -i :3001 -i :3002 -i :3003 | grep LISTEN
+
+# 2. Kill existing Next.js processes
+pkill -f "next dev"
+
+# 3. Remove stale lock file
+rm -f .next/dev/lock
+
+# 4. Restart cleanly
+npm run dev
+
+# 5. Verify running (should show node listening)
+lsof -i :3000 | head -3
+```
+
+**Root Cause:** Multiple dev sessions or crashed servers leave lock files. Context window resets lose track of background processes.
+
+**Prevention:** Always `pkill -f "next dev"` before starting new session.
+
+### Runtime Environment Verification (Static vs Runtime Check)
+
+**Never trust file existence alone.** Always verify runtime:
+
+```bash
+# WRONG - File exists but may be empty/invalid:
+ls .env.local  # Shows file exists but doesn't prove config loads
+
+# RIGHT - Runtime verification:
+npm run build 2>&1 | head -20  # Proves TypeScript compiles
+curl http://localhost:3000/api/v1/workflows | jq '.demo'  # Proves API responds
+```
+
+See error-patterns.md "File Existence Fallacy" pattern.
+
 ---
 
 ## Related Documents

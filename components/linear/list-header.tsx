@@ -28,6 +28,12 @@ export interface ActiveFilters {
   [key: string]: string | null
 }
 
+export interface SortOption {
+  id: string
+  label: string
+  description?: string
+}
+
 interface ListHeaderProps {
   title: string
   count?: number
@@ -40,6 +46,10 @@ interface ListHeaderProps {
   filters?: FilterConfig[]
   activeFilters?: ActiveFilters
   onFilterChange?: (filterId: string, value: string | null) => void
+  // Sorting
+  sortOptions?: SortOption[]
+  activeSort?: string
+  onSortChange?: (sortId: string) => void
 }
 
 export function ListHeader({
@@ -54,8 +64,12 @@ export function ListHeader({
   filters,
   activeFilters = {},
   onFilterChange,
+  sortOptions,
+  activeSort,
+  onSortChange,
 }: ListHeaderProps) {
   const activeFilterCount = Object.values(activeFilters).filter(Boolean).length
+  const activeSortOption = sortOptions?.find(s => s.id === activeSort)
 
   return (
     <header className="flex flex-col gap-2 p-4 border-b border-border bg-background">
@@ -105,10 +119,41 @@ export function ListHeader({
             </div>
           )}
 
-          {/* Actions */}
-          <Button variant="ghost" size="sm" className="h-8 px-2">
-            <SortAsc className="h-4 w-4" />
-          </Button>
+          {/* Sort dropdown */}
+          {sortOptions && sortOptions.length > 0 && onSortChange && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 gap-1.5 text-xs"
+                  aria-label={`Sort by ${activeSortOption?.label || "priority"}`}
+                >
+                  <SortAsc className="h-4 w-4" />
+                  <span className="hidden sm:inline">{activeSortOption?.label || "Sort"}</span>
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {sortOptions.map((option) => (
+                  <DropdownMenuItem
+                    key={option.id}
+                    onClick={() => onSortChange(option.id)}
+                    className={cn(
+                      "text-sm cursor-pointer flex flex-col items-start gap-0.5",
+                      activeSort === option.id && "bg-primary/10 text-primary"
+                    )}
+                  >
+                    <span>{option.label}</span>
+                    {option.description && (
+                      <span className="text-xs text-muted-foreground">{option.description}</span>
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
           <Button variant="ghost" size="sm" className="h-8 px-2">
             <MoreHorizontal className="h-4 w-4" />
           </Button>

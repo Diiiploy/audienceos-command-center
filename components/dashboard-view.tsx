@@ -2,6 +2,7 @@
 
 import { KPIGrid, TimeSeriesChart, LastUpdated } from "./dashboard"
 import { DataHealthDashboard } from "./data-health-dashboard"
+import { ClickUpDashboard } from "./dashboard/clickup"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -59,6 +60,9 @@ export function DashboardView({ clients, onClientClick }: DashboardViewProps) {
           realtimeConnected={realtimeConnected}
         />
       </div>
+
+      {/* ClickUp-style Dashboard (from Codia export) */}
+      <ClickUpDashboard />
 
       {/* KPI Grid - Uses new enhanced components */}
       <KPIGrid kpis={kpis} isLoading={kpisLoading} />

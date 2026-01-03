@@ -54,8 +54,8 @@ describe('automations-store', () => {
         id: 'wf-1',
         name: 'Test Workflow',
         description: 'Test description',
-        triggers: [{ id: 't1', type: 'client_stage_changed', name: 'Stage Changed', config: {} }],
-        actions: [{ id: 'a1', type: 'send_email', name: 'Send Email', config: {} }],
+        triggers: [{ id: 't1', type: 'stage_change', name: 'Stage Changed', config: { toStage: 'Live' } }],
+        actions: [{ id: 'a1', type: 'send_notification', name: 'Send Notification', config: { channel: 'slack', message: 'Test', recipients: ['user1'] } }],
         is_active: true,
         run_count: 5,
         success_count: 4,
@@ -90,9 +90,9 @@ describe('automations-store', () => {
     it('should add trigger', () => {
       const trigger: WorkflowTrigger = {
         id: 'trigger-1',
-        type: 'client_stage_changed',
+        type: 'stage_change',
         name: 'Stage Changed',
-        config: { from_stage: 'Onboarding', to_stage: 'Live' },
+        config: { fromStage: 'Onboarding', toStage: 'Live' },
       }
 
       const { addTrigger } = useAutomationsStore.getState()
@@ -106,9 +106,9 @@ describe('automations-store', () => {
     it('should remove trigger', () => {
       const trigger: WorkflowTrigger = {
         id: 'trigger-1',
-        type: 'client_stage_changed',
+        type: 'stage_change',
         name: 'Stage Changed',
-        config: {},
+        config: { toStage: 'Live' },
       }
 
       useAutomationsStore.setState({ builderTriggers: [trigger] })
@@ -123,18 +123,18 @@ describe('automations-store', () => {
     it('should update trigger config', () => {
       const trigger: WorkflowTrigger = {
         id: 'trigger-1',
-        type: 'client_stage_changed',
+        type: 'stage_change',
         name: 'Stage Changed',
-        config: { from_stage: 'Onboarding' },
+        config: { toStage: 'Onboarding' },
       }
 
       useAutomationsStore.setState({ builderTriggers: [trigger] })
 
       const { updateTrigger } = useAutomationsStore.getState()
-      updateTrigger('trigger-1', { from_stage: 'Onboarding', to_stage: 'Live' })
+      updateTrigger('trigger-1', { fromStage: 'Onboarding', toStage: 'Live' })
 
       const { builderTriggers } = useAutomationsStore.getState()
-      expect(builderTriggers[0].config).toEqual({ from_stage: 'Onboarding', to_stage: 'Live' })
+      expect(builderTriggers[0].config).toEqual({ fromStage: 'Onboarding', toStage: 'Live' })
     })
   })
 
@@ -142,9 +142,9 @@ describe('automations-store', () => {
     it('should add action', () => {
       const action: WorkflowAction = {
         id: 'action-1',
-        type: 'send_email',
-        name: 'Send Email',
-        config: { template: 'welcome' },
+        type: 'draft_communication',
+        name: 'Draft Email',
+        config: { platform: 'gmail', template: 'welcome' },
         delayMinutes: 0,
         continueOnFailure: false,
       }
@@ -160,9 +160,9 @@ describe('automations-store', () => {
     it('should remove action', () => {
       const action: WorkflowAction = {
         id: 'action-1',
-        type: 'send_email',
-        name: 'Send Email',
-        config: {},
+        type: 'send_notification',
+        name: 'Send Notification',
+        config: { channel: 'slack', message: 'Test', recipients: ['user1'] },
         delayMinutes: 0,
         continueOnFailure: false,
       }
@@ -178,9 +178,9 @@ describe('automations-store', () => {
 
     it('should reorder actions', () => {
       const actions: WorkflowAction[] = [
-        { id: 'a1', type: 'send_email', name: 'Email 1', config: {}, delayMinutes: 0, continueOnFailure: false },
-        { id: 'a2', type: 'send_slack', name: 'Slack', config: {}, delayMinutes: 0, continueOnFailure: false },
-        { id: 'a3', type: 'send_email', name: 'Email 2', config: {}, delayMinutes: 0, continueOnFailure: false },
+        { id: 'a1', type: 'send_notification', name: 'Notification 1', config: { channel: 'email', message: 'Test 1', recipients: ['user1'] }, delayMinutes: 0, continueOnFailure: false },
+        { id: 'a2', type: 'send_notification', name: 'Slack Notification', config: { channel: 'slack', message: 'Test 2', recipients: ['user2'] }, delayMinutes: 0, continueOnFailure: false },
+        { id: 'a3', type: 'send_notification', name: 'Notification 2', config: { channel: 'email', message: 'Test 3', recipients: ['user3'] }, delayMinutes: 0, continueOnFailure: false },
       ]
 
       useAutomationsStore.setState({ builderActions: actions })

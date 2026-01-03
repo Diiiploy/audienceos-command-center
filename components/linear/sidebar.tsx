@@ -12,6 +12,7 @@ import {
   BookOpen,
   Zap,
   Plug,
+  Settings,
   Plus,
   ChevronLeft,
   ChevronRight,
@@ -92,6 +93,7 @@ export function LinearSidebar({
     { id: "knowledge" as const, icon: <BookOpen className="w-5 h-5" />, label: "Knowledge Base" },
     { id: "automations" as const, icon: <Zap className="w-5 h-5" />, label: "Automations" },
     { id: "integrations" as const, icon: <Plug className="w-5 h-5" />, label: "Integrations" },
+    { id: "settings" as const, icon: <Settings className="w-5 h-5" />, label: "Settings" },
   ]
 
   return (
@@ -101,15 +103,31 @@ export function LinearSidebar({
         collapsed ? "w-16" : "w-56"
       )}
     >
-      {/* Header */}
-      <div className="p-3 border-b border-sidebar-border">
-        <div className="flex items-center justify-between">
-          <div className={cn("flex items-center gap-2", collapsed && "justify-center w-full")}>
-            <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center text-sm font-bold text-primary-foreground">
-              A
-            </div>
+      {/* Header - matches Pipeline header height */}
+      <div className="h-[52px] px-[15px] flex items-center justify-center">
+        <div className="flex items-center justify-between w-full">
+          <div className={cn("flex items-center", collapsed && "justify-center w-full")}>
             {!collapsed && (
-              <span className="font-semibold text-sidebar-foreground">AudienceOS</span>
+              <span
+                className="text-[17px] tracking-tight"
+                style={{
+                  fontFamily: 'var(--font-poppins), Poppins, sans-serif',
+                  color: '#1e3a5f'
+                }}
+              >
+                <span className="font-semibold">audience</span><span className="text-[15px] font-light">OS</span>
+              </span>
+            )}
+            {collapsed && (
+              <span
+                className="text-[15px] font-normal"
+                style={{
+                  fontFamily: 'var(--font-poppins), Poppins, sans-serif',
+                  color: '#1e3a5f'
+                }}
+              >
+                aOS
+              </span>
             )}
           </div>
           {!collapsed && (

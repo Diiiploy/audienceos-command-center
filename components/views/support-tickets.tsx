@@ -281,11 +281,11 @@ export function SupportTickets() {
 
   return (
     <div className="flex h-full">
-      {/* Ticket list */}
+      {/* Ticket list - shrinks when detail panel is open */}
       <div
         className={cn(
-          "flex flex-col border-r border-border",
-          selectedTicket ? "w-[400px]" : "flex-1"
+          "flex flex-col border-r border-border transition-all duration-200",
+          selectedTicket ? "w-[280px]" : "flex-1"
         )}
       >
         <ListHeader
@@ -296,25 +296,27 @@ export function SupportTickets() {
           searchPlaceholder="Search tickets..."
         />
 
-        {/* Filter tabs */}
-        <div className="flex items-center gap-1 px-4 py-2 border-b border-border overflow-x-auto">
-          {filterTabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveFilter(tab.id)}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap",
-                activeFilter === tab.id
-                  ? "bg-secondary text-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-              )}
-            >
-              {tab.icon}
-              <span>{tab.label}</span>
-              <span className="text-xs text-muted-foreground">({tab.count})</span>
-            </button>
-          ))}
-        </div>
+        {/* Filter tabs - hide when compact */}
+        {!selectedTicket && (
+          <div className="flex items-center gap-1 px-4 py-2 border-b border-border overflow-x-auto">
+            {filterTabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveFilter(tab.id)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap",
+                  activeFilter === tab.id
+                    ? "bg-secondary text-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                )}
+              >
+                {tab.icon}
+                <span>{tab.label}</span>
+                <span className="text-xs text-muted-foreground">({tab.count})</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Ticket list */}
         <div className="flex-1 overflow-y-auto">
@@ -331,6 +333,7 @@ export function SupportTickets() {
                 timestamp={ticket.updatedAt}
                 unread={ticket.status === "open"}
                 selected={selectedTicket?.id === ticket.id}
+                compact={!!selectedTicket}
                 onClick={() => setSelectedTicket(ticket)}
               />
             ))

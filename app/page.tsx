@@ -13,8 +13,10 @@ import {
   useCommandPalette,
   type FilterConfig,
   type ActiveFilters,
+  type SortOption,
 } from "@/components/linear"
 import { mockClients, type Client, owners, type Stage, type HealthStatus, type Owner, type Tier } from "@/lib/mock-data"
+import { sortClients, type SortMode } from "@/lib/client-priority"
 
 // Filter configurations for Client List
 const clientFiltersConfig: FilterConfig[] = [
@@ -60,6 +62,40 @@ const clientFiltersConfig: FilterConfig[] = [
     ],
   },
 ]
+// Sort options for Client List
+const clientSortOptions: SortOption[] = [
+  {
+    id: "priority",
+    label: "Priority",
+    description: "Actionable items first",
+  },
+  {
+    id: "health",
+    label: "Health",
+    description: "Red → Yellow → Blocked → Green",
+  },
+  {
+    id: "stage",
+    label: "Stage",
+    description: "Onboarding → Live → Off-boarding",
+  },
+  {
+    id: "owner",
+    label: "Owner",
+    description: "Alphabetical by owner",
+  },
+  {
+    id: "days",
+    label: "Days in Stage",
+    description: "Longest waiting first",
+  },
+  {
+    id: "name",
+    label: "Name",
+    description: "Alphabetical A-Z",
+  },
+]
+
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { ToastProvider } from "@/components/linear"
@@ -97,6 +133,9 @@ function CommandCenterContent() {
   })
   const { open: commandPaletteOpen, setOpen: setCommandPaletteOpen } = useCommandPalette()
 
+  // Sort state - default to priority (smart sorting)
+  const [clientSort, setClientSort] = useState<SortMode>("priority")
+
   // Use mock clients for now
   const clients = mockClients
 
@@ -131,7 +170,7 @@ function CommandCenterContent() {
     })
   }, [updateUrlParams])
 
-  // Filter clients based on search (for Pipeline) or search + filters (for Client List)
+  // Filter and sort clients by priority
   const filteredClients = useMemo(() => {
     let result = clients
 
@@ -162,8 +201,17 @@ function CommandCenterContent() {
       }
     }
 
-    return result
-  }, [clients, searchQuery, activeView, clientFilters])
+    // Sort by the selected sort mode
+    return sortClients(result, clientSort)
+  }, [clients, searchQuery, activeView, clientFilters, clientSort])
+
+  // Auto-select first client when list changes and nothing is selected
+  // This ensures the detail panel always has content
+  useEffect(() => {
+    if (filteredClients.length > 0 && !selectedClient) {
+      setSelectedClient(filteredClients[0])
+    }
+  }, [filteredClients, selectedClient])
 
   // Transform client to detail panel format
   const clientForPanel = useMemo(() => {
@@ -212,6 +260,10 @@ function CommandCenterContent() {
               filters={!isPipeline ? clientFiltersConfig : undefined}
               activeFilters={!isPipeline ? clientFilters : undefined}
               onFilterChange={!isPipeline ? handleFilterChange : undefined}
+              // Sort options - show on both Pipeline and Client List
+              sortOptions={clientSortOptions}
+              activeSort={clientSort}
+              onSortChange={(sortId) => setClientSort(sortId as SortMode)}
               actions={
                 <Button size="sm" className="h-8 gap-1.5">
                   <Plus className="h-4 w-4" />

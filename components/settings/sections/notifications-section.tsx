@@ -1,26 +1,35 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { useSettingsStore } from "@/stores/settings-store"
-import {
-  Bell,
-  Mail,
-  MessageSquare,
-  Clock,
-  VolumeX,
-  CheckCircle2,
-  Loader2,
-  AlertTriangle,
-  Ticket,
-  AtSign,
-} from "lucide-react"
+import { CheckCircle2, Loader2 } from "lucide-react"
+
+// Setting row component - matches Linear pattern (same as agency-profile)
+function SettingRow({
+  label,
+  description,
+  children,
+}: {
+  label: string
+  description?: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="flex items-start justify-between py-4 border-b border-gray-100 last:border-0">
+      <div className="flex-1 pr-8">
+        <h4 className="text-sm font-medium text-gray-900">{label}</h4>
+        {description && (
+          <p className="text-sm text-gray-500 mt-0.5">{description}</p>
+        )}
+      </div>
+      <div className="flex-shrink-0">{children}</div>
+    </div>
+  )
+}
 
 export function NotificationsSection() {
   const { toast } = useToast()
@@ -45,8 +54,8 @@ export function NotificationsSection() {
     setIsSaving(false)
     setHasUnsavedChanges(false)
     toast({
-      title: "Notification settings saved",
-      description: "Your preferences have been updated.",
+      title: "Settings saved",
+      description: "Notification preferences have been updated.",
     })
   }
 
@@ -55,264 +64,209 @@ export function NotificationsSection() {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Section Header */}
-      <div>
-        <h2 className="text-[12px] font-medium text-foreground flex items-center gap-1.5">
-          <Bell className="h-3.5 w-3.5" />
-          Notifications
-        </h2>
-        <p className="text-[10px] text-muted-foreground mt-0.5">
-          Configure how and when you receive alerts
-        </p>
-      </div>
+    <div>
+      {/* Page Header - Linear Style */}
+      <header className="mb-8">
+        <h1 className="text-2xl font-semibold text-gray-900 mb-2">Notifications</h1>
+        <p className="text-gray-600">Configure how and when you receive alerts.</p>
+      </header>
 
-      {/* Email Notifications */}
-      <Card className="bg-card border-border shadow-sm">
-        <CardHeader className="pb-2 pt-3 px-3">
-          <CardTitle className="text-[11px] font-medium flex items-center gap-1.5">
-            <Mail className="h-3 w-3" />
-            Email Notifications
-          </CardTitle>
-          <CardDescription className="text-[10px]">
-            Choose which events trigger email notifications
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2 px-3 pb-3">
-          {/* Alert Emails */}
-          <div className="flex items-center justify-between p-2.5 rounded-md bg-secondary/30 border border-border">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-500 mt-0.5" />
-              <div>
-                <p className="text-[11px] font-medium">Risk Alerts</p>
-                <p className="text-[9px] text-muted-foreground">
-                  Get notified when clients are flagged as at-risk
-                </p>
-              </div>
-            </div>
+      {/* Settings Sections */}
+      <div className="space-y-8">
+        {/* Email Notifications */}
+        <section>
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">Email Notifications</h3>
+
+          <SettingRow
+            label="Risk Alerts"
+            description="Get notified when clients are flagged as at-risk."
+          >
             <Switch
               checked={emailAlerts}
               onCheckedChange={(checked) => {
                 setEmailAlerts(checked)
                 handleChange()
               }}
-              className="scale-90"
             />
-          </div>
+          </SettingRow>
 
-          {/* Ticket Emails */}
-          <div className="flex items-center justify-between p-2.5 rounded-md bg-secondary/30 border border-border">
-            <div className="flex items-start gap-2">
-              <Ticket className="h-3.5 w-3.5 text-blue-600 dark:text-blue-500 mt-0.5" />
-              <div>
-                <p className="text-[11px] font-medium">Support Tickets</p>
-                <p className="text-[9px] text-muted-foreground">
-                  Notifications for new and updated tickets
-                </p>
-              </div>
-            </div>
+          <SettingRow
+            label="Support Tickets"
+            description="Notifications for new and updated tickets."
+          >
             <Switch
               checked={emailTickets}
               onCheckedChange={(checked) => {
                 setEmailTickets(checked)
                 handleChange()
               }}
-              className="scale-90"
             />
-          </div>
+          </SettingRow>
 
-          {/* Mention Emails */}
-          <div className="flex items-center justify-between p-2.5 rounded-md bg-secondary/30 border border-border">
-            <div className="flex items-start gap-2">
-              <AtSign className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-500 mt-0.5" />
-              <div>
-                <p className="text-[11px] font-medium">Mentions</p>
-                <p className="text-[9px] text-muted-foreground">
-                  When someone mentions you in a note or comment
-                </p>
-              </div>
-            </div>
+          <SettingRow
+            label="Mentions"
+            description="When someone mentions you in a note or comment."
+          >
             <Switch
               checked={emailMentions}
               onCheckedChange={(checked) => {
                 setEmailMentions(checked)
                 handleChange()
               }}
-              className="scale-90"
             />
-          </div>
-        </CardContent>
-      </Card>
+          </SettingRow>
+        </section>
 
-      {/* Slack Integration */}
-      <Card className="bg-card border-border shadow-sm">
-        <CardHeader className="pb-2 pt-3 px-3">
-          <CardTitle className="text-[11px] font-medium flex items-center gap-1.5">
-            <MessageSquare className="h-3 w-3" />
-            Slack Notifications
-          </CardTitle>
-          <CardDescription className="text-[10px]">Send notifications to a Slack channel</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3 px-3 pb-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-medium">Enable Slack Notifications</p>
-              <p className="text-[9px] text-muted-foreground">
-                Send alerts to your connected Slack workspace
-              </p>
-            </div>
+        {/* Slack Notifications */}
+        <section>
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">Slack Notifications</h3>
+
+          <SettingRow
+            label="Enable Slack"
+            description="Send alerts to your connected Slack workspace."
+          >
             <Switch
               checked={slackEnabled}
               onCheckedChange={(checked) => {
                 setSlackEnabled(checked)
                 handleChange()
               }}
-              className="scale-90"
             />
-          </div>
+          </SettingRow>
 
           {slackEnabled && (
-            <div className="space-y-1">
-              <Label htmlFor="slack-channel" className="text-[10px]">Slack Channel</Label>
+            <SettingRow
+              label="Slack Channel"
+              description="Enter the channel name or ID to receive notifications."
+            >
               <Input
-                id="slack-channel"
                 value={slackChannel}
                 onChange={(e) => {
                   setSlackChannel(e.target.value)
                   handleChange()
                 }}
                 placeholder="#alerts"
-                className="bg-secondary border-border max-w-xs h-7 text-[11px]"
+                className="w-48 bg-white border-gray-300"
               />
-              <p className="text-[9px] text-muted-foreground">
-                Enter the channel name or ID to receive notifications
-              </p>
-            </div>
+            </SettingRow>
           )}
-        </CardContent>
-      </Card>
+        </section>
 
-      {/* Digest Mode */}
-      <Card className="bg-card border-border shadow-sm">
-        <CardHeader className="pb-2 pt-3 px-3">
-          <CardTitle className="text-[11px] font-medium flex items-center gap-1.5">
-            <Clock className="h-3 w-3" />
-            Daily Digest
-          </CardTitle>
-          <CardDescription className="text-[10px]">
-            Receive a summary instead of real-time notifications
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3 px-3 pb-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-medium">Enable Digest Mode</p>
-              <p className="text-[9px] text-muted-foreground">
-                Bundle non-urgent notifications into a daily summary
-              </p>
-            </div>
+        {/* Daily Digest */}
+        <section>
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">Daily Digest</h3>
+
+          <SettingRow
+            label="Enable Digest Mode"
+            description="Bundle non-urgent notifications into a daily summary."
+          >
             <Switch
               checked={digestMode}
               onCheckedChange={(checked) => {
                 setDigestMode(checked)
                 handleChange()
               }}
-              className="scale-90"
             />
-          </div>
+          </SettingRow>
 
           {digestMode && (
-            <div className="space-y-1">
-              <Label htmlFor="digest-time" className="text-[10px]">Delivery Time</Label>
+            <SettingRow
+              label="Delivery Time"
+              description="When you want to receive your daily digest."
+            >
               <Input
-                id="digest-time"
                 type="time"
                 value={digestTime}
                 onChange={(e) => {
                   setDigestTime(e.target.value)
                   handleChange()
                 }}
-                className="bg-secondary border-border max-w-xs h-7 text-[11px]"
+                className="w-32 bg-white border-gray-300"
               />
-            </div>
+            </SettingRow>
           )}
-        </CardContent>
-      </Card>
+        </section>
 
-      {/* Quiet Hours */}
-      <Card className="bg-card border-border shadow-sm">
-        <CardHeader className="pb-2 pt-3 px-3">
-          <CardTitle className="text-[11px] font-medium flex items-center gap-1.5">
-            <VolumeX className="h-3 w-3" />
-            Quiet Hours
-          </CardTitle>
-          <CardDescription className="text-[10px]">Pause notifications during specific times</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3 px-3 pb-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-medium">Enable Quiet Hours</p>
-              <p className="text-[9px] text-muted-foreground">
-                No notifications will be sent during quiet hours
-              </p>
-            </div>
+        {/* Quiet Hours */}
+        <section>
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">Quiet Hours</h3>
+
+          <SettingRow
+            label="Enable Quiet Hours"
+            description="No notifications will be sent during quiet hours."
+          >
             <Switch
               checked={quietHoursEnabled}
               onCheckedChange={(checked) => {
                 setQuietHoursEnabled(checked)
                 handleChange()
               }}
-              className="scale-90"
             />
-          </div>
+          </SettingRow>
 
           {quietHoursEnabled && (
-            <div className="grid grid-cols-2 gap-3 max-w-md">
-              <div className="space-y-1">
-                <Label htmlFor="quiet-start" className="text-[10px]">Start Time</Label>
+            <>
+              <SettingRow
+                label="Start Time"
+                description="When quiet hours begin."
+              >
                 <Input
-                  id="quiet-start"
                   type="time"
                   value={quietStart}
                   onChange={(e) => {
                     setQuietStart(e.target.value)
                     handleChange()
                   }}
-                  className="bg-secondary border-border h-7 text-[11px]"
+                  className="w-32 bg-white border-gray-300"
                 />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="quiet-end" className="text-[10px]">End Time</Label>
+              </SettingRow>
+
+              <SettingRow
+                label="End Time"
+                description="When quiet hours end."
+              >
                 <Input
-                  id="quiet-end"
                   type="time"
                   value={quietEnd}
                   onChange={(e) => {
                     setQuietEnd(e.target.value)
                     handleChange()
                   }}
-                  className="bg-secondary border-border h-7 text-[11px]"
+                  className="w-32 bg-white border-gray-300"
                 />
-              </div>
-            </div>
+              </SettingRow>
+            </>
           )}
-        </CardContent>
-      </Card>
+        </section>
+      </div>
 
-      {/* Save Button */}
-      <div className="flex justify-end gap-2 pt-3 border-t border-border">
-        <Button variant="outline" disabled={isSaving} className="h-7 text-[10px] bg-transparent">
+      {/* Action Buttons */}
+      <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-gray-200">
+        <Button
+          variant="outline"
+          onClick={() => {
+            // Reset to defaults
+            setEmailAlerts(true)
+            setEmailTickets(true)
+            setEmailMentions(true)
+            setSlackEnabled(false)
+            setDigestMode(false)
+            setQuietHoursEnabled(false)
+            setHasUnsavedChanges(false)
+          }}
+          disabled={isSaving}
+        >
           Cancel
         </Button>
-        <Button onClick={handleSave} disabled={isSaving} className="h-7 text-[10px]">
+        <Button onClick={handleSave} disabled={isSaving}>
           {isSaving ? (
             <>
-              <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               Saving...
             </>
           ) : (
             <>
-              <CheckCircle2 className="h-3 w-3 mr-1.5" />
+              <CheckCircle2 className="h-4 w-4 mr-2" />
               Save Changes
             </>
           )}

@@ -95,12 +95,13 @@ describe('trigger-registry', () => {
     })
 
     it('should reject stage_change without toStage', () => {
-      const invalidTrigger: WorkflowTrigger = {
+      // Intentionally invalid config to test validation
+      const invalidTrigger = {
         id: 't1',
         type: 'stage_change',
         name: 'Stage Change',
         config: {},
-      }
+      } as unknown as WorkflowTrigger
       const result = validateTriggerConfig(invalidTrigger)
       expect(result.valid).toBe(false)
       expect(result.errors).toContain('Stage change trigger requires a target stage')
@@ -141,12 +142,13 @@ describe('trigger-registry', () => {
     })
 
     it('should reject kpi_threshold without required fields', () => {
-      const invalidTrigger: WorkflowTrigger = {
+      // Intentionally invalid config to test validation
+      const invalidTrigger = {
         id: 't1',
         type: 'kpi_threshold',
         name: 'KPI Threshold',
         config: { metric: 'roas' },
-      }
+      } as unknown as WorkflowTrigger
       const result = validateTriggerConfig(invalidTrigger)
       expect(result.valid).toBe(false)
       expect(result.errors).toContain('KPI threshold trigger requires an operator')
@@ -165,12 +167,13 @@ describe('trigger-registry', () => {
     })
 
     it('should reject unknown trigger type', () => {
+      // Intentionally invalid type to test validation
       const invalidTrigger = {
         id: 't1',
         type: 'unknown_type',
         name: 'Unknown',
         config: {},
-      } as WorkflowTrigger
+      } as unknown as WorkflowTrigger
       const result = validateTriggerConfig(invalidTrigger)
       expect(result.valid).toBe(false)
       expect(result.errors[0]).toContain('Unknown trigger type')

@@ -1,48 +1,64 @@
 # Session Handover
 
-**Last Session:** 2026-01-02
+**Last Session:** 2026-01-03
 
 ## Completed This Session
 
-### 1. Accessibility & Master-Detail Pattern Improvements
-- Added keyboard navigation to DocumentCard and InboxItem (Tab, Enter, Space)
-- Added ARIA attributes: `role="button"`, `tabIndex={0}`, `aria-selected`
-- Added `onKeyDown` handlers for keyboard selection
-- Added compact viewMode to DocumentCard for master-detail pattern
-- Added compact skeleton variants for loading states
-- Removed "Shared" filter from Knowledge Base (now: All/Starred/Recent)
-- Fixed TypeScript inference with renderDocumentCard helper function
-- **Commit:** `03840e5` pushed to `linear-rebuild`
+### 1. Client List Priority Sorting
+- Created `lib/client-priority.ts` with smart priority scoring
+- Priority decays for external blockers (DNS, Access) over time
+- Priority grows for internal blockers (our problem to fix)
+- Added 6 sort modes: Priority, Health, Stage, Owner, Days, Name
 
-### 2. QA Verification
-- Full Red Team stress test completed
-- Browser testing with Claude in Chrome (Knowledge Base + Support Tickets)
-- Keyboard navigation verified working
-- No console errors
-- Gate 01 + Gate 02 validation passed
+### 2. Sort Dropdown in ListHeader
+- Added `SortOption` type and sort props to `ListHeader`
+- Dropdown shows current sort with descriptions
+- Exported from `components/linear/index.ts`
 
-### Prior Session Work
-- PR #1 created: "feat: Linear UI rebuild with Codia-based components"
-- PR URL: https://github.com/growthpigs/audienceos-command-center/pull/1
-- 33 files, +5,207 / -365 lines
-- Full code review completed (no issues)
+### 3. Auto-Select First Client
+- Detail panel now always has content on Pipeline/Clients views
+- First client (highest priority) auto-selected on load
+- `useEffect` in `page.tsx` handles auto-selection
 
-## What's Working
-- Linear Rebuild dev server on localhost:3004
-- Master-detail pattern in Knowledge Base and Support Tickets
-- Keyboard accessibility across all clickable items
-- All Linear components properly typed and styled
+### 4. Analysis: Intelligence Center + RevOS Cartridges
 
-## Context for Next Session
-- **This is the Linear Rebuild worktree** - focused on UI implementation
-- Backend integration happens in main worktree (`command_center_audience_OS`)
-- Mock data usage is intentional (not a bug)
+**Key insight for unification:**
 
-## Next Steps
-1. Wait for PR #1 team review/approval
-2. Merge Linear UI components when approved
-3. Continue with automations UI refinements if needed
+| Product | What it has | Purpose |
+|---------|-------------|---------|
+| Chase's v0 Intelligence Center | Data cards + Chat widget | Simple use interface |
+| RevOS Cartridges | Voice, Style, Preferences, Instructions, Brand | AI configuration |
+| Holy Grail Chat | Chat engine | Powers both |
+
+**Chase's original is MUCH simpler** - just 4 data source cards + chat widget. NO sidebar sections.
+
+**Unification question still open:** Where should cartridge config live?
+1. Settings > AI Configuration
+2. Intelligence Center sidebar
+3. Hidden until needed
+
+## Files Changed
+- `lib/client-priority.ts` (NEW)
+- `components/linear/list-header.tsx` (sort dropdown)
+- `components/linear/index.ts` (export SortOption)
+- `components/linear/shell.tsx` (always show detail panel)
+- `app/page.tsx` (sort state, auto-select)
+
+## What's Still Open
+
+### PR #1 Status
+- Pending review: "feat: Linear UI rebuild with Codia-based components"
+- URL: https://github.com/growthpigs/audienceos-command-center/pull/1
+
+### Filter Dropdowns
+- User noted Stage/Health/Owner/Tier filters might be redundant with sorting
+- Decision: Keep them (filtering + sorting are different)
+
+## Context
+- This is `linear-rebuild` worktree (UI focused)
+- Backend integration in main worktree
+- Mock data intentional (not connected to Supabase yet)
 
 ---
 
-*Updated: 2026-01-02*
+*Updated: 2026-01-03*

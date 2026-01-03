@@ -37,7 +37,7 @@ const navSections = [
     items: [
       { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
       { id: "pipeline", label: "Pipeline", icon: Kanban },
-      { id: "clients", label: "Clients", icon: Users },
+      { id: "clients", label: "Client List", icon: Users },
     ],
   },
   {
@@ -72,10 +72,18 @@ export function Sidebar({ activeView, onViewChange, collapsed, onCollapsedChange
         collapsed ? "w-14" : "w-56",
       )}
     >
-      {/* Logo - text only */}
-      <div className="flex items-center justify-between h-12 px-3 border-b border-border">
+      {/* Logo - text only, Poppins-style */}
+      <div className="flex items-center justify-center h-12 px-[15px] border-b border-border">
         {!collapsed && (
-          <span className="text-[14px] font-semibold text-foreground">AudienceOS</span>
+          <span
+            className="text-[17px] tracking-tight flex-1"
+            style={{
+              fontFamily: 'var(--font-poppins), Poppins, sans-serif',
+              color: '#1e3a5f'
+            }}
+          >
+            <span className="font-medium">audience</span><span className="font-normal">OS</span>
+          </span>
         )}
         <button
           className="h-6 w-6 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"

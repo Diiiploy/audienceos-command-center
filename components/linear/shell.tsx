@@ -18,11 +18,14 @@ export function LinearShell({
   children,
   detailPanel,
 }: LinearShellProps) {
+  // Only show detail panel for views that use it (pipeline, clients)
+  const showDetailPanel = activeView === "pipeline" || activeView === "clients"
+
   return (
     <div className="flex h-screen bg-background text-foreground">
       <LinearSidebar activeView={activeView} onViewChange={onViewChange} onQuickCreate={onQuickCreate} />
       <main className="flex-1 flex flex-col overflow-hidden">{children}</main>
-      {detailPanel && (
+      {showDetailPanel && (
         <aside className="w-96 bg-card border-l border-border flex flex-col overflow-hidden">
           {detailPanel}
         </aside>
