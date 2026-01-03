@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useMemo } from "react"
 import {
   SettingsLayout,
   SettingsContentSection,
@@ -8,9 +8,11 @@ import {
   IntegrationCard,
   integrationIcons,
   intelligenceSettingsGroups,
-  ActivityFeed,
-  type ActivityType,
 } from "@/components/linear"
+import {
+  FirehoseFeed,
+  type FirehoseItemData,
+} from "@/components/dashboard"
 import { cn } from "@/lib/utils"
 import { CartridgesPage } from "@/components/cartridges"
 import { ChatInterface } from "@/components/chat/chat-interface"
@@ -34,16 +36,11 @@ import {
   Target,
   TrendingUp,
   AlertTriangle,
-  History,
-  Bot,
-  User,
-  Settings,
   Plus,
   Upload,
   FileText,
   Trash2,
   Edit2,
-  X,
   CheckCircle2,
 } from "lucide-react"
 
@@ -125,68 +122,106 @@ const PROMPT_CATEGORIES = [
   { value: "other", label: "Other" },
 ]
 
-// Activity types for Intelligence Center
-type ActivityFilterTab = "all" | "chat" | "ai" | "system"
-
-// Mock AI activities for the Activity Feed
-const mockAIActivities = [
-  {
-    id: "ai-1",
-    type: "comment" as ActivityType,
-    actor: { name: "You", initials: "YU", color: "bg-blue-600" },
-    timestamp: "2 hours ago",
-    content: "Show me clients at risk of churning",
-  },
-  {
-    id: "ai-2",
-    type: "mention" as ActivityType,
-    actor: { name: "Chi Assistant", initials: "AI", color: "bg-primary" },
-    timestamp: "2 hours ago",
-    content: "Found 3 at-risk clients: Beardbrand (6d in Needs Support), Allbirds (high urgency ticket), MVMT Watches (120d in Live with declining engagement).",
-  },
-  {
-    id: "ai-3",
-    type: "comment" as ActivityType,
-    actor: { name: "You", initials: "YU", color: "bg-blue-600" },
-    timestamp: "3 hours ago",
-    content: "What are my open support tickets?",
-  },
-  {
-    id: "ai-4",
-    type: "mention" as ActivityType,
-    actor: { name: "Chi Assistant", initials: "AI", color: "bg-primary" },
-    timestamp: "3 hours ago",
-    content: "You have 5 open tickets. 2 are urgent: TKT-001 (Pixel tracking) and TKT-004 (Page speed). Would you like me to summarize them?",
-  },
-  {
-    id: "ai-5",
-    type: "status_change" as ActivityType,
-    actor: { name: "System", initials: "SY", color: "bg-slate-500" },
-    timestamp: "4 hours ago",
-    metadata: { from: "Pending", to: "Indexed" },
-  },
-  {
-    id: "ai-6",
-    type: "attachment" as ActivityType,
-    actor: { name: "System", initials: "SY", color: "bg-slate-500" },
-    timestamp: "5 hours ago",
-    metadata: { fileName: "Q4 Strategy Deck.pdf" },
-  },
-  {
-    id: "ai-7",
-    type: "comment" as ActivityType,
-    actor: { name: "You", initials: "YU", color: "bg-blue-600" },
-    timestamp: "Yesterday",
-    content: "Draft a follow-up email for Brooklinen about their campaign performance",
-  },
-  {
-    id: "ai-8",
-    type: "mention" as ActivityType,
-    actor: { name: "Chi Assistant", initials: "AI", color: "bg-primary" },
-    timestamp: "Yesterday",
-    content: "I've drafted an email highlighting their 23% CTR improvement and suggesting next steps for Q1. Would you like to review it?",
-  },
-]
+// Generate mock firehose items for Intelligence Center Activity
+function generateMockActivityFirehose(): FirehoseItemData[] {
+  const now = new Date()
+  const items: FirehoseItemData[] = [
+    {
+      id: "task-1",
+      severity: "warning" as const,
+      title: "Review Weekly Report",
+      description: "V Shred weekly performance report ready for review",
+      timestamp: new Date(now.getTime() - 30 * 60 * 1000),
+      clientName: "V Shred",
+      assignee: "Sarah",
+      targetTab: "tasks" as const,
+    },
+    {
+      id: "task-2",
+      severity: "info" as const,
+      title: "Approve Draft Reply",
+      description: "AI drafted response to Allbirds iOS tracking question",
+      timestamp: new Date(now.getTime() - 60 * 60 * 1000),
+      clientName: "Allbirds",
+      assignee: "Luke",
+      targetTab: "tasks" as const,
+    },
+    {
+      id: "alert-1",
+      severity: "critical" as const,
+      title: "Client at Risk",
+      description: "Beardbrand needs immediate attention - Conversion tracking broken",
+      timestamp: new Date(now.getTime() - 1 * 60 * 60 * 1000),
+      clientName: "Beardbrand",
+      targetTab: "alerts" as const,
+    },
+    {
+      id: "alert-2",
+      severity: "critical" as const,
+      title: "Client at Risk",
+      description: "Brooklinen needs immediate attention - Theme compatibility issues",
+      timestamp: new Date(now.getTime() - 1 * 60 * 60 * 1000),
+      clientName: "Brooklinen",
+      targetTab: "alerts" as const,
+    },
+    {
+      id: "client-1",
+      severity: "warning" as const,
+      title: "Needs Attention",
+      description: "V Shred - review recommended",
+      timestamp: new Date(now.getTime() - 2 * 60 * 60 * 1000),
+      clientName: "V Shred",
+      targetTab: "clients" as const,
+    },
+    {
+      id: "client-2",
+      severity: "info" as const,
+      title: "Stage Move",
+      description: "Beardbrand moved to Needs Support",
+      timestamp: new Date(now.getTime() - 4 * 60 * 60 * 1000),
+      clientName: "Beardbrand",
+      targetTab: "clients" as const,
+    },
+    {
+      id: "perf-1",
+      severity: "critical" as const,
+      title: "Budget Cap Hit",
+      description: "Beardbrand hit daily budget cap at 2PM. Campaigns paused.",
+      timestamp: new Date(now.getTime() - 4 * 60 * 60 * 1000),
+      clientName: "Beardbrand",
+      targetTab: "performance" as const,
+    },
+    {
+      id: "perf-2",
+      severity: "warning" as const,
+      title: "ROAS Dropped 10%",
+      description: "Brooklinen ROAS decreased from 3.2 to 2.9 this week",
+      timestamp: new Date(now.getTime() - 6 * 60 * 60 * 1000),
+      clientName: "Brooklinen",
+      targetTab: "performance" as const,
+    },
+    {
+      id: "client-3",
+      severity: "info" as const,
+      title: "Installation Complete",
+      description: "RTA Outdoor Living installation finished, awaiting DNS",
+      timestamp: new Date(now.getTime() - 20 * 60 * 60 * 1000),
+      clientName: "RTA Outdoor Living",
+      targetTab: "clients" as const,
+    },
+    {
+      id: "task-3",
+      severity: "info" as const,
+      title: "Monthly Report Due",
+      description: "MVMT Watches monthly performance report due tomorrow",
+      timestamp: new Date(now.getTime() - 22 * 60 * 60 * 1000),
+      clientName: "MVMT Watches",
+      assignee: "Josh",
+      targetTab: "tasks" as const,
+    },
+  ]
+  return items.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+}
 
 interface IntelligenceCenterProps {
   onBack?: () => void
@@ -194,7 +229,6 @@ interface IntelligenceCenterProps {
 
 export function IntelligenceCenter({ onBack }: IntelligenceCenterProps) {
   const [activeSection, setActiveSection] = useState("overview")
-  const [activityFilter, setActivityFilter] = useState<ActivityFilterTab>("all")
   const { agencyId, isLoading: authLoading } = useAuth()
 
   // Training Data state
@@ -297,14 +331,8 @@ export function IntelligenceCenter({ onBack }: IntelligenceCenterProps) {
     setPrompts((prev) => prev.filter((p) => p.id !== id))
   }
 
-  // Filter activities based on selected tab
-  const filteredActivities = mockAIActivities.filter((activity) => {
-    if (activityFilter === "all") return true
-    if (activityFilter === "chat") return activity.actor.name === "You"
-    if (activityFilter === "ai") return activity.actor.name === "Chi Assistant"
-    if (activityFilter === "system") return activity.actor.name === "System"
-    return true
-  })
+  // Generate firehose items for Activity feed
+  const firehoseItems = useMemo(() => generateMockActivityFirehose(), [])
 
   const aiCapabilities = [
     {
@@ -452,42 +480,16 @@ export function IntelligenceCenter({ onBack }: IntelligenceCenterProps) {
 
       {activeSection === "activity" && (
         <SettingsContentSection title="Activity">
-          {/* Activity Filter Tabs */}
-          <div className="flex items-center gap-1 mb-4 p-1 bg-secondary/50 rounded-lg w-fit">
-            {[
-              { id: "all" as const, label: "All", icon: <History className="w-3.5 h-3.5" /> },
-              { id: "chat" as const, label: "Your Messages", icon: <User className="w-3.5 h-3.5" /> },
-              { id: "ai" as const, label: "AI Responses", icon: <Bot className="w-3.5 h-3.5" /> },
-              { id: "system" as const, label: "System", icon: <Settings className="w-3.5 h-3.5" /> },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActivityFilter(tab.id)}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors cursor-pointer",
-                  activityFilter === tab.id
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {tab.icon}
-                <span>{tab.label}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Activity Feed - Scrollable container */}
-          <div className="bg-card border border-border rounded-lg overflow-hidden">
-            <div className="max-h-[500px] overflow-y-auto p-4">
-              {filteredActivities.length > 0 ? (
-                <ActivityFeed activities={filteredActivities} />
-              ) : (
-                <div className="text-center py-8">
-                  <History className="w-8 h-8 mx-auto mb-2 text-muted-foreground opacity-50" />
-                  <p className="text-sm text-muted-foreground">No activities found for this filter.</p>
-                </div>
-              )}
-            </div>
+          <div className="h-[500px]">
+            <FirehoseFeed
+              items={firehoseItems}
+              onItemClick={(item) => {
+                // Navigate to appropriate section based on target tab
+                if (item.targetTab === "alerts") {
+                  setActiveSection("chat")
+                }
+              }}
+            />
           </div>
         </SettingsContentSection>
       )}

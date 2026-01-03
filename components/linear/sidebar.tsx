@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+import { motion, AnimatePresence } from "motion/react"
 import { cn } from "@/lib/utils"
 import {
   LayoutDashboard,
@@ -123,11 +124,11 @@ export function LinearSidebar({
   ]
 
   return (
-    <div
-      className={cn(
-        "bg-sidebar border-r border-sidebar-border flex flex-col h-screen transition-all duration-200",
-        collapsed ? "w-16" : "w-56"
-      )}
+    <motion.div
+      initial={false}
+      animate={{ width: collapsed ? 64 : 224 }}
+      transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+      className="bg-sidebar border-r border-sidebar-border flex flex-col h-screen"
     >
       {/* Header - matches Pipeline header height */}
       <div className="h-[52px] px-[15px] flex items-center justify-center">
@@ -140,7 +141,7 @@ export function LinearSidebar({
                   fontFamily: 'var(--font-poppins), Poppins, sans-serif'
                 }}
               >
-                <span className="font-semibold">audience</span><span className="text-[15px] font-light text-muted-foreground">OS</span>
+                <span className="font-light text-muted-foreground">audience</span><span className="text-[15px] font-semibold text-foreground">OS</span>
               </span>
             )}
             {collapsed && (
@@ -171,12 +172,17 @@ export function LinearSidebar({
           onClick={onQuickCreate}
           className={cn(
             "w-full bg-primary hover:bg-primary/90 text-primary-foreground",
-            collapsed ? "px-2" : "gap-2"
+            collapsed ? "px-2" : "justify-between"
           )}
           size={collapsed ? "icon" : "default"}
         >
-          <Plus className="w-4 h-4" />
-          {!collapsed && "New"}
+          <span className="flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            {!collapsed && "Quick"}
+          </span>
+          {!collapsed && (
+            <span className="text-xs opacity-70">⌘K</span>
+          )}
         </Button>
       </div>
 
@@ -265,6 +271,6 @@ export function LinearSidebar({
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   )
 }
