@@ -287,7 +287,7 @@
 
 | Date | Item | Action |
 |------|------|--------|
-| 2026-01-03 | TD-007 | **Fixed** - Added proper dependencies to useEffect, removed eslint-disable |
+| 2026-01-03 | TD-007 | **Fixed** - Replaced dependency approach with useRef guard for true mount-only behavior |
 | 2026-01-03 | Type Safety | Fixed `as any` in client/[id]/page.tsx with `as const` pattern |
 | 2026-01-03 | Store Consolidation | Moved `lib/stores/dashboard-store.ts` to `stores/` |
 | 2026-01-03 | Implementation TODOs | Categorized 25 TODO comments by feature area |
