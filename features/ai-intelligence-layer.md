@@ -1,34 +1,167 @@
-# FEATURE SPEC: AI Intelligence Layer
+# FEATURE SPEC: Holy Grail Chat (HGC) Integration
 
-**What:** Complete AI platform with intelligent routing, self-awareness, cross-session memory, RAG, risk detection, and contextual drafting
+**What:** Complete AI platform with intelligent routing, function calling, cross-session memory, RAG, risk detection, and Google Workspace integration
 **Who:** Agency Account Managers seeking proactive client management and intelligent assistance
 **Why:** Replace reactive firefighting with AI-driven early warning system and intelligent response assistance
-**Status:** 📝 Specced
+**Status:** 🚧 Building (Standalone)
 
 ---
 
-## ⚠️ STANDALONE PROJECT NOTICE
+## ⚠️ STANDALONE PROJECT - HGC (Holy Grail Chat)
 
-**This feature has been extracted to a standalone project for focused development and validation.**
+**This feature is being built in a standalone project for focused development.**
 
 | Attribute | Value |
 |-----------|-------|
 | Standalone Project | `/Users/rodericandrews/_PAI/projects/chi-intelligent-chat/` |
-| Architecture | Gemini-First (File Search, Google Search Grounding, Flash) |
-| Spec Location | `chi-intelligent-chat/features/chi-intelligent-chat.md` |
-| Re-integration | Copy back after validation |
+| Architecture | Gemini-First (File Search, Google Search Grounding, Flash 3) |
+| Feature Spec | `chi-intelligent-chat/features/holy-grail-chat.md` |
+| User Stories | `chi-intelligent-chat/docs/02-specs/USER-STORIES.md` |
+| Roadmap | `chi-intelligent-chat/docs/05-planning/ROADMAP.md` |
+| Stress Test | `chi-intelligent-chat/docs/06-reference/STRESS-TEST-REPORT.md` |
+| Re-integration | Phase 3 in roadmap |
 
-**Why standalone?**
-- This is the flagship "Holy Grail Chat" feature
-- Needs focused development without affecting other AudienceOS work
-- Allows architecture validation before integration
-- Uses Gemini-first stack (different from original Claude-based plan)
+---
 
-**When to re-integrate:**
-1. Standalone project validated and working
-2. Copy components to AudienceOS `components/ai/`
-3. Copy spec back here (replacing below content)
-4. Update features/INDEX.md
+## Current Status (2026-01-03)
+
+### What Works Today
+
+| Capability | Route | Status |
+|------------|-------|--------|
+| Document Search | RAG | ✅ Working (Gemini File Search) |
+| Web Search | Web | ✅ Working (Google Search Grounding) |
+| Memory Recall | Memory | ✅ Working (Mem0) |
+| Casual Chat | Casual | ✅ Working (Gemini Flash 3) |
+| Smart Routing | - | ✅ Working (5 routes classified) |
+| Streaming | - | ✅ Working (SSE) |
+| Citations | - | ✅ Working (from grounding metadata) |
+
+### What Does NOT Work Today
+
+| Capability | Blocker | Required Effort |
+|------------|---------|-----------------|
+| Client Queries | No function calling | Phase 1 (4-8 hrs) |
+| Alert Queries | No function calling | Phase 1 (4-8 hrs) |
+| Navigation | No function calling | Phase 1 (4-8 hrs) |
+| Gmail Access | No Diiiploy-Gateway | Phase 2 (8-12 hrs) |
+| Calendar Access | No Diiiploy-Gateway | Phase 2 (8-12 hrs) |
+
+---
+
+## Critical Gaps
+
+| Gap | Spec | Priority | Effort |
+|-----|------|----------|--------|
+| **Function Calling** | [FUNCTION-CALLING.md](../chi-intelligent-chat/docs/04-technical/FUNCTION-CALLING.md) | P0 | 4-8 hrs |
+| **Diiiploy-Gateway** | [DIIIPLOY-GATEWAY.md](../chi-intelligent-chat/docs/04-technical/DIIIPLOY-GATEWAY.md) | P0 | 8-12 hrs |
+
+### Function Calling Gap
+
+Dashboard route is **classified** but **not handled**:
+- SmartRouter returns `route: 'dashboard'` ✅
+- No handler exists after classification ❌
+- Falls through to casual chat ❌
+
+**Fix:** Add function declarations + executors (see FUNCTION-CALLING.md)
+
+### Diiiploy-Gateway Gap
+
+Chi-Gateway is personal. Production apps need **Diiiploy-Gateway**:
+- Per-tenant OAuth tokens in Cloudflare KV
+- Routes: `/gmail/*`, `/calendar/*`, `/drive/*`
+- Service-to-service auth with `X-API-Key` + `X-Tenant-ID`
+
+**Fix:** Fork Chi-Gateway, add multi-tenant layer (see DIIIPLOY-GATEWAY.md)
+
+---
+
+## Integration Roadmap
+
+### Phase 1: Function Calling Core (P0)
+**Effort:** 4-8 hours
+**Blocks:** All data queries
+
+| Task | Status |
+|------|--------|
+| FC-001: Create function declarations | Not started |
+| FC-002: Create function executors | Not started |
+| FC-003: Wire dashboard route handler | Not started |
+| FC-004: Add stream event types | Not started |
+
+**Success:** "Show me at-risk clients" returns actual data
+
+### Phase 2: Diiiploy-Gateway Multi-tenant (P0)
+**Effort:** 8-12 hours
+**Blocks:** Gmail, Calendar, Drive access
+
+| Task | Status |
+|------|--------|
+| DG-001: Fork Chi-Gateway codebase | Not started |
+| DG-002: Add OAuth routes | Not started |
+| DG-003: Add tenant context to routes | Not started |
+| DG-004: Add token refresh | Not started |
+| DG-005: Build connection UI | Not started |
+
+**Success:** Agency can connect Google Workspace, HGC reads their emails
+
+### Phase 3: AudienceOS Integration (P1)
+**Effort:** 8-12 hours
+**Blocks:** Production deployment
+
+| Task | Status |
+|------|--------|
+| INT-001: Create database migration | Not started |
+| INT-002: Copy lib/ai/ to AudienceOS | Not started |
+| INT-003: Create secure API route | Not started |
+| INT-004: Copy components | Not started |
+| INT-005: Integration testing | Not started |
+
+**Success:** HGC running inside AudienceOS with proper auth
+
+### Phase 4: UI Polish (P2)
+**Effort:** 4-6 hours
+
+**Success:** All acceptance criteria pass
+
+---
+
+## Confidence Score
+
+| Factor | Score |
+|--------|-------|
+| Architecture | 9/10 |
+| Existing Infrastructure | 8/10 |
+| Gap Clarity | 10/10 |
+| Path to Fix | 9/10 |
+| **Overall** | **8.5/10** |
+
+**Recommendation:** PROCEED WITH IMPLEMENTATION
+
+---
+
+## Why "Holy Grail Chat"?
+
+- **Confusion:** "Chi" conflicts with Chi PAI system
+- **Reusability:** HGC is designed for AudienceOS, RevOS, War Room
+- **Branding:** "Holy Grail" = the complete AI chat solution
+- **Independence:** Standalone development enables faster iteration
+
+---
+
+## Re-integration Checklist
+
+When HGC is ready:
+
+- [ ] Phase 1 (Function Calling) complete
+- [ ] Phase 2 (Diiiploy-Gateway) complete
+- [ ] All user stories validated
+- [ ] Copy `lib/ai/` to AudienceOS
+- [ ] Copy `components/ai/` to AudienceOS
+- [ ] Create database migration
+- [ ] Create API routes with proper auth
+- [ ] Update this spec with final implementation
+- [ ] Update features/INDEX.md
 
 **The spec below is preserved for reference but the ACTIVE spec is in the standalone project.**
 

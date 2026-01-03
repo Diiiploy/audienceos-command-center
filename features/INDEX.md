@@ -30,7 +30,7 @@
 | knowledge-base | ✅ Complete | [knowledge-base.md](knowledge-base.md) | 80% | 4 components, upload modal, store (290 lines) |
 | automations | ✅ Complete | [automations.md](automations.md) | 85% | 5 components, 8 APIs, workflow engine |
 | settings | ✅ Complete | [settings.md](settings.md) | 75% | 8 sections, store (250 lines) |
-| ai-intelligence-layer | ➡️ Standalone | [ai-intelligence-layer.md](ai-intelligence-layer.md) | - | **EXTRACTED** to `/chi-intelligent-chat/` |
+| ai-intelligence-layer (HGC) | 🚧 Building | [ai-intelligence-layer.md](ai-intelligence-layer.md) | 30% | **Holy Grail Chat** - Standalone project. RAG/Web/Memory working. Function calling NOT implemented. |
 
 **Overall Completion:** ~85% (UI complete, needs Supabase + third-party API integration)
 

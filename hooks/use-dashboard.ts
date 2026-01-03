@@ -357,26 +357,6 @@ export function useDashboard(): UseDashboardReturn {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentional: mount-only effect guarded by ref
   }, [])
 
-    // Load trends for initial period
-    if (!trends) {
-      loadTrends(initialPeriod.current)
-    }
-
-    // Mark realtime as connected
-    setRealtimeConnected(true)
-  }, [kpis, trends, loadKPIs, loadTrends, setRealtimeConnected])
-
-  // Reload trends when period changes (separate effect for clarity)
-  useEffect(() => {
-    // Skip if this is the initial render or trends not yet loaded
-    if (!hasMounted.current || !trends) return
-
-    // Only reload if period actually changed
-    if (trends.period !== selectedPeriod) {
-      loadTrends(selectedPeriod)
-    }
-  }, [selectedPeriod, trends, loadTrends])
-
   return {
     kpis,
     kpisLoading,

@@ -47,6 +47,7 @@ export default [
     ignores: [
       ".next/**",
       "node_modules/**",
+      "infrastructure/**",
       "*.config.js",
       "*.config.mjs",
     ],

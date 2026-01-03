@@ -25,6 +25,15 @@ npm run dev
 - **Clone URL**: `git@github.com:growthpigs/audienceos-command-center.git`
 - **Default Branch**: `main`
 
+## Active Worktrees
+
+| Branch | Worktree Path | Purpose |
+|--------|---------------|---------|
+| `main` | `/Users/rodericandrews/_PAI/projects/command_center_audience_OS` | Production/stable |
+| `linear-rebuild` | `/Users/rodericandrews/_PAI/projects/command_center_linear` | **ACTIVE** - Linear UI rebuild (PR #1) |
+
+**Current Work:** `linear-rebuild` worktree. Always `cd` there first.
+
 ## Environment Variables
 
 Copy `.env.example` to `.env.local` and configure:
