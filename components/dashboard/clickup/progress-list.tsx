@@ -1,9 +1,16 @@
 "use client"
 
-import { MoreHorizontal } from "lucide-react"
+import { MoreHorizontal, Download, RefreshCw, Settings, Eye } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 
 interface ProgressItem {
@@ -47,9 +54,32 @@ export function ProgressList({
     <Card className={cn("bg-card border border-border/50 shadow-sm", className)}>
       <CardHeader className="flex flex-row items-center justify-between pb-2 pt-3 px-3">
         <h3 className="text-xs font-medium text-foreground">{title}</h3>
-        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground">
-          <MoreHorizontal className="h-3 w-3" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground">
+              <MoreHorizontal className="h-3 w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem className="text-[11px]">
+              <Eye className="w-3 h-3 mr-2" />
+              View Details
+            </DropdownMenuItem>
+            <DropdownMenuItem className="text-[11px]">
+              <RefreshCw className="w-3 h-3 mr-2" />
+              Refresh
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="text-[11px]">
+              <Download className="w-3 h-3 mr-2" />
+              Export
+            </DropdownMenuItem>
+            <DropdownMenuItem className="text-[11px]">
+              <Settings className="w-3 h-3 mr-2" />
+              Settings
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </CardHeader>
       <CardContent className="px-3 pb-3">
         <div className="space-y-3">

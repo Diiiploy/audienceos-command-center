@@ -7,17 +7,19 @@
 
 ---
 
-## Current State (2026-01-02)
+## Current State (2026-01-03)
 
 | Layer | Status | Notes |
 |-------|--------|-------|
-| **Frontend UI** | ✅ 85% Complete | 80+ components, 11 views, all wired |
+| **Frontend UI** | ✅ 90% Complete | 80+ components, 11 views, UI polish pass done |
 | **API Routes** | ✅ Complete | 24 endpoints built |
 | **Zustand Stores** | ✅ Complete | 6 stores |
 | **Demo Mode** | ✅ Working | Mock data fallback when unauthenticated |
 | **Database Schema** | ❌ NOT APPLIED | Migration exists, Supabase has legacy tables |
 | **Auth** | ⚠️ Hardcoded | Returns "Luke" instead of real user |
 | **Third-party APIs** | ❌ Not Connected | OAuth creds empty |
+
+**LATEST (2026-01-03):** UI polish pass completed - cursor-pointer on all clickable elements, interactive intake checklist, IntegrationCard button anchoring, Activity section scrollable. Build verified. See RUNBOOK.md for verification commands.
 
 **DEVELOPMENT:** App works in demo mode with mock data. All views functional.
 **PRODUCTION:** Supabase has legacy War Room schema (Nov 2025). The `001_initial_schema.sql` migration was never applied.

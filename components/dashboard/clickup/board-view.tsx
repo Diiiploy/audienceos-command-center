@@ -1,8 +1,18 @@
 "use client"
 
-import { MoreHorizontal, MoreVertical, Plus, Calendar } from "lucide-react"
+import { MoreHorizontal, MoreVertical, Plus, Calendar, ExternalLink, Edit, Trash2, UserPlus, ArrowRight, SortAsc, Filter, EyeOff, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 
 interface Task {
@@ -172,9 +182,58 @@ function TaskCard({ task, onClick }: { task: Task; onClick?: () => void }) {
               </AvatarFallback>
             </Avatar>
           )}
-          <button className="p-1 hover:bg-secondary rounded opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-            <MoreVertical className="w-3 h-3 text-muted-foreground" />
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreVertical className="w-3 h-3 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+              <DropdownMenuItem>
+                <ExternalLink className="w-3 h-3 mr-2" />
+                Open
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Edit className="w-3 h-3 mr-2" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <ArrowRight className="w-3 h-3 mr-2" />
+                  Move to
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuItem>To Do</DropdownMenuItem>
+                  <DropdownMenuItem>In Progress</DropdownMenuItem>
+                  <DropdownMenuItem>Done</DropdownMenuItem>
+                  <DropdownMenuItem>Blocked</DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <UserPlus className="w-3 h-3 mr-2" />
+                  Assign to
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuItem>Luke Thompson</DropdownMenuItem>
+                  <DropdownMenuItem>Alex Smith</DropdownMenuItem>
+                  <DropdownMenuItem>Jordan Fields</DropdownMenuItem>
+                  <DropdownMenuItem>Sam Lee</DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive">
+                <Trash2 className="w-3 h-3 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -236,9 +295,32 @@ function BoardColumn({
             {tasks.length}
           </span>
         </div>
-        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground">
-          <MoreHorizontal className="h-3 w-3" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground">
+              <MoreHorizontal className="h-3 w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem>
+              <SortAsc className="w-3 h-3 mr-2" />
+              Sort by Priority
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <Filter className="w-3 h-3 mr-2" />
+              Filter
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              <EyeOff className="w-3 h-3 mr-2" />
+              Hide Column
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <Settings className="w-3 h-3 mr-2" />
+              Column Settings
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Cards */}

@@ -190,6 +190,48 @@ audienceos-command-center/
 └── stores/                 # Additional stores
 ```
 
+## UI Verification Commands
+
+**Runtime verification is MANDATORY.** Static file checks are insufficient.
+
+### cursor-pointer Verification
+```bash
+# Start dev server
+npm run dev
+
+# In browser DevTools console, verify any clickable element:
+getComputedStyle(document.querySelector('button')).cursor
+# Expected: "pointer"
+
+# Or use Claude in Chrome to verify runtime:
+# Navigate to element → getComputedStyle check → confirm "pointer"
+```
+
+### Build Verification
+```bash
+# Full build check - catches TypeScript & Next.js issues
+npm run build
+
+# Type check only
+npx tsc --noEmit
+```
+
+### UI Component Checklist
+After ANY UI changes, verify:
+```
+□ npm run build passes (no compile errors)
+□ All buttons show cursor: pointer on hover (runtime check)
+□ Interactive elements (checkboxes, toggles) actually respond to clicks
+□ Scroll containers have overflow-y-auto AND max-height set
+□ Flex layouts with button anchoring use flex-col + mt-auto pattern
+```
+
+### Related Error Patterns
+See `~/.claude/troubleshooting/error-patterns.md`:
+- EP-057: "File Existence Fallacy" - static vs runtime verification
+
+---
+
 ## Troubleshooting
 
 ### Common Issues

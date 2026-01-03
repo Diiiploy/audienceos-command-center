@@ -1,23 +1,31 @@
 # Active Tasks - Linear Rebuild
 
 ## ✅ Quality Checks
-_Last check: 2026-01-02_
+_Last check: 2026-01-03_
 
 ### Preflight (Gate 1)
 - [x] ESLint: Clean ✓
 - [x] TypeScript: Clean ✓
 - [x] Security: Clean ✓
+- [x] Build: Passes ✓
 
-## ✅ Completed This Session
-- [x] Refactored `automations-hub.tsx` to master-detail layout
-- [x] Refactored `onboarding-hub.tsx` to master-detail layout
-- [x] Fixed TypeScript errors in test files:
-  - `__tests__/edge-cases.test.ts` - trigger validation type assertions
-  - `__tests__/lib/action-registry.test.ts` - removed invalid `order` property, fixed configs
-  - `__tests__/lib/trigger-registry.test.ts` - trigger validation type assertions
-  - `__tests__/stores/automations-store.test.ts` - fixed trigger/action types
-  - `__tests__/stores/dashboard-store.test.ts` - fixed KPI and Trends mock data
-- [x] Fixed `onboarding-hub.tsx` - replaced non-existent `lastActivity` with `daysInStage`
+## ✅ Completed This Session (2026-01-03)
+
+### UI Polish & Interactivity Fixes
+- [x] **Support Tickets cursor-pointer** - Added to filter tabs (`support-tickets.tsx:307`)
+- [x] **Intake Checklist functional** - Added state management + toggle handler (`onboarding-hub.tsx:153-252`)
+- [x] **IntegrationCard button anchoring** - Added flex-col + min-height + mt-auto pattern (`integration-card.tsx:27-60`)
+- [x] **IntegrationCard typography** - Reduced text size + tighter line-height (`integration-card.tsx:39,46`)
+- [x] **Google Ads icon** - Replaced with official 3-color SVG (`integration-card.tsx:76-81`)
+- [x] **Activity scrollable** - Added max-h-[500px] overflow-y-auto (`intelligence-center.tsx:479-491`)
+
+### PAI Documentation Updates
+- [x] ErrorPatterns.md - EP-057 already documented "File Existence Fallacy"
+- [x] RUNBOOK.md - Added "UI Verification Commands" section with runtime checks
+- [x] mem0 - Stored critical rule about runtime verification
+- [x] This file - Session documented
+
+**Verification Commands Added:** See RUNBOOK.md → "UI Verification Commands"
 
 ## 📋 Ready for PR
 All preflight checks pass - ready for commit and PR creation

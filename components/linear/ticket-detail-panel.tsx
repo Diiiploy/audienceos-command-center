@@ -15,7 +15,24 @@ import {
   Building2,
   Calendar,
   AlertCircle,
+  Edit,
+  Copy,
+  Trash2,
+  UserPlus,
+  Flag,
+  CircleDot,
 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+} from "@/components/ui/dropdown-menu"
 
 interface TicketActivity {
   id: string
@@ -129,9 +146,66 @@ export function TicketDetailPanel({
           <button className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded transition-colors cursor-pointer">
             <ExternalLink className="w-4 h-4" />
           </button>
-          <button className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded transition-colors cursor-pointer">
-            <MoreHorizontal className="w-4 h-4" />
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7">
+                <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem>
+                <Edit className="w-4 h-4 mr-2" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Copy className="w-4 h-4 mr-2" />
+                Copy Link
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <CircleDot className="w-4 h-4 mr-2" />
+                  Change Status
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuItem onClick={() => onStatusChange?.("open")}>Open</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onStatusChange?.("in_progress")}>In Progress</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onStatusChange?.("waiting")}>Waiting</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onStatusChange?.("resolved")}>Resolved</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onStatusChange?.("closed")}>Closed</DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <Flag className="w-4 h-4 mr-2" />
+                  Change Priority
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuItem onClick={() => onPriorityChange?.("urgent")}>Urgent</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onPriorityChange?.("high")}>High</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onPriorityChange?.("medium")}>Medium</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onPriorityChange?.("low")}>Low</DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Assign to
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuItem>Luke</DropdownMenuItem>
+                  <DropdownMenuItem>Garrett</DropdownMenuItem>
+                  <DropdownMenuItem>Josh</DropdownMenuItem>
+                  <DropdownMenuItem>Jeff</DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive">
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <button
             onClick={onClose}
             className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded transition-colors cursor-pointer"
