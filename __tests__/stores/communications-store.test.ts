@@ -44,7 +44,6 @@ describe('Communications Store', () => {
     replied_at: null,
     replied_by: null,
     created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
     is_read: false,
     ...overrides,
   })
@@ -244,7 +243,6 @@ describe('filterCommunications', () => {
     replied_at: null,
     replied_by: null,
     created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
     is_read: false,
     ...overrides,
   })
