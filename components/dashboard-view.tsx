@@ -4,7 +4,6 @@ import { useState, useMemo, useEffect, useRef } from "react"
 import { motion, AnimatePresence, useReducedMotion } from "motion/react"
 import {
   LinearKPICard,
-  LinearKPICardSkeleton,
   FirehoseFeed,
   DashboardTabs,
   type LinearKPIData,

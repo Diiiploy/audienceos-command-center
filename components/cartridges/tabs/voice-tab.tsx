@@ -26,8 +26,8 @@ import { Mic, Plus, X, Settings, Check } from "lucide-react"
 import { type VoiceCartridge, type VoiceParams, getDefaultVoiceParams } from "@/types/cartridges"
 
 export function VoiceTab() {
-  const [voiceCartridges, setVoiceCartridges] = useState<VoiceCartridge[]>([])
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [voiceCartridges, _setVoiceCartridges] = useState<VoiceCartridge[]>([])
+  const [_editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     name: "",
     displayName: "",

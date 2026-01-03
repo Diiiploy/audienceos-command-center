@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   ArrowLeft,
   ExternalLink,
@@ -36,7 +35,7 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
   const clientId = resolvedParams.id
 
   // Auth and detailed client data
-  const { isAuthenticated } = useAuth()
+  useAuth() // Ensure auth context is initialized
   const { client: detailedClient, isLoading, error } = useClientDetail(clientId)
 
   // Transform detailed client to UI format

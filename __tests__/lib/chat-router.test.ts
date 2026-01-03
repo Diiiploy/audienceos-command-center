@@ -2,7 +2,7 @@
  * Chat Router Tests
  * Tests for the query classification logic
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 
 // We need to test the quickClassify patterns which are internal to router
 // So we'll test the public routeQuery with patterns that should trigger quick classification

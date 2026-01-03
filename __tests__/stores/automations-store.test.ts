@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { useAutomationsStore } from '@/stores/automations-store'
 import type { WorkflowTrigger, WorkflowAction } from '@/types/workflow'
 

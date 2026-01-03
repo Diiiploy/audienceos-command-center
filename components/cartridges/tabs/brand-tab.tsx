@@ -7,9 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
 import { Check, Edit, Trash2, Loader2, Zap, FileText, Building2 } from "lucide-react"
-import { type BrandCartridge, type BensonBlueprint } from "@/types/cartridges"
+import { type BrandCartridge } from "@/types/cartridges"
 
 export function BrandTab() {
   const [brandCartridge, setBrandCartridge] = useState<BrandCartridge | null>(null)

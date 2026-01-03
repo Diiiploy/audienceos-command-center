@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Upload, FileText, Eye, Trash2, Loader2, X } from "lucide-react"
-import { type StyleCartridge, type StyleSourceFile } from "@/types/cartridges"
+import { type StyleCartridge } from "@/types/cartridges"
 
 export function StyleTab() {
   const [styleCartridge, setStyleCartridge] = useState<StyleCartridge | null>(null)

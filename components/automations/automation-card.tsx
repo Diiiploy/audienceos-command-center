@@ -1,12 +1,9 @@
 'use client'
 
-import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import { Edit2, Zap, Play, Clock, CheckCircle2, XCircle } from 'lucide-react'
 import type { Workflow, WorkflowTrigger, WorkflowAction } from '@/types/workflow'
-import { getTriggerMetadata } from '@/lib/workflows/trigger-registry'
-import { getActionMetadata } from '@/lib/workflows/action-registry'
 import { cn } from '@/lib/utils'
 
 interface AutomationCardProps {

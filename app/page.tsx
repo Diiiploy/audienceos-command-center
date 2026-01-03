@@ -15,7 +15,7 @@ import {
   type ActiveFilters,
   type SortOption,
 } from "@/components/linear"
-import { mockClients, type Client, owners, type Stage, type HealthStatus, type Owner, type Tier } from "@/lib/mock-data"
+import { mockClients, type Client, owners } from "@/lib/mock-data"
 import { sortClients, type SortMode } from "@/lib/client-priority"
 
 // Filter configurations for Client List

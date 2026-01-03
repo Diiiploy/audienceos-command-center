@@ -1,7 +1,6 @@
 'use client'
 
 import { cn } from '@/lib/utils'
-import { Badge } from '@/components/ui/badge'
 
 interface NeedsReplyBadgeProps {
   count: number

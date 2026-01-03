@@ -24,7 +24,7 @@ const REVOCATION_ENDPOINTS: Record<IntegrationProvider, string | null> = {
 async function revokeProviderTokens(
   provider: IntegrationProvider,
   accessToken: string | null,
-  refreshToken: string | null
+  _refreshToken: string | null
 ): Promise<{ success: boolean; error?: string }> {
   const revokeUrl = REVOCATION_ENDPOINTS[provider]
 

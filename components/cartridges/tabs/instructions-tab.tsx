@@ -24,7 +24,7 @@ export function InstructionsTab() {
     setNewDescription("")
   }
 
-  const handleUpload = async (instructionId: string) => {
+  const handleUpload = async (_instructionId: string) => {
     const input = document.createElement("input")
     input.type = "file"
     input.multiple = true

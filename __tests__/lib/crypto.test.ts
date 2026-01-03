@@ -2,7 +2,7 @@
  * Crypto Utilities Tests
  * Tests for OAuth state signing and token encryption
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import {
   signOAuthState,
   verifyOAuthState,

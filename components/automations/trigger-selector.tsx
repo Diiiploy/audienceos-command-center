@@ -22,7 +22,6 @@ import {
   Calendar,
   X,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import type { WorkflowTrigger, TriggerType } from '@/types/workflow'
 import {
   TRIGGER_TYPES,

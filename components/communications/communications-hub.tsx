@@ -22,7 +22,7 @@ interface CommunicationsHubProps {
   className?: string
 }
 
-export function CommunicationsHub({ clientId, className }: CommunicationsHubProps) {
+export function CommunicationsHub({ clientId: _clientId, className }: CommunicationsHubProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -36,16 +36,16 @@ export function CommunicationsHub({ clientId, className }: CommunicationsHubProp
     isLoading,
     hasMore,
     needsReplyCount,
-    setCommunications,
+    setCommunications: _setCommunications,
     addCommunication,
     updateCommunication,
-    setThreads,
+    setThreads: _setThreads,
     toggleThreadExpanded,
     setFilters,
     setSelectedMessage,
     setLoading,
-    setCursor,
-    setHasMore,
+    setCursor: _setCursor,
+    setHasMore: _setHasMore,
     markAsRead,
     markAsReplied,
   } = useCommunicationsStore()

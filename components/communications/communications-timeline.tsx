@@ -5,11 +5,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { Loader2, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ThreadGroup } from './thread-group'
-import type {
-  ThreadGroup as ThreadGroupType,
-  CommunicationsFilters,
-  CommunicationWithMeta,
-} from '@/stores/communications-store'
+import type { ThreadGroup as ThreadGroupType } from '@/stores/communications-store'
 
 interface CommunicationsTimelineProps {
   threads: ThreadGroupType[]

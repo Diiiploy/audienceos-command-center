@@ -45,7 +45,7 @@ export function ReplyComposer({
     try {
       const draft = await onGenerateDraft(tone)
       setContent(draft)
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to generate draft. Please try again.')
     } finally {
       setIsGenerating(false)
@@ -62,7 +62,7 @@ export function ReplyComposer({
       await onSend(content.trim())
       setContent('')
       onClose()
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to send reply. Please try again.')
     } finally {
       setIsSending(false)

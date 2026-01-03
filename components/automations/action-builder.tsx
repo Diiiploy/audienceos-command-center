@@ -27,7 +27,6 @@ import {
   Plus,
   Clock,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import type { WorkflowAction, ActionType } from '@/types/workflow'
 import { ACTION_TYPES, DELAY_PRESETS, AVAILABLE_VARIABLES } from '@/lib/workflows/action-registry'
 
@@ -54,7 +53,7 @@ export function ActionBuilder({
   onAdd,
   onRemove,
   onUpdate,
-  onReorder,
+  onReorder: _onReorder,
   pipelineStages = ['Onboarding', 'Installation', 'Audit', 'Live', 'Needs Support', 'Off-Boarding'],
 }: ActionBuilderProps) {
   const [showTypeSelector, setShowTypeSelector] = useState(false)
