@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import {
   LinearKPICard,
@@ -776,6 +776,9 @@ export function DashboardView({ clients, onClientClick, onNavigateToChat }: Dash
   const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null)
   const [selectedPerfId, setSelectedPerfId] = useState<string | null>(null)
 
+  // Track previous tab to clear stale selections on tab switch
+  const prevTabRef = useRef<DashboardTab>(activeTab)
+
   const firehoseItems = useMemo(() => generateMockFirehoseItems(clients), [clients])
 
   // KPI data
@@ -847,7 +850,20 @@ export function DashboardView({ clients, onClientClick, onNavigateToChat }: Dash
   const alertItems = firehoseItems.filter(item => item.targetTab === "alerts" || item.severity === "critical")
   const perfItems = firehoseItems.filter(item => item.targetTab === "performance")
 
-  // Auto-select first item when switching to a tab
+  // Clear stale selections when switching tabs to prevent drawer content mismatch
+  useEffect(() => {
+    const prevTab = prevTabRef.current
+    if (prevTab !== activeTab) {
+      // Tab changed - clear ALL selections to ensure clean state
+      setSelectedTaskId(null)
+      setSelectedClientId(null)
+      setSelectedAlertId(null)
+      setSelectedPerfId(null)
+      prevTabRef.current = activeTab
+    }
+  }, [activeTab])
+
+  // Auto-select first item when switching to a tab (runs after clearing effect)
   useEffect(() => {
     if (activeTab === "tasks" && taskItems.length > 0 && !selectedTaskId) {
       setSelectedTaskId(taskItems[0].id)
