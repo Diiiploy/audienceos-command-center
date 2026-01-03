@@ -26,9 +26,10 @@ interface NavItemProps {
   active?: boolean
   onClick?: () => void
   collapsed?: boolean
+  indent?: boolean
 }
 
-function NavItem({ icon, label, active, onClick, collapsed }: NavItemProps) {
+function NavItem({ icon, label, active, onClick, collapsed, indent }: NavItemProps) {
   return (
     <button
       onClick={onClick}
@@ -37,12 +38,24 @@ function NavItem({ icon, label, active, onClick, collapsed }: NavItemProps) {
         active
           ? "bg-primary/10 text-primary"
           : "text-muted-foreground hover:text-foreground hover:bg-secondary/50",
-        collapsed && "justify-center px-2"
+        collapsed && "justify-center px-2",
+        indent && !collapsed && "pl-6"
       )}
     >
       <span className={cn("w-5 h-5 shrink-0", active && "text-primary")}>{icon}</span>
       {!collapsed && <span className="flex-1 text-left truncate">{label}</span>}
     </button>
+  )
+}
+
+function NavGroup({ label, collapsed }: { label: string; collapsed: boolean }) {
+  if (collapsed) return null
+  return (
+    <div className="px-3 pt-4 pb-1">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+        {label}
+      </span>
+    </div>
   )
 }
 
@@ -83,15 +96,28 @@ export function LinearSidebar({
 }: LinearSidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
 
-  const navItems = [
+  // Main nav items (ungrouped at top)
+  const mainItems = [
     { id: "dashboard" as const, icon: <LayoutDashboard className="w-5 h-5" />, label: "Dashboard" },
     { id: "pipeline" as const, icon: <BarChart3 className="w-5 h-5" />, label: "Pipeline" },
-    { id: "clients" as const, icon: <Users className="w-5 h-5" />, label: "Client List" },
-    { id: "onboarding" as const, icon: <ClipboardList className="w-5 h-5" />, label: "Onboarding Hub" },
-    { id: "intelligence" as const, icon: <Sparkles className="w-5 h-5" />, label: "Intelligence Center" },
-    { id: "tickets" as const, icon: <Ticket className="w-5 h-5" />, label: "Support Tickets" },
+    { id: "clients" as const, icon: <Users className="w-5 h-5" />, label: "Clients" },
+  ]
+
+  // Operations group
+  const operationsItems = [
+    { id: "onboarding" as const, icon: <ClipboardList className="w-5 h-5" />, label: "Onboarding" },
+    { id: "tickets" as const, icon: <Ticket className="w-5 h-5" />, label: "Support" },
+    { id: "intelligence" as const, icon: <Sparkles className="w-5 h-5" />, label: "Intelligence" },
+  ]
+
+  // Resources group
+  const resourcesItems = [
     { id: "knowledge" as const, icon: <BookOpen className="w-5 h-5" />, label: "Knowledge Base" },
     { id: "automations" as const, icon: <Zap className="w-5 h-5" />, label: "Automations" },
+  ]
+
+  // Configure group
+  const configureItems = [
     { id: "integrations" as const, icon: <Plug className="w-5 h-5" />, label: "Integrations" },
     { id: "settings" as const, icon: <Settings className="w-5 h-5" />, label: "Settings" },
   ]
@@ -152,22 +178,70 @@ export function LinearSidebar({
           size={collapsed ? "icon" : "default"}
         >
           <Plus className="w-4 h-4" />
-          {!collapsed && "Quick Create"}
+          {!collapsed && "New"}
         </Button>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
-        {navItems.map((item) => (
-          <NavItem
-            key={item.id}
-            icon={item.icon}
-            label={item.label}
-            active={activeView === item.id}
-            onClick={() => onViewChange(item.id)}
-            collapsed={collapsed}
-          />
-        ))}
+      <nav className="flex-1 px-3 py-2 overflow-y-auto">
+        {/* Main items (ungrouped) */}
+        <div className="space-y-1">
+          {mainItems.map((item) => (
+            <NavItem
+              key={item.id}
+              icon={item.icon}
+              label={item.label}
+              active={activeView === item.id}
+              onClick={() => onViewChange(item.id)}
+              collapsed={collapsed}
+            />
+          ))}
+        </div>
+
+        {/* Operations group */}
+        <NavGroup label="Operations" collapsed={collapsed} />
+        <div className="space-y-1">
+          {operationsItems.map((item) => (
+            <NavItem
+              key={item.id}
+              icon={item.icon}
+              label={item.label}
+              active={activeView === item.id}
+              onClick={() => onViewChange(item.id)}
+              collapsed={collapsed}
+            />
+          ))}
+        </div>
+
+        {/* Resources group */}
+        <NavGroup label="Resources" collapsed={collapsed} />
+        <div className="space-y-1">
+          {resourcesItems.map((item) => (
+            <NavItem
+              key={item.id}
+              icon={item.icon}
+              label={item.label}
+              active={activeView === item.id}
+              onClick={() => onViewChange(item.id)}
+              collapsed={collapsed}
+            />
+          ))}
+        </div>
+
+        {/* Configure group */}
+        <NavGroup label="Configure" collapsed={collapsed} />
+        <div className="space-y-1">
+          {configureItems.map((item) => (
+            <NavItem
+              key={item.id}
+              icon={item.icon}
+              label={item.label}
+              active={activeView === item.id}
+              onClick={() => onViewChange(item.id)}
+              collapsed={collapsed}
+            />
+          ))}
+        </div>
       </nav>
 
       {/* User Profile Footer */}
