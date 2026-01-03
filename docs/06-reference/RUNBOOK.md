@@ -1,7 +1,7 @@
 # AudienceOS Command Center - Runbook
 
 > **Operational reference for development, deployment, and troubleshooting**
-> Last Updated: 2026-01-02
+> Last Updated: 2026-01-03
 
 ---
 
@@ -110,7 +110,15 @@ supabase gen types typescript --local > types/database.ts
 
 ## Build & Deployment
 
-### Production Build
+### Current Status: Local Development Only
+
+**⚠️ No production deployment configured yet.**
+
+The project is currently in local development. There is no staging or production environment.
+
+**Note:** `v0-audience-os-command-center.vercel.app` is a **V0 prototype/proof of concept** built during discovery. It is NOT connected to this codebase and should not be confused with a production deployment.
+
+### Production Build (Local Verification)
 
 ```bash
 npm run build
@@ -121,18 +129,13 @@ Build output:
 - 24 API routes (dynamic)
 - TypeScript check included
 
-### Vercel Deployment
+### Future Deployment (Not Yet Configured)
 
-The project auto-deploys to Vercel on push to `main`:
-1. Push to `main` branch
-2. Vercel builds and deploys automatically
-3. Preview deployments for PRs
-
-### Environment Variables in Vercel
-
-Set these in Vercel Dashboard → Settings → Environment Variables:
-- All variables from `.env.example`
-- Use different values for Production vs Preview
+When ready to deploy:
+1. Create Vercel project and link to this repo
+2. Configure environment variables in Vercel Dashboard
+3. Set up staging vs production environments
+4. Configure custom domain
 
 ---
 
@@ -295,11 +298,11 @@ supabase gen types typescript --project-id YOUR_PROJECT_ID > types/database.ts
 
 ## Monitoring & Alerts
 
-### Health Checks
+### Health Checks (Local Development)
 
-- **Build Status**: Vercel Dashboard
+- **Build Status**: `npm run build` (local verification)
 - **Database**: Supabase Dashboard → Database
-- **API Errors**: Sentry (when configured)
+- **API Errors**: Browser console / Sentry (when configured)
 
 ### Key Metrics to Watch
 

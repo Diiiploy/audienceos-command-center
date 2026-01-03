@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
+import { motion, AnimatePresence } from "motion/react"
 import {
   LinearKPICard,
   LinearKPICardSkeleton,
@@ -948,11 +949,20 @@ export function DashboardView({ clients, onClientClick, onNavigateToChat }: Dash
               </div>
             </div>
             {/* Drawer */}
-            {selectedTask && (
-              <div className="w-96 shrink-0">
-                <TaskDetailDrawer item={selectedTask} onClose={() => setSelectedTaskId(null)} />
-              </div>
-            )}
+            <AnimatePresence mode="wait">
+              {selectedTask && (
+                <motion.div
+                  key="task-drawer"
+                  initial={{ x: 384, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: 384, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+                  className="w-96 shrink-0"
+                >
+                  <TaskDetailDrawer item={selectedTask} onClose={() => setSelectedTaskId(null)} />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         ) : activeTab === "clients" ? (
           <div className="flex h-full">
@@ -997,11 +1007,20 @@ export function DashboardView({ clients, onClientClick, onNavigateToChat }: Dash
               </div>
             </div>
             {/* Drawer */}
-            {selectedClient && (
-              <div className="w-96 shrink-0">
-                <ClientDetailDrawer client={selectedClient} onClose={() => setSelectedClientId(null)} />
-              </div>
-            )}
+            <AnimatePresence mode="wait">
+              {selectedClient && (
+                <motion.div
+                  key="client-drawer"
+                  initial={{ x: 384, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: 384, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+                  className="w-96 shrink-0"
+                >
+                  <ClientDetailDrawer client={selectedClient} onClose={() => setSelectedClientId(null)} />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         ) : activeTab === "alerts" ? (
           <div className="flex h-full">
@@ -1037,11 +1056,20 @@ export function DashboardView({ clients, onClientClick, onNavigateToChat }: Dash
               </div>
             </div>
             {/* Drawer */}
-            {selectedAlert && (
-              <div className="w-96 shrink-0">
-                <AlertDetailDrawer item={selectedAlert} onClose={() => setSelectedAlertId(null)} />
-              </div>
-            )}
+            <AnimatePresence mode="wait">
+              {selectedAlert && (
+                <motion.div
+                  key="alert-drawer"
+                  initial={{ x: 384, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: 384, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+                  className="w-96 shrink-0"
+                >
+                  <AlertDetailDrawer item={selectedAlert} onClose={() => setSelectedAlertId(null)} />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         ) : activeTab === "performance" ? (
           <div className="flex h-full">
@@ -1081,11 +1109,20 @@ export function DashboardView({ clients, onClientClick, onNavigateToChat }: Dash
               </div>
             </div>
             {/* Drawer */}
-            {selectedPerf && (
-              <div className="w-96 shrink-0">
-                <PerformanceDetailDrawer item={selectedPerf} onClose={() => setSelectedPerfId(null)} />
-              </div>
-            )}
+            <AnimatePresence mode="wait">
+              {selectedPerf && (
+                <motion.div
+                  key="perf-drawer"
+                  initial={{ x: 384, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: 384, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+                  className="w-96 shrink-0"
+                >
+                  <PerformanceDetailDrawer item={selectedPerf} onClose={() => setSelectedPerfId(null)} />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         ) : null}
       </div>

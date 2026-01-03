@@ -44,19 +44,42 @@ function NavItem({ icon, label, active, onClick, collapsed, indent }: NavItemPro
       )}
     >
       <span className={cn("w-5 h-5 shrink-0", active && "text-primary")}>{icon}</span>
-      {!collapsed && <span className="flex-1 text-left truncate">{label}</span>}
+      <AnimatePresence initial={false}>
+        {!collapsed && (
+          <motion.span
+            key="label"
+            initial={{ opacity: 0, width: 0 }}
+            animate={{ opacity: 1, width: "auto" }}
+            exit={{ opacity: 0, width: 0 }}
+            transition={{ duration: 0.15 }}
+            className="flex-1 text-left truncate overflow-hidden"
+          >
+            {label}
+          </motion.span>
+        )}
+      </AnimatePresence>
     </button>
   )
 }
 
 function NavGroup({ label, collapsed }: { label: string; collapsed: boolean }) {
-  if (collapsed) return null
   return (
-    <div className="px-3 pt-4 pb-1">
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-        {label}
-      </span>
-    </div>
+    <AnimatePresence initial={false}>
+      {!collapsed && (
+        <motion.div
+          key={label}
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.15 }}
+          className="px-3 pt-4 pb-1 overflow-hidden"
+        >
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+            {label}
+          </span>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
 
@@ -134,26 +157,37 @@ export function LinearSidebar({
       <div className="h-[52px] px-[15px] flex items-center justify-center">
         <div className="flex items-center justify-between w-full">
           <div className={cn("flex items-center", collapsed && "justify-center w-full")}>
-            {!collapsed && (
-              <span
-                className="text-[17px] tracking-tight text-foreground"
-                style={{
-                  fontFamily: 'var(--font-poppins), Poppins, sans-serif'
-                }}
-              >
-                <span className="font-light text-muted-foreground">audience</span><span className="text-[15px] font-semibold text-foreground">OS</span>
-              </span>
-            )}
-            {collapsed && (
-              <span
-                className="text-[15px] font-normal text-foreground"
-                style={{
-                  fontFamily: 'var(--font-poppins), Poppins, sans-serif'
-                }}
-              >
-                aOS
-              </span>
-            )}
+            <AnimatePresence mode="wait" initial={false}>
+              {!collapsed ? (
+                <motion.span
+                  key="full-logo"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="text-[17px] tracking-tight text-foreground"
+                  style={{
+                    fontFamily: 'var(--font-poppins), Poppins, sans-serif'
+                  }}
+                >
+                  <span className="font-light text-muted-foreground">audience</span><span className="text-[15px] font-semibold text-foreground">OS</span>
+                </motion.span>
+              ) : (
+                <motion.span
+                  key="short-logo"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="text-[15px] font-normal text-foreground"
+                  style={{
+                    fontFamily: 'var(--font-poppins), Poppins, sans-serif'
+                  }}
+                >
+                  aOS
+                </motion.span>
+              )}
+            </AnimatePresence>
           </div>
           {!collapsed && (
             <button
