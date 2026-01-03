@@ -759,8 +759,38 @@ search_performance:
 
 | Date | Change |
 |------|--------|
+| 2026-01-02 | Added accessibility and master-detail UI implementation |
 | 2025-12-31 | Enhanced spec with complete implementation details, corrected user story numbers |
 | 2025-12-31 | Created initial spec from MVP-PRD |
+
+---
+
+## 2026-01-02 Update
+
+**What was done:**
+- Added keyboard navigation to DocumentCard component (Tab, Enter, Space keys)
+- Added ARIA attributes: `role="button"`, `tabIndex={0}`, `aria-selected`
+- Implemented compact viewMode for master-detail pattern (280px shrinking list)
+- Added compact skeleton variants for loading states
+- Removed "Shared" filter from Knowledge Base (simplified to All/Starred/Recent)
+- Fixed TypeScript inference issues with renderDocumentCard helper function
+
+**Files changed:**
+- components/linear/document-card.tsx - Added accessibility + compact mode + skeleton
+- components/views/knowledge-base.tsx - Removed "Shared" filter, fixed TypeScript
+
+**Testing:**
+- Full QA stress test with browser verification
+- Keyboard navigation tested (Tab through items, Enter to select)
+- Master-detail pattern verified (list shrinks to 280px when item selected)
+- No console errors
+- Gate 01 + Gate 02 validation passed
+
+**Status:** ✅ Complete - Deployed to linear-rebuild branch
+
+**Next:**
+- Await PR approval for merge to main
+- Continue with automations UI refinements
 
 ---
 

@@ -357,13 +357,6 @@ export function useDashboard(): UseDashboardReturn {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentional: mount-only effect guarded by ref
   }, [])
 
-  // Reload trends when period changes
-  useEffect(() => {
-    if (trends && trends.period !== selectedPeriod) {
-      loadTrends(selectedPeriod)
-    }
-  }, [selectedPeriod, trends, loadTrends])
-
   return {
     kpis,
     kpisLoading,

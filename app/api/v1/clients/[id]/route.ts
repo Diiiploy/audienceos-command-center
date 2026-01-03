@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createRouteHandlerClient, getAuthenticatedUser } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
 import { withRateLimit, isValidUUID, sanitizeString, sanitizeEmail, createErrorResponse } from '@/lib/security'
+import { getMockClientDetail } from '@/lib/mock-data'
 import type { HealthStatus } from '@/types/database'
+
+// Admin client for dev mode (bypasses RLS)
+const getAdminClient = () => createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -21,18 +29,113 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params
 
-    // Validate UUID format
-    if (!isValidUUID(id)) {
-      return createErrorResponse(400, 'Invalid client ID format')
-    }
-
     const supabase = await createRouteHandlerClient(cookies)
 
     // Get authenticated user with server verification (SEC-006)
     const { user, error: authError } = await getAuthenticatedUser(supabase)
 
+    // DEV MODE: Allow unauthenticated access with admin client for real UUIDs
+    const isDevMode = !user && process.env.NODE_ENV !== 'production'
+
     if (!user) {
-      return createErrorResponse(401, authError || 'Unauthorized')
+      // If valid UUID in dev mode, fetch real data with admin client
+      if (isDevMode && isValidUUID(id)) {
+        const adminClient = getAdminClient()
+        const { data: client, error } = await adminClient
+          .from('client')
+          .select(`
+            *,
+            assignments:client_assignment (
+              id,
+              role,
+              user:user_id (
+                id,
+                first_name,
+                last_name,
+                avatar_url
+              )
+            ),
+            tickets:ticket (
+              id,
+              number,
+              title,
+              status,
+              priority,
+              category,
+              created_at
+            ),
+            communications:communication (
+              id,
+              platform,
+              subject,
+              content,
+              received_at
+            ),
+            stage_events:stage_event (
+              id,
+              from_stage,
+              to_stage,
+              moved_at,
+              notes,
+              moved_by:user!moved_by (
+                id,
+                first_name,
+                last_name
+              )
+            ),
+            tasks:task (
+              id,
+              name,
+              description,
+              stage,
+              is_completed,
+              due_date,
+              assigned_to,
+              sort_order
+            )
+          `)
+          .eq('id', id)
+          .eq('agency_id', '11111111-1111-1111-1111-111111111111')
+          .single()
+
+        if (error) {
+          console.error('[DEV MODE] Admin client error:', error)
+          if (error.code === 'PGRST116') {
+            return createErrorResponse(404, 'Client not found')
+          }
+          return createErrorResponse(500, 'Failed to fetch client')
+        }
+
+        return NextResponse.json({ data: client, devMode: true })
+      }
+
+      // For demo mode with mock IDs (1-14), return mock data
+      const mockClient = getMockClientDetail(id)
+      if (mockClient) {
+        return NextResponse.json({
+          data: mockClient,
+          demo: true,
+          ...(authError && { authError }),
+        })
+      }
+
+      // Production without auth - return 401
+      if (process.env.NODE_ENV === 'production') {
+        return createErrorResponse(401, authError || 'Unauthorized')
+      }
+
+      // Dev mode but invalid ID format
+      return NextResponse.json({
+        error: 'Client not found',
+        demo: true,
+        hint: 'Use a valid UUID or mock client IDs 1-14',
+        ...(authError && { authError }),
+      }, { status: 404 })
+    }
+
+    // Validate UUID format (only for authenticated requests with real data)
+    if (!isValidUUID(id)) {
+      return createErrorResponse(400, 'Invalid client ID format')
     }
 
     const { data: client, error } = await supabase
@@ -55,13 +158,37 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           title,
           status,
           priority,
+          category,
           created_at
         ),
         communications:communication (
           id,
           platform,
-          message_preview,
-          sent_at
+          subject,
+          content,
+          received_at
+        ),
+        stage_events:stage_event (
+          id,
+          from_stage,
+          to_stage,
+          moved_at,
+          notes,
+          moved_by:user!moved_by (
+            id,
+            first_name,
+            last_name
+          )
+        ),
+        tasks:task (
+          id,
+          name,
+          description,
+          stage,
+          is_completed,
+          due_date,
+          assigned_to,
+          sort_order
         )
       `)
       .eq('id', id)

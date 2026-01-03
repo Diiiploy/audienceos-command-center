@@ -1393,3 +1393,176 @@ export function getKPIs(clients: Client[]) {
 
   return { activeOnboardings, clientsAtRisk, avgInstallTime, supportHours }
 }
+
+// ============================================================================
+// MOCK CLIENT DETAIL (for demo mode)
+// ============================================================================
+
+export interface MockClientDetail {
+  id: string
+  agency_id: string
+  name: string
+  contact_email: string | null
+  contact_name: string | null
+  stage: string
+  health_status: string
+  days_in_stage: number
+  notes: string | null
+  tags: string[]
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  assignments: {
+    id: string
+    role: string
+    user: {
+      id: string
+      first_name: string
+      last_name: string
+      avatar_url: string | null
+    }
+  }[]
+  tickets: {
+    id: string
+    number: number
+    title: string
+    status: string
+    priority: string
+    category: string
+    created_at: string
+  }[]
+  communications: {
+    id: string
+    platform: string
+    message_preview: string
+    sent_at: string
+  }[]
+  stage_events: {
+    id: string
+    from_stage: string | null
+    to_stage: string
+    moved_at: string
+    notes: string | null
+    moved_by: {
+      id: string
+      first_name: string
+      last_name: string
+    } | null
+  }[]
+  tasks: {
+    id: string
+    name: string
+    description: string | null
+    stage: string | null
+    is_completed: boolean
+    due_date: string | null
+    assigned_to: string | null
+    sort_order: number
+  }[]
+}
+
+// Map mock health status to API format
+function mapHealthStatus(health: HealthStatus): 'green' | 'yellow' | 'red' {
+  const mapping: Record<HealthStatus, 'green' | 'yellow' | 'red'> = {
+    'Green': 'green',
+    'Yellow': 'yellow',
+    'Red': 'red',
+    'Blocked': 'red'
+  }
+  return mapping[health]
+}
+
+// Generate mock stage events from client data
+function generateMockStageEvents(client: Client): MockClientDetail['stage_events'] {
+  const stages: Stage[] = ['Onboarding', 'Installation', 'Audit', 'Live', 'Needs Support', 'Off-boarding']
+  const currentIndex = stages.indexOf(client.stage)
+  const events: MockClientDetail['stage_events'] = []
+
+  // Generate stage history based on current stage
+  for (let i = 0; i <= currentIndex && i < stages.length; i++) {
+    const daysAgo = (currentIndex - i) * 7 + client.daysInStage
+    const movedAt = new Date()
+    movedAt.setDate(movedAt.getDate() - daysAgo)
+
+    events.push({
+      id: `se-${client.id}-${i}`,
+      from_stage: i === 0 ? null : stages[i - 1],
+      to_stage: stages[i],
+      moved_at: movedAt.toISOString(),
+      notes: i === currentIndex ? client.statusNote || null : null,
+      moved_by: {
+        id: `user-${client.owner.toLowerCase()}`,
+        first_name: client.owner,
+        last_name: 'Demo'
+      }
+    })
+  }
+
+  return events.reverse() // Most recent first
+}
+
+// Generate mock tickets for client
+function generateMockTickets(client: Client): MockClientDetail['tickets'] {
+  const clientTickets = mockTickets.filter(t => t.clientId === client.id)
+  return clientTickets.map((t, i) => ({
+    id: t.id,
+    number: 1000 + parseInt(client.id) * 10 + i,
+    title: t.title,
+    status: t.status.toLowerCase().replace(/ /g, '_'),
+    priority: t.priority.toLowerCase(),
+    category: 'support',
+    created_at: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString()
+  }))
+}
+
+// Convert mock client to API detail format
+export function getMockClientDetail(id: string): MockClientDetail | null {
+  const client = mockClients.find(c => c.id === id)
+  if (!client) return null
+
+  return {
+    id: client.id,
+    agency_id: 'demo-agency',
+    name: client.name,
+    contact_email: client.onboardingData?.contactEmail || null,
+    contact_name: null,
+    stage: client.stage,
+    health_status: mapHealthStatus(client.health),
+    days_in_stage: client.daysInStage,
+    notes: client.statusNote || null,
+    tags: client.tier ? [client.tier] : [],
+    is_active: client.stage !== 'Off-boarding',
+    created_at: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+    assignments: [
+      {
+        id: `assign-${client.id}`,
+        role: 'account_manager',
+        user: {
+          id: `user-${client.owner.toLowerCase()}`,
+          first_name: client.owner,
+          last_name: 'Demo',
+          avatar_url: null
+        }
+      }
+    ],
+    tickets: generateMockTickets(client),
+    communications: client.comms.map(c => ({
+      id: c.id,
+      platform: c.source || 'slack',
+      message_preview: c.message.slice(0, 100),
+      sent_at: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString()
+    })),
+    stage_events: generateMockStageEvents(client),
+    tasks: client.tasks.map((t, i) => ({
+      id: t.id,
+      name: t.name,
+      description: null,
+      stage: t.stage || client.stage,
+      is_completed: t.completed,
+      due_date: t.dueDate ? new Date(t.dueDate + ', 2024').toISOString() : null,
+      assigned_to: t.assignee ? `user-${t.assignee.toLowerCase()}` : null,
+      sort_order: i
+    }))
+  }
+}

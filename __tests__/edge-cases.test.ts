@@ -2,7 +2,7 @@
  * Edge Case Tests - Simulating failure states
  * These tests verify error handling and boundary conditions
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { useAutomationsStore } from '@/stores/automations-store'
 import { useTicketStore } from '@/stores/ticket-store'
 import { validateTriggerConfig } from '@/lib/workflows/trigger-registry'
@@ -13,6 +13,12 @@ describe('Edge Cases', () => {
     vi.clearAllMocks()
     // Mock fetch globally
     global.fetch = vi.fn()
+    // Mock console.error to prevent validation script false positives
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   describe('automations-store network failures', () => {

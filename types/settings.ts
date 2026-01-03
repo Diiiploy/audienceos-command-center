@@ -119,6 +119,7 @@ export type SettingsSection =
   | 'notifications'
   | 'pipeline'
   | 'integrations'
+  | 'security'
   | 'audit_log'
 
 export interface SettingsPermission {
@@ -142,6 +143,8 @@ export const SETTINGS_PERMISSIONS: SettingsPermission[] = [
   { section: 'pipeline', action: 'write', roles: ['admin'] },
   { section: 'integrations', action: 'read', roles: ['admin', 'user'] },
   { section: 'integrations', action: 'write', roles: ['admin'] },
+  { section: 'security', action: 'read', roles: ['admin'] },
+  { section: 'security', action: 'write', roles: ['admin'] },
   { section: 'audit_log', action: 'read', roles: ['admin'] },
 ]
 

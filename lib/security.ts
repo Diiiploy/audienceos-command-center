@@ -1,10 +1,27 @@
 /**
  * Security Utilities
  * Provides input sanitization, rate limiting, and security helpers
+ *
+ * TD-004: Distributed rate limiting via Supabase
+ * TD-006: Email validation via email-validator library
+ * TD-008: IP validation to prevent spoofing
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import DOMPurify from 'isomorphic-dompurify'
+import * as EmailValidator from 'email-validator'
+import { createClient } from '@supabase/supabase-js'
+
+// Service role client for rate limiting (bypasses RLS)
+const getRateLimitClient = () => {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) {
+    console.warn('[RateLimit] Missing Supabase credentials, falling back to in-memory')
+    return null
+  }
+  return createClient(url, key)
+}
 
 // =============================================================================
 // INPUT SANITIZATION
@@ -40,13 +57,16 @@ export function sanitizeHtml(input: unknown): string {
 }
 
 /**
- * Validate and sanitize email
+ * Validate and sanitize email (TD-006 fix)
+ * Uses email-validator library for RFC-compliant validation
  */
 export function sanitizeEmail(input: unknown): string | null {
   if (typeof input !== 'string') return null
   const email = input.trim().toLowerCase()
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  if (!emailRegex.test(email)) return null
+
+  // Use email-validator for proper RFC 5322 validation
+  if (!EmailValidator.validate(email)) return null
+
   return email
 }
 
@@ -78,7 +98,7 @@ export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
 }
 
 // =============================================================================
-// RATE LIMITING (In-Memory)
+// RATE LIMITING (Distributed via Supabase - TD-004 fix)
 // =============================================================================
 
 interface RateLimitEntry {
@@ -86,17 +106,20 @@ interface RateLimitEntry {
   resetTime: number
 }
 
+// Fallback in-memory store (used when Supabase unavailable)
 const rateLimitStore = new Map<string, RateLimitEntry>()
 
-// Clean up expired entries periodically
-setInterval(() => {
-  const now = Date.now()
-  for (const [key, entry] of rateLimitStore.entries()) {
-    if (entry.resetTime < now) {
-      rateLimitStore.delete(key)
+// Clean up expired entries periodically (fallback only)
+if (typeof setInterval !== 'undefined') {
+  setInterval(() => {
+    const now = Date.now()
+    for (const [key, entry] of rateLimitStore.entries()) {
+      if (entry.resetTime < now) {
+        rateLimitStore.delete(key)
+      }
     }
-  }
-}, 60000) // Clean up every minute
+  }, 60000)
+}
 
 interface RateLimitConfig {
   maxRequests: number
@@ -109,20 +132,111 @@ const DEFAULT_RATE_LIMIT: RateLimitConfig = {
 }
 
 /**
- * Check if request is rate limited
- * Returns remaining requests or -1 if limited
+ * Extract and validate client IP address (TD-008 fix)
+ * Validates X-Forwarded-For chain to prevent IP spoofing
  */
-export function checkRateLimit(
+export function getClientIp(request: NextRequest): string {
+  // Priority 1: Cloudflare's trusted header (cannot be spoofed)
+  const cfConnectingIp = request.headers.get('cf-connecting-ip')
+  if (cfConnectingIp && isValidIpAddress(cfConnectingIp)) {
+    return cfConnectingIp
+  }
+
+  // Priority 2: Vercel's real IP header
+  const xRealIp = request.headers.get('x-real-ip')
+  if (xRealIp && isValidIpAddress(xRealIp)) {
+    return xRealIp
+  }
+
+  // Priority 3: X-Forwarded-For (validate rightmost trusted entry)
+  const xForwardedFor = request.headers.get('x-forwarded-for')
+  if (xForwardedFor) {
+    // The rightmost IP is added by our reverse proxy and is most trustworthy
+    // Left IPs can be spoofed by the client
+    const ips = xForwardedFor.split(',').map(ip => ip.trim())
+    // Take the rightmost valid IP (closest to our infrastructure)
+    for (let i = ips.length - 1; i >= 0; i--) {
+      if (isValidIpAddress(ips[i])) {
+        return ips[i]
+      }
+    }
+  }
+
+  // Fallback: unknown (will still rate limit, just not per-IP)
+  return 'unknown'
+}
+
+/**
+ * Validate IP address format (IPv4 or IPv6)
+ */
+function isValidIpAddress(ip: string): boolean {
+  // IPv4 pattern
+  const ipv4Regex = /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$/
+  // IPv6 pattern (simplified)
+  const ipv6Regex = /^(?:[a-fA-F0-9]{1,4}:){7}[a-fA-F0-9]{1,4}$|^::1$|^::$/
+
+  return ipv4Regex.test(ip) || ipv6Regex.test(ip)
+}
+
+/**
+ * Check if request is rate limited (distributed)
+ * Uses Supabase for distributed rate limiting across instances
+ * Falls back to in-memory if Supabase unavailable
+ */
+export async function checkRateLimitDistributed(
+  identifier: string,
+  config: RateLimitConfig = DEFAULT_RATE_LIMIT
+): Promise<{ allowed: boolean; remaining: number; resetTime: number }> {
+  const supabase = getRateLimitClient()
+  const now = Date.now()
+  const windowStart = new Date(now - (now % config.windowMs))
+  const expiresAt = new Date(windowStart.getTime() + config.windowMs * 2)
+
+  // If no Supabase client, fall back to in-memory
+  if (!supabase) {
+    return checkRateLimitInMemory(identifier, config)
+  }
+
+  try {
+    // Upsert rate limit entry with atomic increment
+    const { data, error } = await supabase.rpc('increment_rate_limit', {
+      p_identifier: identifier,
+      p_window_start: windowStart.toISOString(),
+      p_expires_at: expiresAt.toISOString(),
+      p_max_requests: config.maxRequests,
+    })
+
+    if (error) {
+      console.warn('[RateLimit] Supabase error, falling back to in-memory:', error.message)
+      return checkRateLimitInMemory(identifier, config)
+    }
+
+    const count = data?.count ?? 1
+    const allowed = count <= config.maxRequests
+
+    return {
+      allowed,
+      remaining: Math.max(0, config.maxRequests - count),
+      resetTime: windowStart.getTime() + config.windowMs,
+    }
+  } catch (err) {
+    console.warn('[RateLimit] Error, falling back to in-memory:', err)
+    return checkRateLimitInMemory(identifier, config)
+  }
+}
+
+/**
+ * In-memory rate limit check (fallback)
+ */
+function checkRateLimitInMemory(
   identifier: string,
   config: RateLimitConfig = DEFAULT_RATE_LIMIT
 ): { allowed: boolean; remaining: number; resetTime: number } {
   const now = Date.now()
-  const key = identifier
-  const entry = rateLimitStore.get(key)
+  const entry = rateLimitStore.get(identifier)
 
   if (!entry || entry.resetTime < now) {
-    // First request or window expired
-    rateLimitStore.set(key, {
+    rateLimitStore.set(identifier, {
       count: 1,
       resetTime: now + config.windowMs,
     })
@@ -150,17 +264,55 @@ export function checkRateLimit(
 }
 
 /**
- * Rate limit middleware for API routes
+ * Synchronous rate limit check (uses in-memory only)
+ * For backwards compatibility - prefer withRateLimitAsync
+ */
+export function checkRateLimit(
+  identifier: string,
+  config: RateLimitConfig = DEFAULT_RATE_LIMIT
+): { allowed: boolean; remaining: number; resetTime: number } {
+  return checkRateLimitInMemory(identifier, config)
+}
+
+/**
+ * Rate limit middleware for API routes (async, distributed)
+ * Uses Supabase for distributed rate limiting
+ */
+export async function withRateLimitAsync(
+  request: NextRequest,
+  config?: RateLimitConfig
+): Promise<NextResponse | null> {
+  const ip = getClientIp(request)
+  const result = await checkRateLimitDistributed(ip, config)
+
+  if (!result.allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      {
+        status: 429,
+        headers: {
+          'X-RateLimit-Limit': String(config?.maxRequests || DEFAULT_RATE_LIMIT.maxRequests),
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': String(Math.ceil(result.resetTime / 1000)),
+          'Retry-After': String(Math.ceil((result.resetTime - Date.now()) / 1000)),
+        },
+      }
+    )
+  }
+
+  return null
+}
+
+/**
+ * Rate limit middleware for API routes (sync, in-memory fallback)
+ * For backwards compatibility - prefer withRateLimitAsync
  */
 export function withRateLimit(
   request: NextRequest,
   config?: RateLimitConfig
 ): NextResponse | null {
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0] ||
-    request.headers.get('x-real-ip') ||
-    'unknown'
-
-  const result = checkRateLimit(ip, config)
+  const ip = getClientIp(request)
+  const result = checkRateLimitInMemory(ip, config)
 
   if (!result.allowed) {
     return NextResponse.json(
@@ -289,8 +441,14 @@ export function withTimeout<T>(
 }
 
 // =============================================================================
-// CSRF PROTECTION
+// CSRF PROTECTION (TD-005 fix)
 // =============================================================================
+
+const CSRF_COOKIE_NAME = '__csrf_token'
+const CSRF_HEADER_NAME = 'x-csrf-token'
+
+// Methods that require CSRF validation
+const CSRF_PROTECTED_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE']
 
 /**
  * Generate a CSRF token
@@ -302,18 +460,103 @@ export function generateCsrfToken(): string {
 }
 
 /**
- * Validate CSRF token from request
+ * Constant-time string comparison to prevent timing attacks
  */
-export function validateCsrfToken(request: NextRequest, expectedToken: string): boolean {
-  const token = request.headers.get('x-csrf-token')
-  if (!token || !expectedToken) return false
-
-  // Constant-time comparison to prevent timing attacks
-  if (token.length !== expectedToken.length) return false
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false
 
   let result = 0
-  for (let i = 0; i < token.length; i++) {
-    result |= token.charCodeAt(i) ^ expectedToken.charCodeAt(i)
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i)
   }
   return result === 0
+}
+
+/**
+ * Validate CSRF token from request header against cookie
+ */
+export function validateCsrfToken(request: NextRequest, expectedToken: string): boolean {
+  const token = request.headers.get(CSRF_HEADER_NAME)
+  if (!token || !expectedToken) return false
+  return constantTimeEqual(token, expectedToken)
+}
+
+/**
+ * Get CSRF token from request cookies
+ */
+export function getCsrfTokenFromCookies(request: NextRequest): string | null {
+  return request.cookies.get(CSRF_COOKIE_NAME)?.value || null
+}
+
+/**
+ * Check if request method requires CSRF validation
+ */
+export function requiresCsrfValidation(request: NextRequest): boolean {
+  return CSRF_PROTECTED_METHODS.includes(request.method)
+}
+
+/**
+ * CSRF middleware for API routes (TD-005 fix)
+ * Returns error response if CSRF validation fails, null if valid
+ *
+ * Usage in API routes:
+ * ```typescript
+ * export async function POST(request: NextRequest) {
+ *   const csrfError = withCsrfProtection(request)
+ *   if (csrfError) return csrfError
+ *   // ... rest of handler
+ * }
+ * ```
+ */
+export function withCsrfProtection(request: NextRequest): NextResponse | null {
+  // Skip CSRF check for safe methods
+  if (!requiresCsrfValidation(request)) {
+    return null
+  }
+
+  // Get token from cookie
+  const cookieToken = getCsrfTokenFromCookies(request)
+  if (!cookieToken) {
+    return NextResponse.json(
+      { error: 'CSRF token missing. Please refresh the page.' },
+      { status: 403 }
+    )
+  }
+
+  // Validate header token matches cookie token
+  if (!validateCsrfToken(request, cookieToken)) {
+    return NextResponse.json(
+      { error: 'CSRF token invalid. Please refresh the page.' },
+      { status: 403 }
+    )
+  }
+
+  return null
+}
+
+/**
+ * Create a response with CSRF token cookie set
+ * Use this when returning responses that need to include CSRF token
+ */
+export function withCsrfCookie(response: NextResponse, token?: string): NextResponse {
+  const csrfToken = token || generateCsrfToken()
+
+  response.cookies.set(CSRF_COOKIE_NAME, csrfToken, {
+    httpOnly: false, // Must be readable by JavaScript
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    path: '/',
+    maxAge: 60 * 60 * 24, // 24 hours
+  })
+
+  return response
+}
+
+/**
+ * Get or create CSRF token for a request
+ * Returns existing token from cookie or generates a new one
+ */
+export function getOrCreateCsrfToken(request: NextRequest): string {
+  const existing = getCsrfTokenFromCookies(request)
+  return existing || generateCsrfToken()
 }

@@ -40,30 +40,37 @@
 **Fix:** Replace with DOMPurify library
 **Status:** Fixed 2026-01-02
 
+### TD-023: Mock Data Fallback Pattern ✅ FIXED
+**Files:** `app/page.tsx`, `app/client/[id]/page.tsx`
+**Issue:** Views fell back to mockClients when API data unavailable
+**Effect:** Fake data shown instead of empty states; confusion about real vs mock
+**Fix:** Removed mock imports, return empty arrays, added proper empty state UI
+**Status:** Fixed 2026-01-02
+
 ---
 
 ## P1: Pre-Beta (Fix Before Public Launch)
 
-### TD-004: In-Memory Rate Limiting
-**File:** `lib/security.ts:81-96`
+### TD-004: In-Memory Rate Limiting ✅ FIXED
+**File:** `lib/security.ts`
 **Issue:** Rate limit store is in-memory Map, resets on restart
 **Effect:** Ineffective with load balancing or server restarts
-**Fix:** Use Redis or Supabase for distributed rate limiting
-**Trigger:** Before deploying with multiple instances
+**Fix:** Implemented distributed rate limiting via Supabase with atomic `increment_rate_limit` RPC
+**Status:** Fixed 2026-01-02
 
-### TD-005: Missing CSRF Protection
-**File:** `app/api/v1/*/route.ts` (all POST handlers)
+### TD-005: Missing CSRF Protection ✅ FIXED
+**File:** `middleware.ts`, `lib/security.ts`, `lib/csrf.ts`
 **Issue:** No CSRF token validation on state-changing requests
 **Effect:** Cross-site request forgery possible
-**Fix:** Add CSRF middleware using next-csrf or similar
-**Trigger:** Before public beta
+**Fix:** Added `withCsrfProtection()` middleware, cookie-based tokens set in middleware, client-side `fetchWithCsrf()` wrapper
+**Status:** Fixed 2026-01-02
 
-### TD-006: Email Validation Too Permissive
-**File:** `lib/security.ts:42-47`
+### TD-006: Email Validation Too Permissive ✅ FIXED
+**File:** `lib/security.ts`
 **Issue:** Regex allows invalid emails like `test@test..com`
 **Effect:** Invalid data in database
-**Fix:** Use email-validator library or RFC-compliant regex
-**Trigger:** Before user registration feature
+**Fix:** Replaced regex with `email-validator` library for RFC 5322 compliant validation
+**Status:** Fixed 2026-01-02
 
 ### TD-007: Disabled ESLint Dependencies ✅ FIXED
 **File:** `hooks/use-dashboard.ts:355`
@@ -72,12 +79,12 @@
 **Fix:** Added proper dependencies to initial load useEffect
 **Status:** Fixed 2026-01-03
 
-### TD-008: IP Spoofing in Rate Limiter
-**File:** `lib/security.ts:156-158`
+### TD-008: IP Spoofing in Rate Limiter ✅ FIXED
+**File:** `lib/security.ts`
 **Issue:** Trusts X-Forwarded-For header without validation
 **Effect:** Rate limit bypass via header spoofing
-**Fix:** Validate X-Forwarded-For chain or use CF-Connecting-IP
-**Trigger:** Before public exposure
+**Fix:** Added `getClientIp()` with priority: CF-Connecting-IP > X-Real-IP > rightmost X-Forwarded-For, with IP format validation
+**Status:** Fixed 2026-01-02
 
 ---
 
@@ -129,12 +136,12 @@
 
 ## P2: Pre-Scale (Fix at 100+ Clients)
 
-### TD-009: Missing useMemo for Filter Calculations
-**File:** `app/page.tsx:79-110`
+### TD-009: Missing useMemo for Filter Calculations ✅ FIXED
+**File:** `app/page.tsx:92-125`
 **Issue:** Filter logic recalculates on every render
 **Effect:** Performance degradation with large datasets
-**Fix:** Wrap in useMemo with proper dependencies
-**Trigger:** When client count exceeds 50
+**Fix:** Wrapped filteredClients in useMemo with proper dependencies
+**Status:** Fixed 2026-01-02
 
 ### TD-010: Missing React.memo on Kanban Components
 **File:** `components/kanban-board.tsx`

@@ -7,6 +7,7 @@ import { AIConfigurationSection } from "./sections/ai-configuration-section"
 import { NotificationsSection } from "./sections/notifications-section"
 import { PipelineSection } from "./sections/pipeline-section"
 import { AuditLogSection } from "./sections/audit-log-section"
+import { SecuritySection } from "./sections/security-section"
 
 export function SettingsContent() {
   const { activeSection } = useSettingsStore()
@@ -22,6 +23,8 @@ export function SettingsContent() {
       return <NotificationsSection />
     case "pipeline":
       return <PipelineSection />
+    case "security":
+      return <SecuritySection />
     case "audit_log":
       return <AuditLogSection />
     default:

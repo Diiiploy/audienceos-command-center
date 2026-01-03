@@ -15,8 +15,8 @@
 | **API Routes** | ✅ Complete | 24 endpoints built |
 | **Zustand Stores** | ✅ Complete | 6 stores |
 | **Demo Mode** | ✅ Working | Mock data fallback when unauthenticated |
-| **Database Schema** | ❌ NOT APPLIED | Migration exists, Supabase has legacy tables |
-| **Auth** | ⚠️ Hardcoded | Returns "Luke" instead of real user |
+| **Database Schema** | ✅ APPLIED | All 19 tables with RLS, seed data loaded |
+| **Auth** | ✅ Working | Supabase Auth + user table linked |
 | **Third-party APIs** | ❌ Not Connected | OAuth creds empty |
 
 **LATEST (2026-01-03):** UI polish pass completed - cursor-pointer on all clickable elements, interactive intake checklist, IntegrationCard button anchoring, Activity section scrollable. Build verified. See RUNBOOK.md for verification commands.
