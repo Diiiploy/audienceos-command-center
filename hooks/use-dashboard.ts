@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useCallback, useState } from "react"
+import { useEffect, useCallback, useState, useRef } from "react"
 import { useDashboardStore } from "@/stores/dashboard-store"
 import {
   calculateAllKPIs,
@@ -343,21 +343,19 @@ export function useDashboard(): UseDashboardReturn {
     loadTrends(period)
   }, [setSelectedPeriod, loadTrends])
 
-  // Initial load - runs once on mount
-  // Dependencies are intentionally empty: we only want to fetch on first render
-  // The callbacks check if data exists before fetching, preventing duplicate requests
+  // Track if initial load has happened (true mount-only behavior)
+  const hasInitializedRef = useRef(false)
+
+  // Initial load - runs once on mount using ref guard
   useEffect(() => {
-    const initialLoad = async () => {
-      if (!kpis) {
-        loadKPIs()
-      }
-      if (!trends) {
-        loadTrends(selectedPeriod)
-      }
-      setRealtimeConnected(true)
-    }
-    initialLoad()
-  }, [kpis, trends, selectedPeriod, loadKPIs, loadTrends, setRealtimeConnected])
+    if (hasInitializedRef.current) return
+    hasInitializedRef.current = true
+
+    loadKPIs()
+    loadTrends(selectedPeriod)
+    setRealtimeConnected(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentional: mount-only effect guarded by ref
+  }, [])
 
     // Load trends for initial period
     if (!trends) {
