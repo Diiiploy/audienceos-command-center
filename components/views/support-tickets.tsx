@@ -354,12 +354,11 @@ export function SupportTickets() {
         {selectedTicket && (
           <motion.div
             key="ticket-detail-panel"
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: "calc(100% - 280px)", opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
             transition={slideTransition}
-            className="flex flex-col bg-background overflow-hidden"
-            style={{ minWidth: 0 }}
+            className="flex-1 flex flex-col bg-background overflow-hidden"
           >
             <TicketDetailPanel
               ticket={selectedTicket}
