@@ -75,7 +75,6 @@ export function PipelineSection() {
     setHasUnsavedChanges(true)
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _handleMoveStage = (fromIndex: number, toIndex: number) => {
     const updated = [...stages]
     const [removed] = updated.splice(fromIndex, 1)

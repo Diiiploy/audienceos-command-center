@@ -30,12 +30,14 @@ export default [
       ...nextPlugin.configs.recommended.rules,
       ...nextPlugin.configs["core-web-vitals"].rules,
       ...reactHooksPlugin.configs.recommended.rules,
-      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" }],
       "@typescript-eslint/no-explicit-any": "warn",
       "no-unused-vars": "off",
       "no-undef": "off",
       // Disable React 19 strict mode rules for common patterns
       "react-hooks/set-state-in-effect": "off",
+      // TanStack Virtual returns functions that can't be memoized - this is expected
+      "react-hooks/incompatible-library": "off",
     },
     settings: {
       react: {

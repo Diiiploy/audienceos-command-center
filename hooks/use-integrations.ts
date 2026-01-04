@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react'
+import { useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useIntegrationsStore } from '@/lib/store'
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
@@ -11,36 +11,14 @@ type Integration = Database['public']['Tables']['integration']['Row']
  * Uses Supabase Realtime for live updates
  */
 export function useIntegrations() {
-  const {
-    integrations,
-    isLoading,
-    setIntegrations,
-    updateIntegration,
-    addIntegration,
-    removeIntegration,
-    setLoading,
-  } = useIntegrationsStore()
+  const integrations = useIntegrationsStore((state) => state.integrations)
+  const isLoading = useIntegrationsStore((state) => state.isLoading)
+  const initialFetchDone = useRef(false)
 
-  // Fetch integrations
-  const fetchIntegrations = useCallback(async () => {
-    setLoading(true)
-    try {
-      const response = await fetch('/api/v1/integrations')
-      if (!response.ok) {
-        throw new Error('Failed to fetch integrations')
-      }
-      const { data } = await response.json()
-      setIntegrations(data || [])
-    } catch (error) {
-      console.error('Error fetching integrations:', error)
-    } finally {
-      setLoading(false)
-    }
-  }, [setIntegrations, setLoading])
-
-  // Set up Realtime subscription
+  // Set up Realtime subscription - runs once on mount
   useEffect(() => {
     const supabase = createClient()
+    const store = useIntegrationsStore.getState()
 
     // Subscribe to integration changes
     const channel = supabase
@@ -54,25 +32,27 @@ export function useIntegrations() {
         },
         (payload: RealtimePostgresChangesPayload<Integration>) => {
           const { eventType, new: newRecord, old: oldRecord } = payload
+          // Use getState() to get fresh state and stable methods
+          const currentStore = useIntegrationsStore.getState()
 
           switch (eventType) {
             case 'INSERT':
               if (newRecord) {
-                addIntegration(newRecord as Integration)
+                currentStore.addIntegration(newRecord as Integration)
               }
               break
             case 'UPDATE':
               if (newRecord && 'id' in newRecord) {
-                // Only update if we have the integration in state
-                const exists = integrations.find(i => i.id === newRecord.id)
+                // Check current state, not stale closure
+                const exists = currentStore.integrations.find(i => i.id === newRecord.id)
                 if (exists) {
-                  updateIntegration(newRecord.id, newRecord as Partial<Integration>)
+                  currentStore.updateIntegration(newRecord.id, newRecord as Partial<Integration>)
                 }
               }
               break
             case 'DELETE':
               if (oldRecord && 'id' in oldRecord && typeof oldRecord.id === 'string') {
-                removeIntegration(oldRecord.id)
+                currentStore.removeIntegration(oldRecord.id)
               }
               break
           }
@@ -80,19 +60,46 @@ export function useIntegrations() {
       )
       .subscribe()
 
-    // Initial fetch
-    fetchIntegrations()
+    // Initial fetch - only once
+    if (!initialFetchDone.current) {
+      initialFetchDone.current = true
+      store.setLoading(true)
+      fetch('/api/v1/integrations')
+        .then(res => res.json())
+        .then(({ data }) => store.setIntegrations(data || []))
+        .catch(error => {
+          if (process.env.NODE_ENV !== 'production') {
+            console.error('Error fetching integrations:', error)
+          }
+        })
+        .finally(() => store.setLoading(false))
+    }
 
     // Cleanup
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [fetchIntegrations, addIntegration, updateIntegration, removeIntegration, integrations])
+  }, []) // Empty deps - subscription is static, uses getState() for fresh data
+
+  // Refetch function using stable store reference
+  const refetch = () => {
+    const store = useIntegrationsStore.getState()
+    store.setLoading(true)
+    fetch('/api/v1/integrations')
+      .then(res => res.json())
+      .then(({ data }) => store.setIntegrations(data || []))
+      .catch(error => {
+        if (process.env.NODE_ENV !== 'production') {
+          console.error('Error fetching integrations:', error)
+        }
+      })
+      .finally(() => store.setLoading(false))
+  }
 
   return {
     integrations,
     isLoading,
-    refetch: fetchIntegrations,
+    refetch,
   }
 }
 
@@ -100,7 +107,7 @@ export function useIntegrations() {
  * Hook for subscribing to a single integration's status
  */
 export function useIntegrationStatus(integrationId: string) {
-  const { integrations, updateIntegration } = useIntegrationsStore()
+  const integrations = useIntegrationsStore((state) => state.integrations)
   const integration = integrations.find((i) => i.id === integrationId)
 
   useEffect(() => {
@@ -120,7 +127,11 @@ export function useIntegrationStatus(integrationId: string) {
         },
         (payload: RealtimePostgresChangesPayload<Integration>) => {
           if (payload.new && 'id' in payload.new) {
-            updateIntegration(payload.new.id, payload.new as Partial<Integration>)
+            // Use getState() for stable reference
+            useIntegrationsStore.getState().updateIntegration(
+              payload.new.id,
+              payload.new as Partial<Integration>
+            )
           }
         }
       )
@@ -129,7 +140,7 @@ export function useIntegrationStatus(integrationId: string) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [integrationId, updateIntegration])
+  }, [integrationId]) // Removed updateIntegration - using getState() pattern
 
   return integration
 }

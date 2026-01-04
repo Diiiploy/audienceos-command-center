@@ -1,15 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createRouteHandlerClient, getAuthenticatedUser } from '@/lib/supabase'
-import { createClient } from '@supabase/supabase-js'
 import { withRateLimit, withCsrfProtection, sanitizeString, sanitizeEmail, createErrorResponse } from '@/lib/security'
 import type { HealthStatus } from '@/types/database'
-
-// Admin client for dev mode (bypasses RLS)
-const getAdminClient = () => createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 // Valid values for enums
 const VALID_STAGES = ['Lead', 'Onboarding', 'Installation', 'Audit', 'Live', 'Needs Support', 'Off-Boarding']
@@ -27,16 +20,9 @@ export async function GET(request: NextRequest) {
     // Get authenticated user with server verification (SEC-006)
     const { user, agencyId, error: authError } = await getAuthenticatedUser(supabase)
 
-    // DEV MODE: Allow unauthenticated access with default agency
-    const effectiveAgencyId = agencyId || '11111111-1111-1111-1111-111111111111'
-    const isDevMode = !user && process.env.NODE_ENV !== 'production'
-
-    if (!user && process.env.NODE_ENV === 'production') {
+    if (!user || !agencyId) {
       return createErrorResponse(401, authError || 'Unauthorized')
     }
-
-    // Use admin client in dev mode to bypass RLS
-    const dbClient = isDevMode ? getAdminClient() : supabase
 
     // Get query params for filtering (sanitize inputs)
     const { searchParams } = new URL(request.url)
@@ -45,8 +31,8 @@ export async function GET(request: NextRequest) {
     const isActive = searchParams.get('is_active')
     const search = searchParams.get('search')
 
-    // Build query - RLS will filter by agency_id (or explicit filter in dev mode)
-    let query = dbClient
+    // Build query - RLS will filter by agency_id, explicit filter for defense-in-depth
+    let query = supabase
       .from('client')
       .select(`
         *,
@@ -61,7 +47,7 @@ export async function GET(request: NextRequest) {
           )
         )
       `)
-      .eq('agency_id', effectiveAgencyId) // Explicit filter for dev mode
+      .eq('agency_id', agencyId) // Multi-tenant isolation (SEC-007)
       .order('updated_at', { ascending: false })
 
     // Apply filters with validation

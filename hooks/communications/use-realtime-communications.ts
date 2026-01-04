@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase'
 import { useCommunicationsStore, type CommunicationWithMeta } from '@/stores/communications-store'
@@ -21,53 +21,16 @@ export function useRealtimeCommunications({
   enabled = true,
 }: UseRealtimeCommunicationsOptions) {
   const queryClient = useQueryClient()
-  const { addCommunication, updateCommunication } = useCommunicationsStore()
   const channelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null)
+  // Use refs to avoid stale closures while keeping stable effect deps
+  const queryClientRef = useRef(queryClient)
+  const clientIdRef = useRef(clientId)
 
-  // Handle new message
-  const handleNewMessage = useCallback(
-    (payload: { new: CommunicationWithMeta }) => {
-      const newMessage = payload.new
-
-      // Add to store
-      addCommunication({
-        ...newMessage,
-        is_read: false, // New messages are unread
-        reply_to_id: null,
-      })
-
-      // Show toast notification
-      const platformLabel = newMessage.platform === 'slack' ? 'Slack' : 'Gmail'
-      const senderName = newMessage.sender_name || newMessage.sender_email || 'Unknown'
-
-      toast.info(`New ${platformLabel} message`, {
-        description: `From ${senderName}`,
-        duration: 5000,
-      })
-
-      // Invalidate query cache
-      queryClient.invalidateQueries({
-        queryKey: communicationsKeys.list(clientId),
-      })
-    },
-    [addCommunication, clientId, queryClient]
-  )
-
-  // Handle message update
-  const handleUpdateMessage = useCallback(
-    (payload: { new: CommunicationWithMeta; old: CommunicationWithMeta }) => {
-      const updatedMessage = payload.new
-
-      // Update in store
-      updateCommunication(updatedMessage.id, updatedMessage)
-
-      // Invalidate query cache
-      queryClient.invalidateQueries({
-        queryKey: communicationsKeys.detail(updatedMessage.id),
-      })
-    },
-    [updateCommunication, queryClient]
-  )
+  // Keep refs in sync
+  useEffect(() => {
+    queryClientRef.current = queryClient
+    clientIdRef.current = clientId
+  }, [queryClient, clientId])
 
   useEffect(() => {
     if (!enabled || !clientId) return
@@ -77,7 +40,7 @@ export function useRealtimeCommunications({
     // Create a unique channel name for this client's communications
     const channelName = `client-comms-${clientId}`
 
-    // Subscribe to changes
+    // Subscribe to changes - using refs and getState() for stable handlers
     const channel = supabase
       .channel(channelName)
       .on<CommunicationWithMeta>(
@@ -88,7 +51,30 @@ export function useRealtimeCommunications({
           table: 'communication',
           filter: `client_id=eq.${clientId}`,
         },
-        (payload) => handleNewMessage(payload as { new: CommunicationWithMeta })
+        (payload) => {
+          const newMessage = (payload as { new: CommunicationWithMeta }).new
+
+          // Add to store using getState()
+          useCommunicationsStore.getState().addCommunication({
+            ...newMessage,
+            is_read: false,
+            reply_to_id: null,
+          })
+
+          // Show toast notification
+          const platformLabel = newMessage.platform === 'slack' ? 'Slack' : 'Gmail'
+          const senderName = newMessage.sender_name || newMessage.sender_email || 'Unknown'
+
+          toast.info(`New ${platformLabel} message`, {
+            description: `From ${senderName}`,
+            duration: 5000,
+          })
+
+          // Invalidate query cache using ref
+          queryClientRef.current.invalidateQueries({
+            queryKey: communicationsKeys.list(clientIdRef.current),
+          })
+        }
       )
       .on<CommunicationWithMeta>(
         'postgres_changes',
@@ -98,16 +84,25 @@ export function useRealtimeCommunications({
           table: 'communication',
           filter: `client_id=eq.${clientId}`,
         },
-        (payload) =>
-          handleUpdateMessage(
-            payload as { new: CommunicationWithMeta; old: CommunicationWithMeta }
-          )
+        (payload) => {
+          const updatedMessage = (payload as { new: CommunicationWithMeta }).new
+
+          // Update in store using getState()
+          useCommunicationsStore.getState().updateCommunication(updatedMessage.id, updatedMessage)
+
+          // Invalidate query cache using ref
+          queryClientRef.current.invalidateQueries({
+            queryKey: communicationsKeys.detail(updatedMessage.id),
+          })
+        }
       )
       .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log(`Realtime: Subscribed to ${channelName}`)
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error(`Realtime: Error subscribing to ${channelName}`)
+        if (process.env.NODE_ENV !== 'production') {
+          if (status === 'SUBSCRIBED') {
+            console.log(`Realtime: Subscribed to ${channelName}`)
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error(`Realtime: Error subscribing to ${channelName}`)
+          }
         }
       })
 
@@ -120,7 +115,7 @@ export function useRealtimeCommunications({
         channelRef.current = null
       }
     }
-  }, [clientId, enabled, handleNewMessage, handleUpdateMessage])
+  }, [clientId, enabled]) // Removed callback deps - using refs and getState()
 
   // Return unsubscribe function
   return {

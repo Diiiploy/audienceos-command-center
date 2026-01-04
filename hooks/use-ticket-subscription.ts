@@ -16,7 +16,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js'
  */
 export function useTicketSubscription() {
   const channelRef = useRef<RealtimeChannel | null>(null)
-  const { tickets, fetchTickets } = useTicketStore()
+  const tickets = useTicketStore((state) => state.tickets)
   const hasTickets = tickets.length > 0
 
   useEffect(() => {
@@ -43,9 +43,11 @@ export function useTicketSubscription() {
           table: 'ticket',
         },
         (payload) => {
-          console.log('[Realtime] Ticket inserted:', payload.new)
-          // Refetch to get joined data (client, assignee)
-          fetchTickets()
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('[Realtime] Ticket inserted:', payload.new)
+          }
+          // Use getState() to avoid stale closure - stable reference
+          useTicketStore.getState().fetchTickets()
         }
       )
       .on(
@@ -56,7 +58,9 @@ export function useTicketSubscription() {
           table: 'ticket',
         },
         (payload) => {
-          console.log('[Realtime] Ticket updated:', payload.new)
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('[Realtime] Ticket updated:', payload.new)
+          }
           // Update in store
           const updatedTicket = payload.new as Partial<Ticket>
           useTicketStore.setState((state) => ({
@@ -79,7 +83,9 @@ export function useTicketSubscription() {
           table: 'ticket',
         },
         (payload) => {
-          console.log('[Realtime] Ticket deleted:', payload.old)
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('[Realtime] Ticket deleted:', payload.old)
+          }
           const deletedId = (payload.old as { id: string }).id
           useTicketStore.setState((state) => ({
             tickets: state.tickets.filter((t) => t.id !== deletedId),
@@ -89,7 +95,9 @@ export function useTicketSubscription() {
         }
       )
       .subscribe((status) => {
-        console.log('[Realtime] Subscription status:', status)
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('[Realtime] Subscription status:', status)
+        }
       })
 
     channelRef.current = channel
@@ -101,7 +109,7 @@ export function useTicketSubscription() {
         channelRef.current = null
       }
     }
-  }, [hasTickets, fetchTickets])
+  }, [hasTickets]) // Removed fetchTickets - using getState() pattern instead
 
   return null
 }
@@ -111,7 +119,6 @@ export function useTicketSubscription() {
  */
 export function useTicketNotesSubscription(ticketId: string | null) {
   const channelRef = useRef<RealtimeChannel | null>(null)
-  const { fetchNotes } = useTicketStore()
 
   useEffect(() => {
     if (!ticketId) return
@@ -135,9 +142,11 @@ export function useTicketNotesSubscription(ticketId: string | null) {
           filter: `ticket_id=eq.${ticketId}`,
         },
         (payload) => {
-          console.log('[Realtime] Note added:', payload.new)
-          // Refetch to get author data
-          fetchNotes(ticketId)
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('[Realtime] Note added:', payload.new)
+          }
+          // Use getState() to avoid stale closure - stable reference
+          useTicketStore.getState().fetchNotes(ticketId)
         }
       )
       .subscribe()
@@ -150,7 +159,7 @@ export function useTicketNotesSubscription(ticketId: string | null) {
         channelRef.current = null
       }
     }
-  }, [ticketId, fetchNotes])
+  }, [ticketId]) // Removed fetchNotes - using getState() pattern instead
 
   return null
 }

@@ -14,12 +14,12 @@ import {
 } from "@dnd-kit/core"
 import { useDraggable, useDroppable } from "@dnd-kit/core"
 import { CSS } from "@dnd-kit/utilities"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { MessageSquare, GripVertical, AlertTriangle, RefreshCw } from "lucide-react"
+import { AlertTriangle, RefreshCw } from "lucide-react"
 import { type Client, type Stage, stages, owners } from "@/lib/mock-data"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
@@ -55,7 +55,7 @@ function getHealthDotColor(health: string) {
   }
 }
 
-function getTierBadgeStyleLight(tier: string) {
+function _getTierBadgeStyleLight(tier: string) {
   switch (tier) {
     case "Enterprise":
       return "bg-emerald-50 text-emerald-700 border-emerald-200"
@@ -68,7 +68,7 @@ function getTierBadgeStyleLight(tier: string) {
   }
 }
 
-function getTierBadgeStyle(tier: string) {
+function _getTierBadgeStyle(tier: string) {
   switch (tier) {
     case "Enterprise":
       return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30"
@@ -81,7 +81,7 @@ function getTierBadgeStyle(tier: string) {
   }
 }
 
-function getDaysColor(days: number) {
+function _getDaysColor(days: number) {
   if (days > 4) return "text-rose-600 dark:text-rose-400 font-medium bg-rose-50 dark:bg-rose-500/10 px-1.5 py-0.5 rounded text-[11px]"
   return "text-muted-foreground text-[11px]"
 }

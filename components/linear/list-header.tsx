@@ -195,7 +195,7 @@ export function ListHeader({
           {filters.map((filter, _index) => {
             const activeValue = activeFilters[filter.id]
             const activeOption = filter.options.find(o => o.value === activeValue)
-            const filterLabel = activeOption ? `${filter.label}: ${activeOption.label}` : filter.label
+            const _filterLabel = activeOption ? `${filter.label}: ${activeOption.label}` : filter.label
 
             return (
               <DropdownMenu key={filter.id}>
