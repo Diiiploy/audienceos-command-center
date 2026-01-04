@@ -69,6 +69,7 @@ export function ChatInterface({
   const [messages, setMessages] = useState<ChatMessageType[]>([])
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [sessionId] = useState(() => crypto.randomUUID()) // Generate session ID once
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -194,15 +195,12 @@ export function ChatInterface({
     streaming.reset()
 
     try {
-      const response = await fetch("/api/chat", {
+      const response = await fetch("/api/v1/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: messageContent,
-          agencyId,
-          userId,
-          context,
-          history: messages,
+          sessionId,
         }),
       })
 
@@ -217,13 +215,13 @@ export function ChatInterface({
       }
 
       const assistantMessage: ChatMessageType = {
-        id: crypto.randomUUID(),
+        id: data.id || crypto.randomUUID(),
         role: "assistant",
-        content: data.message?.content || data.content || "I received your message.",
-        timestamp: new Date(),
-        route: data.message?.route || data.route,
-        citations: data.message?.citations || data.citations,
-        suggestions: data.message?.suggestions || data.suggestions,
+        content: data.content || "I received your message.",
+        timestamp: data.timestamp ? new Date(data.timestamp) : new Date(),
+        route: data.route,
+        citations: data.citations || [],
+        suggestions: data.suggestions,
       }
 
       setMessages((prev) => [...prev, assistantMessage])
