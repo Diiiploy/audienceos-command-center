@@ -64,10 +64,10 @@ const clientFiltersConfig: FilterConfig[] = [
     id: "owner",
     label: "Owner",
     options: [
-      { label: "Luke", value: "Luke" },
-      { label: "Garrett", value: "Garrett" },
-      { label: "Josh", value: "Josh" },
-      { label: "Jeff", value: "Jeff" },
+      { label: "Brent", value: "Brent" },
+      { label: "Roderic", value: "Roderic" },
+      { label: "Trevor", value: "Trevor" },
+      { label: "Chase", value: "Chase" },
     ],
   },
   {
@@ -165,6 +165,17 @@ function CommandCenterContent() {
   useEffect(() => {
     fetchClients()
   }, [fetchClients])
+
+  // Set chat context for dashboard page
+  useEffect(() => {
+    if (typeof window !== "undefined" && (window as any).setChatContext) {
+      (window as any).setChatContext({
+        page: "dashboard",
+        context: "User is viewing the Command Center dashboard with client pipeline and metrics",
+        prompt: "Ask about clients, pipeline metrics, health status, or anything else",
+      })
+    }
+  }, [])
 
   // Convert store clients to UI format
   const clients: MinimalClient[] = useMemo(() => {
