@@ -240,3 +240,40 @@ Created comprehensive test suite with 38 tests covering all executors:
 ---
 
 *Session completed: 2026-01-04 (FULL QA + UNIT TESTS = 10/10)*
+
+---
+
+## Session 2026-01-04 ~15:00 - Knowledge Base Layout Fix + Workflow Change
+
+### Completed
+- Fixed Knowledge Base preview panel layout on Vercel deployment
+  - Preview area now uses `flex-1` to fill vertical space
+  - Metadata + buttons anchored to bottom with `border-t border-border`
+  - Document list widens to 400px when preview open
+  - Commits: 980c7a3, a059ebc
+- Fixed GeminiFileService lazy initialization (was throwing at module load time)
+- Added GOOGLE_AI_API_KEY to Vercel environment variables (all envs via CLI)
+- **Updated RUNBOOK with push-to-Vercel development workflow**
+- Stored workflow change in mem0
+
+### Key Files Modified
+- `components/linear/document-preview-panel.tsx` - Major restructure (flex-1 preview, bottom-anchored metadata)
+- `components/views/knowledge-base.tsx` - Preview panel flex-1 instead of fixed width
+- `lib/gemini/file-service.ts` - Lazy singleton initialization
+- `RUNBOOK.md` - Push-to-Vercel workflow documented
+
+### Incomplete
+- "Failed to load clients" error on Vercel is **expected behavior**
+  - App uses mock data locally, Supabase not configured with production data yet
+  - Not a bug, just needs real database data
+
+### Next Steps
+- Populate Supabase with real client data OR configure fallback to mock data on Vercel
+- Continue UI development via push-to-Vercel workflow
+
+### Context
+**Development workflow officially changed:** No more localhost, all verification on Vercel preview URLs. Documented in RUNBOOK and mem0.
+
+---
+
+*Session completed: 2026-01-04 ~15:00*
