@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { createRouteHandlerClient } from '@/lib/supabase'
+import { createRouteHandlerClient, getAuthenticatedUser } from '@/lib/supabase'
+import { withRateLimit, isValidUUID, createErrorResponse } from '@/lib/security'
 import type { Database } from '@/types/database'
 
 type Communication = Database['public']['Tables']['communication']['Row']
@@ -13,8 +14,39 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Rate limit: 100 requests per minute
+  const rateLimitResponse = withRateLimit(request)
+  if (rateLimitResponse) return rateLimitResponse
+
   try {
     const { id: clientId } = await params
+
+    // Validate UUID format
+    if (!isValidUUID(clientId)) {
+      return createErrorResponse(400, 'Invalid client ID format')
+    }
+
+    const supabase = await createRouteHandlerClient(cookies)
+
+    // Get authenticated user with server verification (SEC-006)
+    const { user, agencyId, error: authError } = await getAuthenticatedUser(supabase)
+
+    if (!user || !agencyId) {
+      return createErrorResponse(401, authError || 'Unauthorized')
+    }
+
+    // Verify client belongs to user's agency
+    const { data: client, error: clientError } = await supabase
+      .from('client')
+      .select('id')
+      .eq('id', clientId)
+      .eq('agency_id', agencyId) // Multi-tenant isolation (SEC-007)
+      .single()
+
+    if (clientError || !client) {
+      return createErrorResponse(404, 'Client not found')
+    }
+
     const searchParams = request.nextUrl.searchParams
 
     // Parse query parameters
@@ -23,8 +55,6 @@ export async function GET(
     const threadId = searchParams.get('thread_id')
     const cursor = searchParams.get('cursor')
     const limit = Math.min(parseInt(searchParams.get('limit') || '25'), 100)
-
-    const supabase = await createRouteHandlerClient(cookies)
 
     // Build query
     let query = supabase
@@ -55,11 +85,10 @@ export async function GET(
     const { data, error, count } = await query
 
     if (error) {
-      console.error('Error fetching communications:', error)
-      return NextResponse.json(
-        { error: 'internal_error', message: error.message },
-        { status: 500 }
-      )
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('Error fetching communications:', error)
+      }
+      return createErrorResponse(500, 'Failed to fetch communications')
     }
 
     const items = (data || []) as Communication[]
@@ -76,10 +105,9 @@ export async function GET(
       },
     })
   } catch (error) {
-    console.error('Unexpected error:', error)
-    return NextResponse.json(
-      { error: 'internal_error', message: 'An unexpected error occurred' },
-      { status: 500 }
-    )
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Unexpected error:', error)
+    }
+    return createErrorResponse(500, 'Internal server error')
   }
 }

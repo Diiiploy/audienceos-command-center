@@ -8,8 +8,17 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import DOMPurify from 'isomorphic-dompurify'
 import * as EmailValidator from 'email-validator'
+
+// Lazy load DOMPurify to avoid jsdom dependency issues on Vercel serverless
+let DOMPurify: typeof import('isomorphic-dompurify').default | null = null
+async function getDOMPurify() {
+  if (!DOMPurify) {
+    const mod = await import('isomorphic-dompurify')
+    DOMPurify = mod.default
+  }
+  return DOMPurify
+}
 import { createClient } from '@supabase/supabase-js'
 
 // Service role client for rate limiting (bypasses RLS)
@@ -44,10 +53,12 @@ export function sanitizeString(input: unknown): string {
 /**
  * Sanitize HTML content using DOMPurify (TD-003 fix)
  * Handles XSS vectors including encoding bypasses, SVG, data URIs
+ * Note: This is async to enable lazy loading of DOMPurify (jsdom dependency)
  */
-export function sanitizeHtml(input: unknown): string {
+export async function sanitizeHtml(input: unknown): Promise<string> {
   if (typeof input !== 'string') return ''
-  return DOMPurify.sanitize(input, {
+  const purify = await getDOMPurify()
+  return purify.sanitize(input, {
     ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'br', 'ul', 'ol', 'li'],
     ALLOWED_ATTR: ['href', 'target', 'rel'],
     ALLOW_DATA_ATTR: false,

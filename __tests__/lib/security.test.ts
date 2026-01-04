@@ -44,28 +44,28 @@ describe('Security Utilities', () => {
   })
 
   describe('sanitizeHtml', () => {
-    it('should remove script tags', () => {
+    it('should remove script tags', async () => {
       const input = '<p>Hello</p><script>alert("xss")</script><p>World</p>'
-      const result = sanitizeHtml(input)
+      const result = await sanitizeHtml(input)
       expect(result).not.toContain('<script>')
       expect(result).not.toContain('alert')
     })
 
-    it('should remove inline event handlers', () => {
+    it('should remove inline event handlers', async () => {
       const input = '<img src="x" onerror="alert(1)">'
-      const result = sanitizeHtml(input)
+      const result = await sanitizeHtml(input)
       expect(result).not.toContain('onerror')
     })
 
-    it('should remove javascript: URLs', () => {
+    it('should remove javascript: URLs', async () => {
       const input = '<a href="javascript:alert(1)">Click me</a>'
-      const result = sanitizeHtml(input)
+      const result = await sanitizeHtml(input)
       expect(result).not.toContain('javascript:')
     })
 
-    it('should return empty string for non-string input', () => {
-      expect(sanitizeHtml(null)).toBe('')
-      expect(sanitizeHtml(undefined)).toBe('')
+    it('should return empty string for non-string input', async () => {
+      expect(await sanitizeHtml(null)).toBe('')
+      expect(await sanitizeHtml(undefined)).toBe('')
     })
   })
 
