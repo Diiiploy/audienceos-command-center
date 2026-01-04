@@ -39,14 +39,13 @@ export async function GET(request: NextRequest) {
       .gte('created_at', startDate.toISOString())
       .order('created_at', { ascending: true })
 
-    // Fetch clients that went live in period
+    // Fetch clients that were last updated in period (proxy for "went live")
     const { data: completedInstalls } = await supabase
       .from('client')
-      .select('id, first_live_date')
+      .select('id, updated_at')
       .eq('agency_id', agencyId)
-      .not('first_live_date', 'is', null)
-      .gte('first_live_date', startDate.toISOString())
-      .order('first_live_date', { ascending: true })
+      .gte('updated_at', startDate.toISOString())
+      .order('updated_at', { ascending: true })
 
     // Group by date
     const dateMap = new Map<string, TrendDataPoint>()
@@ -73,7 +72,7 @@ export async function GET(request: NextRequest) {
 
     // Count completed installs per day
     for (const client of completedInstalls || []) {
-      const dateStr = client.first_live_date!.split('T')[0]
+      const dateStr = client.updated_at.split('T')[0]
       const entry = dateMap.get(dateStr)
       if (entry) {
         entry.completedInstalls++

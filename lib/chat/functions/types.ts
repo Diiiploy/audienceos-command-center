@@ -62,6 +62,7 @@ export interface AlertSummary {
   severity: 'critical' | 'high' | 'medium' | 'low';
   title: string;
   description?: string;
+  suggestedAction?: string;
   status: string;
   createdAt: string;
 }

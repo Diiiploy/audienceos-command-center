@@ -34,17 +34,10 @@ export async function GET(request: NextRequest) {
     const cursor = searchParams.get('cursor')
     const limit = Math.min(parseInt(searchParams.get('limit') || '25'), 100)
 
-    // Build query with client join
+    // Build query (note: client join removed - schema relationship not yet configured)
     let query = supabase
       .from('communication')
-      .select(`
-        *,
-        client:client_id (
-          id,
-          name,
-          health_status
-        )
-      `, { count: 'exact' })
+      .select(`*`, { count: 'exact' })
       .eq('agency_id', agencyId)
       .order('received_at', { ascending: false })
       .limit(limit)
@@ -76,7 +69,7 @@ export async function GET(request: NextRequest) {
       return createErrorResponse(500, 'Failed to fetch communications')
     }
 
-    const items = (data || []) as (Communication & { client: { id: string; name: string; health_status: string } | null })[]
+    const items = (data || []) as Communication[]
     const lastItem = items[items.length - 1]
     const nextCursor = lastItem?.received_at || null
     const hasMore = items.length === limit
