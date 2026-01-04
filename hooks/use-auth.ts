@@ -60,9 +60,13 @@ export function useAuth() {
 
   // Initialize auth state
   useEffect(() => {
+    let isMounted = true
+
     const initAuth = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
+
+        if (!isMounted) return
 
         if (error) {
           console.error('Error getting session:', error)
@@ -72,13 +76,15 @@ export function useAuth() {
 
         if (session?.user) {
           const profile = await fetchProfile(session.user.id)
+          if (!isMounted) return
+
           setState({
             user: session.user,
             profile,
             session,
             isLoading: false,
             isAuthenticated: true,
-            error: null,
+            error: profile ? null : 'Profile not found - please contact support',
           })
         } else {
           setState({
@@ -92,6 +98,7 @@ export function useAuth() {
         }
       } catch (error) {
         console.error('Error in initAuth:', error)
+        if (!isMounted) return
         setState(prev => ({
           ...prev,
           isLoading: false,
@@ -100,13 +107,28 @@ export function useAuth() {
       }
     }
 
+    // Add timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      if (isMounted) {
+        setState(prev => {
+          if (prev.isLoading) {
+            console.warn('Auth timeout - setting isLoading to false')
+            return { ...prev, isLoading: false, error: 'Auth timeout' }
+          }
+          return prev
+        })
+      }
+    }, 5000)
+
     initAuth()
 
     // Subscribe to auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!isMounted) return
         if (event === 'SIGNED_IN' && session?.user) {
           const profile = await fetchProfile(session.user.id)
+          if (!isMounted) return
           setState({
             user: session.user,
             profile,
@@ -129,6 +151,8 @@ export function useAuth() {
     )
 
     return () => {
+      isMounted = false
+      clearTimeout(timeout)
       subscription.unsubscribe()
     }
   }, [supabase, fetchProfile])
