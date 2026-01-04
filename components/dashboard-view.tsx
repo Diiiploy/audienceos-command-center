@@ -354,7 +354,7 @@ function LoadByStatusWidget({ clients }: { clients: Client[] }) {
         {/* Donut Chart */}
         <div className="relative w-24 h-24">
           <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-            {segments.map((segment, i) => {
+            {segments.map((segment) => {
               const strokeDasharray = `${(segment.percent / 100) * circumference} ${circumference}`
               const strokeDashoffset = -cumulativePercent / 100 * circumference
               cumulativePercent += segment.percent
