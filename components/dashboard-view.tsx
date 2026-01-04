@@ -13,7 +13,7 @@ import {
 } from "./dashboard"
 import { type Client, owners } from "@/lib/mock-data"
 import { cn } from "@/lib/utils"
-import { MessageSquare, Send, Clock, User, AlertCircle, TrendingDown, Calendar, ExternalLink, X, CheckCircle2, CheckSquare, AlertTriangle, TrendingUp, Tag } from "lucide-react"
+import { MessageSquare, Send, Clock, AlertCircle, ExternalLink, X, CheckCircle2, CheckSquare, AlertTriangle, TrendingUp } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -834,23 +834,22 @@ export function DashboardView({ clients, onClientClick, onNavigateToChat }: Dash
     }
   }
 
-  const handleStageClick = (stage: string) => {
+  const handleStageClick = (_stage: string) => {
     setActiveTab("clients")
     // In real app, would set filter to stage
   }
 
-  const handleOwnerClick = (owner: string) => {
+  const handleOwnerClick = (_owner: string) => {
     setActiveTab("tasks")
     // In real app, would set filter to owner
   }
 
-  const handleTierClick = (tier: string) => {
+  const handleTierClick = (_tier: string) => {
     setActiveTab("clients")
     // In real app, would set filter to tier
   }
 
   // Filter clients/items for each tab
-  const alertClients = clients.filter(c => c.health === "Red" || c.health === "Blocked")
   const taskItems = firehoseItems.filter(item => item.targetTab === "tasks")
   const alertItems = firehoseItems.filter(item => item.targetTab === "alerts" || item.severity === "critical")
   const perfItems = firehoseItems.filter(item => item.targetTab === "performance")

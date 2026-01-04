@@ -1,7 +1,6 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
-import { motion, AnimatePresence, useReducedMotion } from "motion/react"
 import { cn } from "@/lib/utils"
 import {
   InboxItem,
@@ -233,12 +232,6 @@ export function SupportTickets() {
   const [activeFilter, setActiveFilter] = useState<FilterTab>("all")
   const [searchQuery, setSearchQuery] = useState("")
 
-  // Reduced motion support
-  const prefersReducedMotion = useReducedMotion()
-  const slideTransition = prefersReducedMotion
-    ? { duration: 0 }
-    : { duration: 0.3, ease: [0.16, 1, 0.3, 1] as const }
-
   // Calculate counts
   const counts = useMemo(() => {
     return {
@@ -288,13 +281,11 @@ export function SupportTickets() {
   return (
     <div className="flex h-full overflow-hidden">
       {/* Ticket list - shrinks when detail panel is open */}
-      <motion.div
-        layout
-        initial={false}
-        animate={{ width: selectedTicket ? 280 : "100%" }}
-        transition={slideTransition}
-        className="flex flex-col border-r border-border overflow-hidden"
-        style={{ minWidth: selectedTicket ? 280 : undefined }}
+      <div
+        className={cn(
+          "flex flex-col border-r border-border overflow-hidden transition-all duration-300 ease-out",
+          selectedTicket ? "w-[280px] min-w-[280px]" : "flex-1"
+        )}
       >
         <ListHeader
           title="Support Tickets"
@@ -352,28 +343,23 @@ export function SupportTickets() {
             </div>
           )}
         </div>
-      </motion.div>
+      </div>
 
       {/* Ticket detail panel */}
-      <AnimatePresence mode="wait">
-        {selectedTicket && (
-          <motion.div
-            key="ticket-detail"
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 600, opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
-            transition={slideTransition}
-            className="flex flex-col bg-background overflow-hidden"
-            style={{ minWidth: 0 }}
-          >
-            <TicketDetailPanel
-              ticket={selectedTicket}
-              onClose={() => setSelectedTicket(null)}
-              onComment={handleComment}
-            />
-          </motion.div>
+      <div
+        className={cn(
+          "flex flex-col bg-background overflow-hidden transition-all duration-300 ease-out",
+          selectedTicket ? "flex-1 opacity-100" : "w-0 opacity-0"
         )}
-      </AnimatePresence>
+      >
+        {selectedTicket && (
+          <TicketDetailPanel
+            ticket={selectedTicket}
+            onClose={() => setSelectedTicket(null)}
+            onComment={handleComment}
+          />
+        )}
+      </div>
     </div>
   )
 }

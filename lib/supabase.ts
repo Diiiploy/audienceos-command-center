@@ -1,9 +1,37 @@
 import { createBrowserClient, createServerClient } from '@supabase/ssr'
 import type { Database } from '@/types/database'
 
-// Environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// Environment variables - check at runtime, not module load
+// This allows builds to succeed even without env vars (CI/CD)
+function getSupabaseConfig() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!url || !key) {
+    // During build/static generation, these may not be available
+    // Return empty strings to prevent crashes - actual usage will fail gracefully
+    if (typeof window === 'undefined') {
+      console.warn('[Supabase] Environment variables not configured - using placeholders for build')
+      return { url: 'https://placeholder.supabase.co', key: 'placeholder-key' }
+    }
+    throw new Error('Supabase URL and API key are required. Check your environment variables.')
+  }
+
+  return { url, key }
+}
+
+// Lazy-loaded config to avoid issues during static generation
+let _supabaseUrl: string | null = null
+let _supabaseAnonKey: string | null = null
+
+function getConfig() {
+  if (!_supabaseUrl || !_supabaseAnonKey) {
+    const config = getSupabaseConfig()
+    _supabaseUrl = config.url
+    _supabaseAnonKey = config.key
+  }
+  return { supabaseUrl: _supabaseUrl, supabaseAnonKey: _supabaseAnonKey }
+}
 
 /**
  * Singleton browser client - prevents infinite re-render loops
@@ -18,6 +46,7 @@ let browserClient: ReturnType<typeof createBrowserClient<Database>> | null = nul
  */
 export function createClient() {
   if (!browserClient) {
+    const { supabaseUrl, supabaseAnonKey } = getConfig()
     browserClient = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey)
   }
   return browserClient
@@ -34,6 +63,7 @@ export async function createServerComponentClient(
   }>
 ) {
   const cookieStore = await cookiesFn()
+  const { supabaseUrl, supabaseAnonKey } = getConfig()
 
   return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -64,6 +94,7 @@ export async function createRouteHandlerClient(
   }>
 ) {
   const cookieStore = await cookiesFn()
+  const { supabaseUrl, supabaseAnonKey } = getConfig()
 
   return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -89,6 +120,7 @@ export function createMiddlewareClient(
 ) {
   const cookieHeader = request.headers.get('cookie') || ''
   const cookiePairs = cookieHeader.split(';').filter(Boolean)
+  const { supabaseUrl, supabaseAnonKey } = getConfig()
 
   return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {

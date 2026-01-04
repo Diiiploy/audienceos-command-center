@@ -1,7 +1,6 @@
 "use client"
 
 import React, { useState } from "react"
-import { motion, AnimatePresence, useReducedMotion } from "motion/react"
 import { mockClients } from "@/lib/mock-data"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
@@ -444,12 +443,6 @@ export function OnboardingHub({ onClientClick }: OnboardingHubProps) {
   )
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
 
-  // Reduced motion support
-  const prefersReducedMotion = useReducedMotion()
-  const slideTransition = prefersReducedMotion
-    ? { duration: 0 }
-    : { duration: 0.3, ease: [0.16, 1, 0.3, 1] as const }
-
   // Group clients by onboarding stage
   const clientsByStage = mockClients.reduce((acc, client) => {
     const stage = getOnboardingStage(client.stage)
@@ -479,13 +472,11 @@ export function OnboardingHub({ onClientClick }: OnboardingHubProps) {
   return (
     <div className="flex h-full overflow-hidden">
       {/* LEFT PANEL - Stages List (always visible) */}
-      <motion.div
-        layout
-        initial={false}
-        animate={{ width: isCompact ? 288 : "100%" }}
-        transition={slideTransition}
-        className="flex flex-col border-r border-border/50 bg-muted/30 overflow-hidden"
-        style={{ minWidth: isCompact ? 288 : undefined }}
+      <div
+        className={cn(
+          "flex flex-col border-r border-border/50 bg-muted/30 overflow-hidden transition-all duration-300 ease-out",
+          isCompact ? "w-[288px] min-w-[288px]" : "flex-1"
+        )}
       >
         {/* Header */}
         <div className="px-4 py-3 border-b border-border/50 bg-background shrink-0">
@@ -517,29 +508,24 @@ export function OnboardingHub({ onClientClick }: OnboardingHubProps) {
             )
           })}
         </div>
-      </motion.div>
+      </div>
 
       {/* RIGHT PANEL - Client Detail View */}
-      <AnimatePresence mode="wait">
-        {selectedClient && selectedStage && (
-          <motion.div
-            key="client-detail"
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 600, opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
-            transition={slideTransition}
-            className="flex flex-col bg-background overflow-hidden"
-            style={{ minWidth: 0 }}
-          >
-            <ClientDetailPanel
-              client={selectedClient}
-              stage={selectedStage}
-              onClose={() => setSelectedClient(null)}
-              onClientClick={onClientClick}
-            />
-          </motion.div>
+      <div
+        className={cn(
+          "flex flex-col bg-background overflow-hidden transition-all duration-300 ease-out",
+          selectedClient && selectedStage ? "flex-1 opacity-100" : "w-0 opacity-0"
         )}
-      </AnimatePresence>
+      >
+        {selectedClient && selectedStage && (
+          <ClientDetailPanel
+            client={selectedClient}
+            stage={selectedStage}
+            onClose={() => setSelectedClient(null)}
+            onClientClick={onClientClick}
+          />
+        )}
+      </div>
     </div>
   )
 }
