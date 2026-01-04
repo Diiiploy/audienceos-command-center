@@ -11,19 +11,40 @@ import { createRouteHandlerClient, getAuthenticatedUser } from '@/lib/supabase'
 import { ChatService } from '@/lib/chat/service'
 import { withRateLimit, sanitizeString, createErrorResponse } from '@/lib/security'
 
+// Mock mode detection - allows chat to work without real Supabase
+const MOCK_AGENCY_ID = 'demo-agency'
+const MOCK_USER_ID = 'mock-user-id'
+const isMockMode = () => {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+  return url.includes('placeholder') || url === ''
+}
+
 export async function POST(request: NextRequest) {
   // Rate limit: 60 chat messages per minute (stricter for AI endpoints)
   const rateLimitResponse = withRateLimit(request, { maxRequests: 60, windowMs: 60000 })
   if (rateLimitResponse) return rateLimitResponse
 
   try {
-    const supabase = await createRouteHandlerClient(cookies)
+    let agencyId: string
+    let userId: string
 
-    // Get authenticated user with server verification (SEC-006)
-    const { user, agencyId, error: authError } = await getAuthenticatedUser(supabase)
+    // Mock mode - skip Supabase auth
+    if (isMockMode()) {
+      console.info('[Chat API] Mock mode enabled - using demo credentials')
+      agencyId = MOCK_AGENCY_ID
+      userId = MOCK_USER_ID
+    } else {
+      const supabase = await createRouteHandlerClient(cookies)
 
-    if (!user || !agencyId) {
-      return createErrorResponse(401, authError || 'Unauthorized')
+      // Get authenticated user with server verification (SEC-006)
+      const { user, agencyId: authAgencyId, error: authError } = await getAuthenticatedUser(supabase)
+
+      if (!user || !authAgencyId) {
+        return createErrorResponse(401, authError || 'Unauthorized')
+      }
+
+      agencyId = authAgencyId
+      userId = user.id
     }
 
     // Parse request body
@@ -60,7 +81,7 @@ export async function POST(request: NextRequest) {
     // Create chat service
     const chatService = new ChatService({
       agencyId,
-      userId: user.id,
+      userId,
       geminiApiKey,
     })
 

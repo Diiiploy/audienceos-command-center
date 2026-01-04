@@ -2,6 +2,13 @@ import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import type { User, Session } from '@supabase/supabase-js'
 
+// Mock mode detection - allows app to work without real Supabase
+const MOCK_AGENCY_ID = 'demo-agency'
+const isMockMode = () => {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+  return url.includes('placeholder') || url === ''
+}
+
 export interface UserProfile {
   id: string
   agency_id: string
@@ -61,6 +68,28 @@ export function useAuth() {
   // Initialize auth state
   useEffect(() => {
     const initAuth = async () => {
+      // Mock mode - return demo data without hitting Supabase
+      if (isMockMode()) {
+        console.info('[Auth] Mock mode enabled - using demo agency')
+        setState({
+          user: null,
+          profile: {
+            id: 'mock-user-id',
+            agency_id: MOCK_AGENCY_ID,
+            first_name: 'Demo',
+            last_name: 'User',
+            email: 'demo@audienceos.dev',
+            avatar_url: null,
+            role: 'admin',
+          },
+          session: null,
+          isLoading: false,
+          isAuthenticated: true, // Treat as authenticated for UI purposes
+          error: null,
+        })
+        return
+      }
+
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
 
