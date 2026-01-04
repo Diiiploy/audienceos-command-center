@@ -27,9 +27,9 @@ export async function POST(
     const supabase = await createRouteHandlerClient(cookies)
 
     // Get authenticated user with server verification (SEC-006)
-    const { user, error: authError } = await getAuthenticatedUser(supabase)
+    const { user, agencyId, error: authError } = await getAuthenticatedUser(supabase)
 
-    if (!user) {
+    if (!user || !agencyId) {
       return createErrorResponse(401, authError || 'Unauthorized')
     }
 
@@ -74,6 +74,7 @@ export async function POST(
         )
       `)
       .eq('id', ticketId)
+      .eq('agency_id', agencyId) // Multi-tenant isolation (SEC-007)
       .single()
 
     if (fetchError || !currentTicket) {
@@ -96,6 +97,7 @@ export async function POST(
         resolved_at: new Date().toISOString(),
       })
       .eq('id', ticketId)
+      .eq('agency_id', agencyId) // Multi-tenant isolation (SEC-007)
       .select(`
         *,
         client:client_id (

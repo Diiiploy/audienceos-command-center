@@ -28,9 +28,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const supabase = await createRouteHandlerClient(cookies)
 
     // Get authenticated user with server verification (SEC-006)
-    const { user, error: authError } = await getAuthenticatedUser(supabase)
+    const { user, agencyId, error: authError } = await getAuthenticatedUser(supabase)
 
-    if (!user) {
+    if (!user || !agencyId) {
       return NextResponse.json({ error: authError || 'Unauthorized' }, { status: 401 })
     }
 
@@ -39,6 +39,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .from('integration')
       .select('*')
       .eq('id', id)
+      .eq('agency_id', agencyId) // Multi-tenant isolation (SEC-007)
       .single()
 
     if (error || !integration) {
@@ -69,6 +70,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         .from('integration')
         .update({ last_sync_at: new Date().toISOString() })
         .eq('id', id)
+        .eq('agency_id', agencyId) // Multi-tenant isolation (SEC-007)
     }
 
     return NextResponse.json({ data: result })

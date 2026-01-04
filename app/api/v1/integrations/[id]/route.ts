@@ -97,9 +97,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const supabase = await createRouteHandlerClient(cookies)
 
     // Get authenticated user (SEC-006)
-    const { user, error: authError } = await getAuthenticatedUser(supabase)
+    const { user, agencyId, error: authError } = await getAuthenticatedUser(supabase)
 
-    if (!user) {
+    if (!user || !agencyId) {
       return createErrorResponse(401, authError || 'Unauthorized')
     }
 
@@ -107,6 +107,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       .from('integration')
       .select('*')
       .eq('id', id)
+      .eq('agency_id', agencyId) // Multi-tenant isolation (SEC-007)
       .single()
 
     if (error || !integration) {
@@ -143,9 +144,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const supabase = await createRouteHandlerClient(cookies)
 
     // Get authenticated user (SEC-006)
-    const { user, error: authError } = await getAuthenticatedUser(supabase)
+    const { user, agencyId, error: authError } = await getAuthenticatedUser(supabase)
 
-    if (!user) {
+    if (!user || !agencyId) {
       return createErrorResponse(401, authError || 'Unauthorized')
     }
 
@@ -181,6 +182,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       .from('integration')
       .update(updates)
       .eq('id', id)
+      .eq('agency_id', agencyId) // Multi-tenant isolation (SEC-007)
       .select()
       .single()
 
@@ -222,9 +224,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const supabase = await createRouteHandlerClient(cookies)
 
     // Get authenticated user (SEC-006)
-    const { user, error: authError } = await getAuthenticatedUser(supabase)
+    const { user, agencyId, error: authError } = await getAuthenticatedUser(supabase)
 
-    if (!user) {
+    if (!user || !agencyId) {
       return createErrorResponse(401, authError || 'Unauthorized')
     }
 
@@ -233,6 +235,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       .from('integration')
       .select('id, provider, access_token, refresh_token')
       .eq('id', id)
+      .eq('agency_id', agencyId) // Multi-tenant isolation (SEC-007)
       .single()
 
     if (!existing) {
@@ -252,7 +255,11 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Delete the integration
-    const { error } = await supabase.from('integration').delete().eq('id', id)
+    const { error } = await supabase
+      .from('integration')
+      .delete()
+      .eq('id', id)
+      .eq('agency_id', agencyId) // Multi-tenant isolation (SEC-007)
 
     if (error) {
       return createErrorResponse(500, 'Failed to delete integration')

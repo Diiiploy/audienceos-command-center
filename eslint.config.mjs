@@ -30,7 +30,7 @@ export default [
       ...nextPlugin.configs.recommended.rules,
       ...nextPlugin.configs["core-web-vitals"].rules,
       ...reactHooksPlugin.configs.recommended.rules,
-      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
       "@typescript-eslint/no-explicit-any": "warn",
       "no-unused-vars": "off",
       "no-undef": "off",
@@ -41,6 +41,13 @@ export default [
       react: {
         version: "detect",
       },
+    },
+  },
+  // Allow 'any' in test files for mocking flexibility
+  {
+    files: ["__tests__/**/*.{ts,tsx}"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
     },
   },
   {

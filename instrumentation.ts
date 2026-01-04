@@ -4,6 +4,8 @@
  * https://nextjs.org/docs/app/building-your-application/optimizing/instrumentation
  */
 
+import './sentry.server.config'
+
 export async function register() {
   // Only run validation in Node.js runtime (not Edge)
   if (process.env.NEXT_RUNTIME === 'nodejs') {
@@ -18,7 +20,7 @@ export async function register() {
  */
 async function validateSecurityConfiguration() {
   const isProduction = process.env.NODE_ENV === 'production'
-  const isDevelopment = process.env.NODE_ENV === 'development'
+  const _isDevelopment = process.env.NODE_ENV === 'development'
   // Vercel preview deployments have NODE_ENV=production but VERCEL_ENV=preview
   // Only enforce strict security in actual production, not preview deployments
   const isVercelPreview = process.env.VERCEL_ENV === 'preview'

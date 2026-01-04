@@ -28,9 +28,9 @@ export async function GET(
     const supabase = await createRouteHandlerClient(cookies)
 
     // Get authenticated user with server verification (SEC-006)
-    const { user, error: authError } = await getAuthenticatedUser(supabase)
+    const { user, agencyId, error: authError } = await getAuthenticatedUser(supabase)
 
-    if (!user) {
+    if (!user || !agencyId) {
       return createErrorResponse(401, authError || 'Unauthorized')
     }
 
@@ -65,6 +65,7 @@ export async function GET(
         )
       `)
       .eq('id', id)
+      .eq('agency_id', agencyId) // Multi-tenant isolation (SEC-007)
       .single()
 
     if (error) {
@@ -104,9 +105,9 @@ export async function PATCH(
     const supabase = await createRouteHandlerClient(cookies)
 
     // Get authenticated user with server verification (SEC-006)
-    const { user, error: authError } = await getAuthenticatedUser(supabase)
+    const { user, agencyId, error: authError } = await getAuthenticatedUser(supabase)
 
-    if (!user) {
+    if (!user || !agencyId) {
       return createErrorResponse(401, authError || 'Unauthorized')
     }
 
@@ -181,6 +182,7 @@ export async function PATCH(
       .from('ticket')
       .update(updates)
       .eq('id', id)
+      .eq('agency_id', agencyId) // Multi-tenant isolation (SEC-007)
       .select(`
         *,
         client:client_id (
@@ -231,9 +233,9 @@ export async function DELETE(
     const supabase = await createRouteHandlerClient(cookies)
 
     // Get authenticated user with server verification (SEC-006)
-    const { user, error: authError } = await getAuthenticatedUser(supabase)
+    const { user, agencyId, error: authError } = await getAuthenticatedUser(supabase)
 
-    if (!user) {
+    if (!user || !agencyId) {
       return createErrorResponse(401, authError || 'Unauthorized')
     }
 
@@ -242,6 +244,7 @@ export async function DELETE(
       .from('ticket')
       .delete()
       .eq('id', id)
+      .eq('agency_id', agencyId) // Multi-tenant isolation (SEC-007)
 
     if (error) {
       return createErrorResponse(500, 'Failed to delete ticket')

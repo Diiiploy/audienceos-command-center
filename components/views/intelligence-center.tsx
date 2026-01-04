@@ -232,8 +232,7 @@ const mockChatSessions: ChatSession[] = [
   },
 ]
 
-// Flatten sessions for filtering
-const mockAIActivities = mockChatSessions.flatMap(session => session.activities)
+// Note: Chat activities are computed inline per session
 
 // Generate mock firehose items for Intelligence Center Activity
 function generateMockActivityFirehose(): FirehoseItemData[] {
