@@ -11,13 +11,18 @@ import {
 } from "@/components/linear/document-card"
 import { DocumentPreviewPanel, type Document } from "@/components/linear/document-preview-panel"
 import { DocumentUploadModal } from "@/components/linear/document-upload-modal"
+import { ProcessingPanel } from "@/components/knowledge-base/processing-panel"
+import { SearchPanel } from "@/components/knowledge-base/search-panel"
 import { ListHeader } from "@/components/linear"
 import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Upload,
   FolderOpen,
   Star,
   Clock,
+  Search,
+  Settings,
 } from "lucide-react"
 
 // Mock documents
@@ -208,6 +213,7 @@ export function KnowledgeBase() {
   const [viewFilter, setViewFilter] = useState<ViewFilter>("all")
   const [categoryFilter, setCategoryFilter] = useState<DocumentCategory | "all">("all")
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState("documents")
 
   const slideTransition = useSlideTransition()
 
@@ -273,14 +279,14 @@ export function KnowledgeBase() {
       >
         <ListHeader
           title="Knowledge Base"
-          count={filteredDocuments.length}
-          onSearch={setSearchQuery}
-          searchValue={searchQuery}
+          count={activeTab === "documents" ? filteredDocuments.length : undefined}
+          onSearch={activeTab === "documents" ? setSearchQuery : undefined}
+          searchValue={activeTab === "documents" ? searchQuery : ""}
           searchPlaceholder="Search documents..."
-          viewMode={!selectedDocument ? (viewMode === "grid" ? "board" : "list") : undefined}
-          onViewModeChange={!selectedDocument ? (mode) => setViewMode(mode === "board" ? "grid" : "list") : undefined}
+          viewMode={!selectedDocument && activeTab === "documents" ? (viewMode === "grid" ? "board" : "list") : undefined}
+          onViewModeChange={!selectedDocument && activeTab === "documents" ? (mode) => setViewMode(mode === "board" ? "grid" : "list") : undefined}
           actions={
-            !selectedDocument && (
+            !selectedDocument && activeTab === "documents" && (
               <Button size="sm" className="h-8 gap-1.5" onClick={() => setIsUploadModalOpen(true)}>
                 <Upload className="h-4 w-4" />
                 Upload
@@ -289,8 +295,30 @@ export function KnowledgeBase() {
           }
         />
 
-        {/* Filters - hide when document is selected */}
+        {/* Tabs Navigation */}
         {!selectedDocument && (
+          <div className="px-4 py-2 border-b border-border">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="documents" className="flex items-center gap-1.5">
+                  <FolderOpen className="w-3 h-3" />
+                  Documents
+                </TabsTrigger>
+                <TabsTrigger value="search" className="flex items-center gap-1.5">
+                  <Search className="w-3 h-3" />
+                  Search
+                </TabsTrigger>
+                <TabsTrigger value="processing" className="flex items-center gap-1.5">
+                  <Settings className="w-3 h-3" />
+                  Processing
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        )}
+
+        {/* Filters - only for documents tab */}
+        {!selectedDocument && activeTab === "documents" && (
           <div className="flex items-center gap-4 px-4 py-3 border-b border-border">
             {/* View filters */}
             <div className="flex items-center gap-1">
@@ -333,27 +361,49 @@ export function KnowledgeBase() {
           </div>
         )}
 
-        {/* Documents - always use list view when compact */}
+        {/* Content Area */}
         <div className="flex-1 overflow-y-auto">
-          {filteredDocuments.length > 0 ? (
-            selectedDocument ? (
-              // Compact list when document selected
-              <div>
-                {filteredDocuments.map((doc) => renderDocumentCard(doc, "compact"))}
-              </div>
-            ) : viewMode === "grid" ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4">
-                {filteredDocuments.map((doc) => renderDocumentCard(doc, "grid"))}
-              </div>
-            ) : (
-              <div className="bg-card border border-border rounded-lg overflow-hidden m-4">
-                {filteredDocuments.map((doc) => renderDocumentCard(doc, "list"))}
-              </div>
-            )
+          {!selectedDocument ? (
+            // Tab content when no document is selected
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
+              <TabsContent value="documents" className="mt-0 h-full">
+                {filteredDocuments.length > 0 ? (
+                  viewMode === "grid" ? (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4">
+                      {filteredDocuments.map((doc) => renderDocumentCard(doc, "grid"))}
+                    </div>
+                  ) : (
+                    <div className="bg-card border border-border rounded-lg overflow-hidden m-4">
+                      {filteredDocuments.map((doc) => renderDocumentCard(doc, "list"))}
+                    </div>
+                  )
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
+                    <FolderOpen className="w-8 h-8 mb-2 opacity-50" />
+                    <p className="text-sm">No documents found</p>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="search" className="mt-0 h-full">
+                <div className="p-4">
+                  <SearchPanel />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="processing" className="mt-0 h-full">
+                <div className="p-4">
+                  <ProcessingPanel onProcessingComplete={() => {
+                    // Refresh document list after processing
+                    // In a real app, this would refetch from API
+                  }} />
+                </div>
+              </TabsContent>
+            </Tabs>
           ) : (
-            <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
-              <FolderOpen className="w-8 h-8 mb-2 opacity-50" />
-              <p className="text-sm">No documents found</p>
+            // Compact list when document is selected
+            <div>
+              {filteredDocuments.map((doc) => renderDocumentCard(doc, "compact"))}
             </div>
           )}
         </div>

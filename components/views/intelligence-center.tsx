@@ -839,7 +839,8 @@ export function IntelligenceCenter({ onBack, initialSection = "overview", initia
               {trainingDocs.map((doc) => (
                 <div
                   key={doc.id}
-                  className="flex items-center gap-3 p-3 bg-card border border-border rounded-lg hover:border-primary/30 transition-colors"
+                  onClick={() => console.log("View training doc:", doc.id)}
+                  className="flex items-center gap-3 p-3 bg-card border border-border rounded-lg hover:border-primary/30 transition-colors cursor-pointer"
                 >
                   <div
                     className={cn(

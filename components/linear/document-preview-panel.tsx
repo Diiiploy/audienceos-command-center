@@ -151,7 +151,7 @@ export function DocumentPreviewPanel({
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
         {/* Preview area */}
-        <div className="aspect-[4/3] bg-secondary/50 flex items-center justify-center border-b border-border">
+        <div className="aspect-[16/9] bg-secondary/50 flex items-center justify-center border-b border-border">
           {document.thumbnail ? (
             <div className="relative w-full h-full">
               <Image
@@ -171,16 +171,16 @@ export function DocumentPreviewPanel({
 
         {/* Document info */}
         <div className="p-4 border-b border-border">
-          <h2 className="text-lg font-semibold text-foreground mb-2">
+          <h2 className="text-sm font-semibold text-foreground mb-1">
             {document.name}
           </h2>
           {document.description && (
-            <p className="text-sm text-muted-foreground">{document.description}</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">{document.description}</p>
           )}
         </div>
 
         {/* Metadata */}
-        <div className="p-4 space-y-3">
+        <div className="p-4 space-y-2">
           {/* Category */}
           {document.category && (
             <div className="flex items-center justify-between">
@@ -313,7 +313,7 @@ export function DocumentPreviewPanel({
         </div>
         <button
           onClick={onDelete}
-          className="w-full mt-2 flex items-center justify-center gap-2 px-3 py-2 text-red-500 hover:bg-red-500/10 rounded-md text-sm font-medium transition-colors cursor-pointer"
+          className="w-full mt-2 flex items-center justify-center gap-2 px-3 py-2 text-red-500 border border-red-500/30 hover:bg-red-500/10 rounded-md text-sm font-medium transition-colors cursor-pointer"
         >
           <Trash2 className="w-4 h-4" />
           Delete
