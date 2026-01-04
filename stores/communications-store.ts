@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
+import { fetchWithCsrf } from '@/lib/csrf'
 import type { Database } from '@/types/database'
 
 // Extract table types
@@ -68,6 +69,10 @@ interface CommunicationsState {
   setHasMore: (hasMore: boolean) => void
   markAsRead: (id: string) => void
   markAsReplied: (id: string, repliedBy: string) => void
+
+  // API Actions
+  fetchCommunications: (clientId: string, options?: { source?: SourceFilter; needsReply?: boolean; cursor?: string }) => Promise<void>
+  markCommunicationAsReplied: (id: string, repliedBy: string) => Promise<boolean>
 }
 
 const defaultFilters: CommunicationsFilters = {
@@ -200,6 +205,98 @@ export const useCommunicationsStore = create<CommunicationsState>()(
           replied_at: new Date().toISOString(),
           replied_by: repliedBy,
         })
+      },
+
+      // API Actions
+      fetchCommunications: async (clientId, options = {}) => {
+        set({ isLoading: true, error: null })
+
+        try {
+          const params = new URLSearchParams()
+          if (options.source && options.source !== 'all') {
+            params.append('source', options.source)
+          }
+          if (options.needsReply) {
+            params.append('needs_reply', 'true')
+          }
+          if (options.cursor) {
+            params.append('cursor', options.cursor)
+          }
+
+          const url = `/api/v1/clients/${clientId}/communications${params.toString() ? `?${params.toString()}` : ''}`
+          const response = await fetch(url)
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch communications')
+          }
+
+          const { items, pagination } = await response.json()
+
+          // If cursor was provided, append to existing communications
+          if (options.cursor) {
+            set((state) => {
+              const newCommunications = [...state.communications, ...items]
+              const threads = buildThreadHierarchy(newCommunications)
+              const unreadCount = newCommunications.filter(c => !c.is_read).length
+              const needsReplyCount = newCommunications.filter(c => c.needs_reply).length
+              return {
+                communications: newCommunications,
+                threads,
+                unreadCount,
+                needsReplyCount,
+                cursor: pagination.cursor,
+                hasMore: pagination.has_more,
+                isLoading: false,
+              }
+            })
+          } else {
+            // Fresh fetch - replace all
+            const threads = buildThreadHierarchy(items)
+            const unreadCount = items.filter((c: CommunicationWithMeta) => !c.is_read).length
+            const needsReplyCount = items.filter((c: CommunicationWithMeta) => c.needs_reply).length
+            set({
+              communications: items,
+              threads,
+              unreadCount,
+              needsReplyCount,
+              cursor: pagination.cursor,
+              hasMore: pagination.has_more,
+              isLoading: false,
+            })
+          }
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : 'Failed to fetch communications',
+            isLoading: false,
+          })
+        }
+      },
+
+      markCommunicationAsReplied: async (id, repliedBy) => {
+        // Optimistic update
+        get().markAsReplied(id, repliedBy)
+
+        try {
+          const response = await fetchWithCsrf(`/api/v1/communications/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({
+              needs_reply: false,
+              replied_at: new Date().toISOString(),
+              replied_by: repliedBy,
+            }),
+          })
+
+          if (!response.ok) {
+            throw new Error('Failed to mark as replied')
+          }
+
+          return true
+        } catch (error) {
+          console.error('Failed to mark communication as replied:', error)
+          // Rollback optimistic update
+          get().updateCommunication(id, { needs_reply: true, replied_at: null, replied_by: null })
+          return false
+        }
       },
     }),
     { name: 'communications-store' }

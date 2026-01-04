@@ -223,7 +223,6 @@ export function KnowledgeBase() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
   const [isDriveLinkModalOpen, setIsDriveLinkModalOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("documents")
-  const [isProcessingDrive, setIsProcessingDrive] = useState(false)
 
   const slideTransition = useSlideTransition()
 
@@ -305,55 +304,41 @@ export function KnowledgeBase() {
 
   // Add a document from Google Drive
   const handleAddDriveLink = useCallback(async (url: string, displayName?: string) => {
-    setIsProcessingDrive(true)
+    // Extract file ID from URL for display purposes
+    const fileIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/)
+    const fileId = fileIdMatch?.[1] || `drive-${Date.now()}`
 
-    try {
-      // Extract file ID from URL for display purposes
-      const fileIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/)
-      const fileId = fileIdMatch?.[1] || `drive-${Date.now()}`
-
-      // Create new document entry (in production, this would come from API response)
-      const newDoc: Document = {
-        id: `drive-${fileId}`,
-        name: displayName || "Google Drive Document",
-        type: "document",
-        category: "templates", // Default category, could be detected
-        description: `Imported from Google Drive`,
-        updatedAt: "Just now",
-        createdAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        updatedBy: "You",
-        size: "Processing...",
-        shared: false,
-        starred: false,
-        useForTraining: false,
-        tags: ["drive-import"],
-        viewCount: 0,
-      }
-
-      // Add to documents list
-      setDocuments(prev => [newDoc, ...prev])
-
-      toast({
-        title: "Document added",
-        description: `"${newDoc.name}" has been imported from Google Drive`,
-      })
-
-      // TODO: Actually process the file via API when backend is ready
-      // const response = await fetchWithCsrf('/api/v1/documents/drive-import', {
-      //   method: 'POST',
-      //   body: JSON.stringify({ url, displayName }),
-      // })
-
-    } catch (error) {
-      toast({
-        title: "Import failed",
-        description: error instanceof Error ? error.message : "Could not import document from Google Drive",
-        variant: "destructive",
-      })
-      throw error // Re-throw so the modal can show error state
-    } finally {
-      setIsProcessingDrive(false)
+    // Create new document entry (in production, this would come from API response)
+    const newDoc: Document = {
+      id: `drive-${fileId}`,
+      name: displayName || "Google Drive Document",
+      type: "document",
+      category: "templates", // Default category, could be detected
+      description: `Imported from Google Drive`,
+      updatedAt: "Just now",
+      createdAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      updatedBy: "You",
+      size: "Processing...",
+      shared: false,
+      starred: false,
+      useForTraining: false,
+      tags: ["drive-import"],
+      viewCount: 0,
     }
+
+    // Add to documents list
+    setDocuments(prev => [newDoc, ...prev])
+
+    toast({
+      title: "Document added",
+      description: `"${newDoc.name}" has been imported from Google Drive`,
+    })
+
+    // TODO: Actually process the file via API when backend is ready
+    // const response = await fetchWithCsrf('/api/v1/documents/drive-import', {
+    //   method: 'POST',
+    //   body: JSON.stringify({ url, displayName }),
+    // })
   }, [])
 
   // Helper to render document cards with proper typing
