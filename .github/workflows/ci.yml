@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 # Required for deployment status API access
 permissions:
   contents: read
@@ -13,12 +17,11 @@ permissions:
   statuses: read
 
 jobs:
-  lint-and-build:
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -32,15 +35,78 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
-      - name: Type check
-        run: npx tsc --noEmit
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Build
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run TypeScript
+        run: npm run typecheck
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm run test -- --run
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://test.supabase.co' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'test-anon-key' }}
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
         run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://test.supabase.co' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'test-anon-key' }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || 'test-service-key' }}
+          OAUTH_STATE_SECRET: ${{ secrets.OAUTH_STATE_SECRET || 'ci-test-secret-32-chars-minimum' }}
+          TOKEN_ENCRYPTION_KEY: ${{ secrets.TOKEN_ENCRYPTION_KEY || 'ci-test-encryption-key-32char' }}
+          GOOGLE_AI_API_KEY: ${{ secrets.GOOGLE_AI_API_KEY || 'test-ai-key' }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG || '' }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT || '' }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN || '' }}
 
   smoke-test:
+    name: Smoke Test
     runs-on: ubuntu-latest
-    needs: lint-and-build
+    needs: build
     if: github.event_name == 'pull_request'
     steps:
       - name: Wait for Vercel Deployment
@@ -63,16 +129,13 @@ jobs:
               );
 
               if (vercelStatus && vercelStatus.state === 'success') {
-                // Extract the deployment URL from the target_url
                 const match = vercelStatus.target_url.match(/https:\/\/[^/]+/);
                 if (match) {
-                  // Get actual preview URL from Vercel deployment page
                   const deployUrl = vercelStatus.description?.match(/https:\/\/[^\s]+\.vercel\.app/);
                   if (deployUrl) {
                     core.setOutput('url', deployUrl[0]);
                     return;
                   }
-                  // Fallback: construct from context
                   const previewUrl = `https://${context.repo.repo}-git-${context.payload.pull_request.head.ref.replace(/\//g, '-')}-${context.repo.owner}.vercel.app`;
                   core.setOutput('url', previewUrl);
                   return;
@@ -88,7 +151,6 @@ jobs:
       - name: Health Check
         run: |
           echo "Testing: ${{ steps.vercel.outputs.url }}/api/health"
-          # Retry up to 5 times with 10s delay
           for i in 1 2 3 4 5; do
             if curl -sf "${{ steps.vercel.outputs.url }}/api/health"; then
               echo "Health check passed!"
