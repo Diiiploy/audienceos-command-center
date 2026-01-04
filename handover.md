@@ -27,7 +27,11 @@ SUPABASE_SERVICE_ROLE_KEY=[get from Supabase dashboard → API settings]
 After updating, redeploy the site.
 
 ### Remaining
-- [ ] Fix silent API error display in Pipeline view (when API fails, show error instead of mock data fallback)
+- [x] Fix silent API error display in Pipeline view ✅ **VERIFIED WORKING**
+  - Commit: `a12dea2 fix: add error state display for Pipeline API failures`
+  - UI shows "Failed to load clients" with retry button when API returns 401
+  - Loading spinner shows during fetch
+  - Note: HMR can interfere with state during dev - full refresh confirms fix works
 
 ---
 
