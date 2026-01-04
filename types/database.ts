@@ -465,6 +465,10 @@ export interface Database {
           gemini_file_id: string | null
           uploaded_by: string
           is_active: boolean
+          is_starred: boolean
+          use_for_training: boolean
+          drive_url: string | null
+          drive_file_id: string | null
           created_at: string
           updated_at: string
         }
@@ -484,6 +488,10 @@ export interface Database {
           gemini_file_id?: string | null
           uploaded_by: string
           is_active?: boolean
+          is_starred?: boolean
+          use_for_training?: boolean
+          drive_url?: string | null
+          drive_file_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -503,6 +511,10 @@ export interface Database {
           gemini_file_id?: string | null
           uploaded_by?: string
           is_active?: boolean
+          is_starred?: boolean
+          use_for_training?: boolean
+          drive_url?: string | null
+          drive_file_id?: string | null
           created_at?: string
           updated_at?: string
         }

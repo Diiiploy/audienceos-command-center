@@ -10,10 +10,10 @@ import type { ExecutorContext, NavigateToArgs, NavigationAction } from './types'
 /**
  * Generate navigation URL
  */
-export function navigateTo(
+export async function navigateTo(
   context: ExecutorContext,
   rawArgs: Record<string, unknown>
-): NavigationAction {
+): Promise<NavigationAction> {
   const args = rawArgs as unknown as NavigateToArgs;
 
   const baseUrls: Record<string, string> = {

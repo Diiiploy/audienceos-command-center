@@ -4,6 +4,7 @@ import React, { useState, useMemo, useCallback } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import { useSlideTransition } from "@/hooks/use-slide-transition"
 import { toast } from "@/hooks/use-toast"
+import { fetchWithCsrf } from "@/lib/csrf"
 import { cn } from "@/lib/utils"
 import {
   DocumentCard,
@@ -261,60 +262,141 @@ export function KnowledgeBase() {
   }, [documents, viewFilter, categoryFilter, searchQuery])
 
   // Toggle star status on a document
-  const handleStar = useCallback((docId: string) => {
-    setDocuments(prev => {
-      const updated = prev.map(doc =>
-        doc.id === docId ? { ...doc, starred: !doc.starred } : doc
-      )
-      const doc = updated.find(d => d.id === docId)
-      toast({
-        title: doc?.starred ? "Added to starred" : "Removed from starred",
-        description: doc?.name,
-      })
-      return updated
-    })
-    // Update selected document if it's the one being starred
-    setSelectedDocument(prev =>
-      prev?.id === docId ? { ...prev, starred: !prev.starred } : prev
+  const handleStar = useCallback(async (docId: string) => {
+    const doc = documents.find(d => d.id === docId)
+    if (!doc) return
+
+    const newStarred = !doc.starred
+
+    // Optimistic update
+    setDocuments(prev =>
+      prev.map(d => d.id === docId ? { ...d, starred: newStarred } : d)
     )
-    // TODO: Persist to API when backend is ready
-    // fetchWithCsrf(`/api/v1/documents/${docId}/star`, { method: 'POST' })
-  }, [])
+    setSelectedDocument(prev =>
+      prev?.id === docId ? { ...prev, starred: newStarred } : prev
+    )
+
+    // Only call API for real documents (not mock data)
+    if (!docId.startsWith('doc-') && !docId.startsWith('drive-')) {
+      try {
+        const response = await fetchWithCsrf(`/api/v1/documents/${docId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ is_starred: newStarred }),
+        })
+
+        if (!response.ok) {
+          // Revert on error
+          setDocuments(prev =>
+            prev.map(d => d.id === docId ? { ...d, starred: !newStarred } : d)
+          )
+          setSelectedDocument(prev =>
+            prev?.id === docId ? { ...prev, starred: !newStarred } : prev
+          )
+          toast({
+            title: "Failed to update",
+            description: "Could not update star status. Please try again.",
+            variant: "destructive",
+          })
+          return
+        }
+      } catch {
+        // Revert on error
+        setDocuments(prev =>
+          prev.map(d => d.id === docId ? { ...d, starred: !newStarred } : d)
+        )
+        setSelectedDocument(prev =>
+          prev?.id === docId ? { ...prev, starred: !newStarred } : prev
+        )
+        toast({
+          title: "Failed to update",
+          description: "Network error. Please try again.",
+          variant: "destructive",
+        })
+        return
+      }
+    }
+
+    toast({
+      title: newStarred ? "Added to starred" : "Removed from starred",
+      description: doc.name,
+    })
+  }, [documents])
 
   // Toggle AI training status on a document
-  const handleToggleTraining = useCallback((docId: string) => {
-    setDocuments(prev => {
-      const updated = prev.map(doc =>
-        doc.id === docId ? { ...doc, useForTraining: !doc.useForTraining } : doc
-      )
-      const doc = updated.find(d => d.id === docId)
-      toast({
-        title: doc?.useForTraining ? "Enabled for AI training" : "Disabled for AI training",
-        description: doc?.name,
-      })
-      return updated
-    })
-    // Update selected document if it's the one being toggled
-    setSelectedDocument(prev =>
-      prev?.id === docId ? { ...prev, useForTraining: !prev.useForTraining } : prev
+  const handleToggleTraining = useCallback(async (docId: string) => {
+    const doc = documents.find(d => d.id === docId)
+    if (!doc) return
+
+    const newTraining = !doc.useForTraining
+
+    // Optimistic update
+    setDocuments(prev =>
+      prev.map(d => d.id === docId ? { ...d, useForTraining: newTraining } : d)
     )
-    // TODO: Persist to API when backend is ready
-    // fetchWithCsrf(`/api/v1/documents/${docId}/training`, { method: 'POST' })
-  }, [])
+    setSelectedDocument(prev =>
+      prev?.id === docId ? { ...prev, useForTraining: newTraining } : prev
+    )
+
+    // Only call API for real documents (not mock data)
+    if (!docId.startsWith('doc-') && !docId.startsWith('drive-')) {
+      try {
+        const response = await fetchWithCsrf(`/api/v1/documents/${docId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ use_for_training: newTraining }),
+        })
+
+        if (!response.ok) {
+          // Revert on error
+          setDocuments(prev =>
+            prev.map(d => d.id === docId ? { ...d, useForTraining: !newTraining } : d)
+          )
+          setSelectedDocument(prev =>
+            prev?.id === docId ? { ...prev, useForTraining: !newTraining } : prev
+          )
+          toast({
+            title: "Failed to update",
+            description: "Could not update training status. Please try again.",
+            variant: "destructive",
+          })
+          return
+        }
+      } catch {
+        // Revert on error
+        setDocuments(prev =>
+          prev.map(d => d.id === docId ? { ...d, useForTraining: !newTraining } : d)
+        )
+        setSelectedDocument(prev =>
+          prev?.id === docId ? { ...prev, useForTraining: !newTraining } : prev
+        )
+        toast({
+          title: "Failed to update",
+          description: "Network error. Please try again.",
+          variant: "destructive",
+        })
+        return
+      }
+    }
+
+    toast({
+      title: newTraining ? "Enabled for AI training" : "Disabled for AI training",
+      description: doc.name,
+    })
+  }, [documents])
 
   // Add a document from Google Drive
   const handleAddDriveLink = useCallback(async (url: string, displayName?: string) => {
-    // Extract file ID from URL for display purposes
+    // Extract file ID from URL for optimistic placeholder
     const fileIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/)
-    const fileId = fileIdMatch?.[1] || `drive-${Date.now()}`
+    const fileId = fileIdMatch?.[1] || `temp-${Date.now()}`
+    const tempId = `temp-${fileId}`
 
-    // Create new document entry (in production, this would come from API response)
-    const newDoc: Document = {
-      id: `drive-${fileId}`,
+    // Create optimistic placeholder
+    const placeholderDoc: Document = {
+      id: tempId,
       name: displayName || "Google Drive Document",
       type: "document",
       category: "templates",
-      description: "Imported from Google Drive",
+      description: "Importing from Google Drive...",
       updatedAt: "Just now",
       createdAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       updatedBy: "You",
@@ -326,19 +408,66 @@ export function KnowledgeBase() {
       viewCount: 0,
     }
 
-    // Add to documents list
-    setDocuments(prev => [newDoc, ...prev])
+    // Add placeholder to list
+    setDocuments(prev => [placeholderDoc, ...prev])
 
-    toast({
-      title: "Document added",
-      description: `"${newDoc.name}" has been imported from Google Drive`,
-    })
+    try {
+      const response = await fetchWithCsrf('/api/v1/documents/drive', {
+        method: 'POST',
+        body: JSON.stringify({
+          url,
+          display_name: displayName,
+          category: 'process',
+        }),
+      })
 
-    // TODO: Actually process the file via API when backend is ready
-    // const response = await fetchWithCsrf('/api/v1/documents/drive-import', {
-    //   method: 'POST',
-    //   body: JSON.stringify({ url, displayName }),
-    // })
+      if (!response.ok) {
+        // Remove placeholder on error
+        setDocuments(prev => prev.filter(d => d.id !== tempId))
+        const errorData = await response.json().catch(() => ({}))
+        toast({
+          title: "Import failed",
+          description: errorData.error || "Could not import from Google Drive. Please try again.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      const { data } = await response.json()
+
+      // Replace placeholder with real document
+      setDocuments(prev =>
+        prev.map(d => d.id === tempId ? {
+          id: data.id,
+          name: data.title,
+          type: "document",
+          category: data.category || "templates",
+          description: "Imported from Google Drive",
+          updatedAt: "Just now",
+          createdAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          updatedBy: "You",
+          size: `${data.file_size || 0} bytes`,
+          shared: false,
+          starred: data.is_starred || false,
+          useForTraining: data.use_for_training || false,
+          tags: ["drive-import"],
+          viewCount: 0,
+        } as Document : d)
+      )
+
+      toast({
+        title: "Document imported",
+        description: `"${data.title}" has been imported from Google Drive`,
+      })
+    } catch {
+      // Remove placeholder on network error
+      setDocuments(prev => prev.filter(d => d.id !== tempId))
+      toast({
+        title: "Import failed",
+        description: "Network error. Please check your connection and try again.",
+        variant: "destructive",
+      })
+    }
   }, [])
 
   // Helper to render document cards with proper typing

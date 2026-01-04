@@ -10,7 +10,7 @@
 import type { ExecutorContext, FunctionExecutor } from './types';
 import { getClients, getClientDetails } from './get-clients';
 import { getAlerts } from './get-alerts';
-import { getAgencyStats } from './get-stats';
+import { getAgencyStats } from './get-agency-stats';
 import { getRecentCommunications } from './get-communications';
 import { navigateTo } from './navigate-to';
 
@@ -171,7 +171,7 @@ export const executors: Record<string, FunctionExecutor> = {
   get_alerts: getAlerts,
   get_recent_communications: getRecentCommunications,
   get_agency_stats: getAgencyStats,
-  navigate_to: navigateTo as unknown as FunctionExecutor,
+  navigate_to: navigateTo,
 };
 
 /**

@@ -106,6 +106,13 @@ export async function getRecentCommunications(
 ): Promise<CommunicationSummary[]> {
   const args = rawArgs as unknown as GetRecentCommunicationsArgs;
   const { agencyId, supabase } = context;
+
+  // Validate required parameters
+  if (!args.client_id) {
+    console.warn('[ValidationError] get_recent_communications: missing required parameter client_id');
+    return [];
+  }
+
   const days = args.days ?? 30;
   const limit = args.limit ?? 10;
 
