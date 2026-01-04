@@ -517,25 +517,29 @@ export function OnboardingHub({ onClientClick }: OnboardingHubProps) {
             )
           })}
         </div>
-      </div>
+      </motion.div>
 
       {/* RIGHT PANEL - Client Detail View */}
-      <div
-        className="flex flex-col bg-background overflow-hidden transition-[width,opacity] duration-300 ease-out"
-        style={{
-          width: selectedClient && selectedStage ? "calc(100% - 288px)" : 0,
-          opacity: selectedClient && selectedStage ? 1 : 0
-        }}
-      >
+      <AnimatePresence mode="wait">
         {selectedClient && selectedStage && (
-          <ClientDetailPanel
-            client={selectedClient}
-            stage={selectedStage}
-            onClose={() => setSelectedClient(null)}
-            onClientClick={onClientClick}
-          />
+          <motion.div
+            key="client-detail-panel"
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: "calc(100% - 288px)", opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={slideTransition}
+            className="flex flex-col bg-background overflow-hidden"
+            style={{ minWidth: 0 }}
+          >
+            <ClientDetailPanel
+              client={selectedClient}
+              stage={selectedStage}
+              onClose={() => setSelectedClient(null)}
+              onClientClick={onClientClick}
+            />
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
     </div>
   )
 }
