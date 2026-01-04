@@ -3,6 +3,7 @@
  *
  * API endpoint for Holy Grail Chat integration.
  * Part of: 3-System Consolidation
+ * Updated: 2026-01-04 - Wired RAG, Web, Memory routes
  */
 
 import { NextRequest, NextResponse } from 'next/server'

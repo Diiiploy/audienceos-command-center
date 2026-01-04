@@ -7,7 +7,7 @@
 
 ---
 
-## Current State (2026-01-03)
+## Current State (2026-01-04)
 
 | Layer | Status | Notes |
 |-------|--------|-------|
@@ -18,8 +18,12 @@
 | **Database Schema** | ✅ APPLIED | All 19 tables with RLS, seed data loaded |
 | **Auth** | ✅ Working | Supabase Auth + user table linked |
 | **Third-party APIs** | ❌ Not Connected | OAuth creds empty |
+| **AI Chat (HGC)** | ✅ INTEGRATED | 5 routes working: dashboard, casual, rag, web, memory |
+| **Function Calling** | ✅ COMPLETE | 6 dashboard functions with Supabase queries |
+| **RAG System** | ✅ PORTED | Gemini File Search with circuit breaker |
+| **Memory System** | ✅ PORTED | Mem0 integration with recall detection |
 
-**LATEST (2026-01-03):** UI polish pass completed - cursor-pointer on all clickable elements, interactive intake checklist, IntegrationCard button anchoring, Activity section scrollable. Build verified. See RUNBOOK.md for verification commands.
+**LATEST (2026-01-04):** Holy Grail Chat (HGC) integration complete. All 5 smart router routes wired: dashboard (function calling), casual (Gemini), rag (Gemini File Search), web (Google Search Grounding), memory (Mem0). TypeScript compiles clean. API auth working (SEC-006).
 
 **DEVELOPMENT:** App works in demo mode with mock data. All views functional.
 **PRODUCTION:** Supabase has legacy War Room schema (Nov 2025). The `001_initial_schema.sql` migration was never applied.
@@ -244,16 +248,16 @@ This roadmap consolidates all implementation tasks from feature specs into a pri
 | AI-008 | Implement alert filtering and grouping | ai-intelligence | 30m |
 | AI-009 | Add AlertDrawer with action approval workflow | ai-intelligence | 60m |
 
-### 6.3 Chi Intelligent Chat - Core
-| ID | Task | Feature | Est |
-|----|------|---------|-----|
-| AI-010 | Extract @chi/intelligent-chat package from War Room | ai-intelligence | 120m |
-| AI-011 | Implement SmartRouter with 5 route types | ai-intelligence | 90m |
-| AI-012 | Build ChatService with streaming SSE responses | ai-intelligence | 60m |
-| AI-013 | Create ChatContext manager for session state | ai-intelligence | 45m |
-| AI-014 | Integrate progressive reveal and citation display | ai-intelligence | 60m |
-| AI-015 | Connect RAG pipeline with Gemini File Search | ai-intelligence | 60m |
-| AI-016 | Add floating widget with context persistence | ai-intelligence | 45m |
+### 6.3 Chi Intelligent Chat - Core (NOW: Holy Grail Chat)
+| ID | Task | Feature | Est | Status |
+|----|------|---------|-----|--------|
+| AI-010 | ~~Extract @chi/intelligent-chat package from War Room~~ | ai-intelligence | 120m | ✅ Ported from HGC |
+| AI-011 | ~~Implement SmartRouter with 5 route types~~ | ai-intelligence | 90m | ✅ lib/chat/router.ts |
+| AI-012 | Build ChatService with streaming SSE responses | ai-intelligence | 60m | ⚠️ Service exists, no SSE |
+| AI-013 | Create ChatContext manager for session state | ai-intelligence | 45m | ⏳ Pending |
+| AI-014 | Integrate progressive reveal and citation display | ai-intelligence | 60m | ✅ Citations working |
+| AI-015 | ~~Connect RAG pipeline with Gemini File Search~~ | ai-intelligence | 60m | ✅ lib/rag/ ported |
+| AI-016 | Add floating widget with context persistence | ai-intelligence | 45m | ⏳ Pending |
 
 ### 6.4 Self-Awareness System
 | ID | Task | Feature | Est |
@@ -264,20 +268,20 @@ This roadmap consolidates all implementation tasks from feature specs into a pri
 | AI-020 | Add "What can you do?" query handling | ai-intelligence | 30m |
 
 ### 6.5 Cross-Session Memory
-| ID | Task | Feature | Est |
-|----|------|---------|-----|
-| AI-021 | Integrate Mem0 for memory storage | ai-intelligence | 60m |
-| AI-022 | Build memory injection into system prompts | ai-intelligence | 45m |
-| AI-023 | Implement "Do you remember..." query detection | ai-intelligence | 30m |
-| AI-024 | Add tenant + user scoping for memory isolation | ai-intelligence | 30m |
+| ID | Task | Feature | Est | Status |
+|----|------|---------|-----|--------|
+| AI-021 | ~~Integrate Mem0 for memory storage~~ | ai-intelligence | 60m | ✅ lib/memory/mem0-service.ts |
+| AI-022 | ~~Build memory injection into system prompts~~ | ai-intelligence | 45m | ✅ lib/memory/memory-injector.ts |
+| AI-023 | ~~Implement "Do you remember..." query detection~~ | ai-intelligence | 30m | ✅ RECALL_PATTERNS in injector |
+| AI-024 | ~~Add tenant + user scoping for memory isolation~~ | ai-intelligence | 30m | ✅ agencyId + userId params |
 
 ### 6.6 Citation System
-| ID | Task | Feature | Est |
-|----|------|---------|-----|
-| AI-025 | Build citation extraction from RAG responses | ai-intelligence | 45m |
-| AI-026 | Implement fuzzy matching with 5 fallback strategies | ai-intelligence | 60m |
-| AI-027 | Create DocumentViewerModal for citation clicks | ai-intelligence | 45m |
-| AI-028 | Add citation highlighting in responses | ai-intelligence | 30m |
+| ID | Task | Feature | Est | Status |
+|----|------|---------|-----|--------|
+| AI-025 | ~~Build citation extraction from RAG responses~~ | ai-intelligence | 45m | ✅ lib/rag/citation-extractor.ts |
+| AI-026 | Implement fuzzy matching with 5 fallback strategies | ai-intelligence | 60m | ⏳ Basic matching only |
+| AI-027 | Create DocumentViewerModal for citation clicks | ai-intelligence | 45m | ⏳ Pending |
+| AI-028 | ~~Add citation highlighting in responses~~ | ai-intelligence | 30m | ✅ **Sources:** section in response |
 
 ### 6.7 Response Calibration
 | ID | Task | Feature | Est |
@@ -490,6 +494,7 @@ flowchart TD
 
 | Date | Change |
 |------|--------|
+| 2026-01-04 | **HGC Integration Complete**: Ported lib/rag/ and lib/memory/ from HGC. Wired all 5 smart router routes (dashboard, casual, rag, web, memory). Function calling with 6 Supabase-backed executors. API auth verified (SEC-006). |
 | 2026-01-02 | **Demo Mode Working**: Fixed infinite loop (EP-057), added mock data fallback for workflows API. App fully functional in demo mode. |
 | 2026-01-02 | **FSD Gap Analysis**: Added Current State section. Found Supabase schema mismatch - migration never applied. UI is 85% complete but database empty. Foundation is now priority. |
 | 2025-12-31 | Created roadmap consolidating 206 tasks from 9 feature specs |
