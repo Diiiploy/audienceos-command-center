@@ -333,15 +333,12 @@ export function KnowledgeBase() {
       title: "Document added",
       description: `"${newDoc.name}" has been imported from Google Drive`,
     })
-<<<<<<< HEAD
-=======
 
     // TODO: Actually process the file via API when backend is ready
     // const response = await fetchWithCsrf('/api/v1/documents/drive-import', {
     //   method: 'POST',
     //   body: JSON.stringify({ url, displayName }),
     // })
->>>>>>> feature/integration-phase-2-3
   }, [])
 
   // Helper to render document cards with proper typing
