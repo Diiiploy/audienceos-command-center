@@ -213,7 +213,7 @@ export default function OnboardingPage() {
                   </div>
                   <div className="text-center">
                     <p className="text-lg font-medium text-slate-200">Welcome Video from Your Fulfillment Lead</p>
-                    <p className="text-sm text-slate-400">Click to watch Luke's Loom intro</p>
+                    <p className="text-sm text-slate-400">Click to watch Brent's Loom intro</p>
                   </div>
                 </div>
               </div>
@@ -611,7 +611,7 @@ export default function OnboardingPage() {
                 <ul className="space-y-2 text-sm text-slate-400">
                   <li className="flex items-start gap-2">
                     <Check className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-                    <span>Luke will verify platform access and begin server-side tracking setup</span>
+                    <span>Brent will verify platform access and begin server-side tracking setup</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />

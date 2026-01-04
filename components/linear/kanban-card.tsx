@@ -134,10 +134,10 @@ export function KanbanCard({
                   Assign to
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
-                  <DropdownMenuItem>Luke</DropdownMenuItem>
-                  <DropdownMenuItem>Garrett</DropdownMenuItem>
-                  <DropdownMenuItem>Josh</DropdownMenuItem>
-                  <DropdownMenuItem>Jeff</DropdownMenuItem>
+                  <DropdownMenuItem>Brent</DropdownMenuItem>
+                  <DropdownMenuItem>Roderic</DropdownMenuItem>
+                  <DropdownMenuItem>Trevor</DropdownMenuItem>
+                  <DropdownMenuItem>Chase</DropdownMenuItem>
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
               <DropdownMenuSeparator />

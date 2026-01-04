@@ -156,7 +156,7 @@ const automationTemplates: AutomationTemplate[] = [
       { id: "s2", order: 2, name: "AI Analyze Urgency", type: "action", config: { model: "claude" }, icon: <Sparkles className="h-3.5 w-3.5" /> },
       { id: "s3", order: 3, name: "If Urgency > 7", type: "condition", config: { threshold: 7 }, icon: <AlertTriangle className="h-3.5 w-3.5" /> },
       { id: "s4", order: 4, name: "Create High Priority Ticket", type: "action", config: { priority: "high" }, icon: <FileText className="h-3.5 w-3.5" /> },
-      { id: "s5", order: 5, name: "Send SMS Alert", type: "action", config: { recipient: "Luke" }, icon: <Bell className="h-3.5 w-3.5" /> },
+      { id: "s5", order: 5, name: "Send SMS Alert", type: "action", config: { recipient: "Brent" }, icon: <Bell className="h-3.5 w-3.5" /> },
     ],
   },
   {

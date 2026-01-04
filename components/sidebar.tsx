@@ -172,11 +172,11 @@ export function Sidebar({ activeView, onViewChange, collapsed, onCollapsedChange
       <div className="p-3 border-t border-border">
         <div className={cn("flex items-center gap-2.5", collapsed && "justify-center")}>
           <Avatar className="h-7 w-7">
-            <AvatarFallback className="bg-muted text-muted-foreground text-xs font-medium">L</AvatarFallback>
+            <AvatarFallback className="bg-muted text-muted-foreground text-xs font-medium">B</AvatarFallback>
           </Avatar>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-medium text-foreground truncate">Luke</p>
+              <p className="text-[13px] font-medium text-foreground truncate">Brent</p>
               <p className="text-[11px] text-muted-foreground truncate">Head of Fulfillment</p>
             </div>
           )}

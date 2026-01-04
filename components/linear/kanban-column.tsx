@@ -41,9 +41,10 @@ function getColumnIndicator(title: string) {
 
 // Owner data lookup
 const ownerColors: Record<string, { initials: string; color: string }> = {
-  Luke: { initials: "LW", color: "bg-emerald-500" },
-  Sarah: { initials: "SJ", color: "bg-blue-500" },
-  Jason: { initials: "JF", color: "bg-amber-500" },
+  Brent: { initials: "B", color: "bg-emerald-500" },
+  Roderic: { initials: "R", color: "bg-blue-500" },
+  Trevor: { initials: "T", color: "bg-amber-500" },
+  Chase: { initials: "C", color: "bg-purple-500" },
   default: { initials: "??", color: "bg-primary" },
 }
 

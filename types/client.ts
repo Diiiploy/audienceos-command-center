@@ -17,7 +17,7 @@ export type UIHealthStatus = 'Green' | 'Yellow' | 'Red' | 'Blocked'
 export type Stage = 'Onboarding' | 'Installation' | 'Audit' | 'Live' | 'Needs Support' | 'Off-boarding'
 
 // Owner type (will be replaced by user assignments)
-export type Owner = 'Luke' | 'Garrett' | 'Josh' | 'Jeff'
+export type Owner = 'Brent' | 'Roderic' | 'Trevor' | 'Chase'
 
 // Tier for client categorization
 export type Tier = 'Enterprise' | 'Core' | 'Starter'
@@ -170,7 +170,7 @@ export const PIPELINE_STAGES: Stage[] = [
 ]
 
 // Owner list (temporary until we use real user assignments)
-export const OWNERS: Owner[] = ['Luke', 'Garrett', 'Josh', 'Jeff']
+export const OWNERS: Owner[] = ['Brent', 'Roderic', 'Trevor', 'Chase']
 
 // Owner data with avatars for UI display
 export interface OwnerData {
@@ -180,10 +180,10 @@ export interface OwnerData {
 }
 
 export const OWNER_DATA: OwnerData[] = [
-  { name: 'Luke', avatar: 'L', color: 'bg-blue-500' },
-  { name: 'Garrett', avatar: 'G', color: 'bg-green-500' },
-  { name: 'Josh', avatar: 'J', color: 'bg-purple-500' },
-  { name: 'Jeff', avatar: 'JF', color: 'bg-orange-500' },
+  { name: 'Brent', avatar: 'B', color: 'bg-emerald-500' },
+  { name: 'Roderic', avatar: 'R', color: 'bg-blue-500' },
+  { name: 'Trevor', avatar: 'T', color: 'bg-amber-500' },
+  { name: 'Chase', avatar: 'C', color: 'bg-purple-500' },
 ]
 
 // Helper to get owner data by name

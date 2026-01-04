@@ -241,10 +241,10 @@ function generateMockActivityFirehose(): FirehoseItemData[] {
       id: "task-1",
       severity: "warning" as const,
       title: "Review Weekly Report",
-      description: "V Shred weekly performance report ready for review",
+      description: "RTA Outdoor Living weekly performance report ready for review",
       timestamp: new Date(now.getTime() - 30 * 60 * 1000),
-      clientName: "V Shred",
-      assignee: "Sarah",
+      clientName: "RTA Outdoor Living",
+      assignee: "Trevor",
       targetTab: "tasks" as const,
     },
     {
@@ -254,7 +254,7 @@ function generateMockActivityFirehose(): FirehoseItemData[] {
       description: "AI drafted response to Allbirds iOS tracking question",
       timestamp: new Date(now.getTime() - 60 * 60 * 1000),
       clientName: "Allbirds",
-      assignee: "Luke",
+      assignee: "Brent",
       targetTab: "tasks" as const,
     },
     {
@@ -279,9 +279,9 @@ function generateMockActivityFirehose(): FirehoseItemData[] {
       id: "client-1",
       severity: "warning" as const,
       title: "Needs Attention",
-      description: "V Shred - review recommended",
+      description: "RTA Outdoor Living - review recommended",
       timestamp: new Date(now.getTime() - 2 * 60 * 60 * 1000),
-      clientName: "V Shred",
+      clientName: "RTA Outdoor Living",
       targetTab: "clients" as const,
     },
     {
@@ -327,7 +327,7 @@ function generateMockActivityFirehose(): FirehoseItemData[] {
       description: "MVMT Watches monthly performance report due tomorrow",
       timestamp: new Date(now.getTime() - 22 * 60 * 60 * 1000),
       clientName: "MVMT Watches",
-      assignee: "Josh",
+      assignee: "Trevor",
       targetTab: "tasks" as const,
     },
   ]

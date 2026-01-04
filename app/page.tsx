@@ -134,7 +134,7 @@ function CommandCenterContent() {
   const router = useRouter()
   const pathname = usePathname()
 
-  const [activeView, setActiveView] = useState<LinearView>("pipeline")
+  const [activeView, setActiveView] = useState<LinearView>("dashboard")
   const [selectedClient, setSelectedClient] = useState<MinimalClient | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   // Separate view modes: Pipeline defaults to board (Kanban), Clients defaults to list

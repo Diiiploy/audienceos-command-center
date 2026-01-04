@@ -19,7 +19,7 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
 
 export type Stage = "Onboarding" | "Installation" | "Audit" | "Live" | "Needs Support" | "Off-boarding"
 export type HealthStatus = "Green" | "Yellow" | "Red" | "Blocked"
-export type Owner = "Luke" | "Garrett" | "Josh" | "Jeff"
+export type Owner = "Brent" | "Roderic" | "Trevor" | "Chase"
 export type Tier = "Enterprise" | "Core" | "Starter"
 
 export type TicketStatus = "New" | "In Progress" | "Waiting on Client" | "Resolved"
@@ -126,10 +126,10 @@ export interface ZoomRecording {
 }
 
 export const owners: { name: Owner; avatar: string; color: string }[] = [
-  { name: "Luke", avatar: "L", color: "bg-emerald-600" },
-  { name: "Garrett", avatar: "G", color: "bg-blue-600" },
-  { name: "Josh", avatar: "J", color: "bg-amber-600" },
-  { name: "Jeff", avatar: "JF", color: "bg-purple-600" },
+  { name: "Brent", avatar: "B", color: "bg-emerald-500" },
+  { name: "Roderic", avatar: "R", color: "bg-blue-500" },
+  { name: "Trevor", avatar: "T", color: "bg-amber-500" },
+  { name: "Chase", avatar: "C", color: "bg-purple-500" },
 ]
 
 export const stages: Stage[] = ["Onboarding", "Installation", "Audit", "Live", "Needs Support", "Off-boarding"]
@@ -169,7 +169,7 @@ export const mockClients: Client[] = [
     logo: "RTA",
     stage: "Installation",
     health: "Blocked",
-    owner: "Luke",
+    owner: "Brent",
     daysInStage: 20,
     supportTickets: 3,
     installTime: 20,
@@ -180,12 +180,12 @@ export const mockClients: Client[] = [
     tier: "Enterprise",
     blocker: "WAITING ON DNS", // Added blocker
     tasks: [
-      { id: "1", name: "Initial Setup Call", completed: true, assignee: "Luke", stage: "Onboarding" },
+      { id: "1", name: "Initial Setup Call", completed: true, assignee: "Brent", stage: "Onboarding" },
       {
         id: "2",
         name: "DNS Configuration",
         completed: false,
-        assignee: "Luke",
+        assignee: "Brent",
         dueDate: "Nov 25",
         stage: "Installation",
       },
@@ -193,16 +193,16 @@ export const mockClients: Client[] = [
         id: "3",
         name: "Pixel Installation",
         completed: false,
-        assignee: "Garrett",
+        assignee: "Roderic",
         dueDate: "Nov 27",
         stage: "Installation",
       },
-      { id: "4", name: "GTM Setup", completed: false, assignee: "Garrett", dueDate: "Nov 29", stage: "Installation" },
+      { id: "4", name: "GTM Setup", completed: false, assignee: "Roderic", dueDate: "Nov 29", stage: "Installation" },
     ],
     comms: [
       {
         id: "1",
-        sender: "Luke",
+        sender: "Brent",
         avatar: "L",
         message: "Sent DNS instructions to client - still waiting on access credentials",
         timestamp: "5d ago",
@@ -222,7 +222,7 @@ export const mockClients: Client[] = [
       },
       {
         id: "3",
-        sender: "Luke",
+        sender: "Brent",
         avatar: "L",
         message: "Following up again - this is becoming critical",
         timestamp: "1d ago",
@@ -262,11 +262,11 @@ export const mockClients: Client[] = [
   },
   {
     id: "2",
-    name: "V Shred",
+    name: "Alo Yoga",
     logo: "VS",
     stage: "Audit",
     health: "Yellow",
-    owner: "Luke",
+    owner: "Brent",
     daysInStage: 3,
     supportTickets: 1,
     installTime: 6,
@@ -276,22 +276,22 @@ export const mockClients: Client[] = [
     tier: "Enterprise",
     blocker: null, // Added blocker
     tasks: [
-      { id: "1", name: "Initial Audit", completed: true, assignee: "Luke", stage: "Audit" },
-      { id: "2", name: "Pixel Verification", completed: true, assignee: "Luke", stage: "Audit" },
+      { id: "1", name: "Initial Audit", completed: true, assignee: "Brent", stage: "Audit" },
+      { id: "2", name: "Pixel Verification", completed: true, assignee: "Brent", stage: "Audit" },
       {
         id: "3",
         name: "Conversion Tracking Test",
         completed: false,
-        assignee: "Josh",
+        assignee: "Trevor",
         dueDate: "Nov 30",
         stage: "Audit",
       },
-      { id: "4", name: "Final Report", completed: false, assignee: "Luke", dueDate: "Dec 2", stage: "Audit" },
+      { id: "4", name: "Final Report", completed: false, assignee: "Brent", dueDate: "Dec 2", stage: "Audit" },
     ],
     comms: [
       {
         id: "1",
-        sender: "Luke",
+        sender: "Brent",
         avatar: "L",
         message: "Audit started, looking good so far",
         timestamp: "2d ago",
@@ -301,7 +301,7 @@ export const mockClients: Client[] = [
       },
       {
         id: "2",
-        sender: "Sarah (V Shred)",
+        sender: "Client (Alo Yoga)",
         avatar: "S",
         message: "Thanks team! When can we expect the final report?",
         timestamp: "1d ago",
@@ -336,7 +336,7 @@ export const mockClients: Client[] = [
     logo: "TR",
     stage: "Live",
     health: "Green",
-    owner: "Garrett",
+    owner: "Roderic",
     daysInStage: 45,
     supportTickets: 0,
     installTime: 5,
@@ -346,15 +346,15 @@ export const mockClients: Client[] = [
     tier: "Core",
     blocker: null, // Added blocker
     tasks: [
-      { id: "1", name: "Initial Setup Call", completed: true, assignee: "Garrett", stage: "Onboarding" },
-      { id: "2", name: "DNS Configuration", completed: true, assignee: "Garrett", stage: "Installation" },
-      { id: "3", name: "Pixel Installation", completed: true, assignee: "Garrett", stage: "Installation" },
-      { id: "4", name: "GTM Setup", completed: true, assignee: "Garrett", stage: "Installation" },
+      { id: "1", name: "Initial Setup Call", completed: true, assignee: "Roderic", stage: "Onboarding" },
+      { id: "2", name: "DNS Configuration", completed: true, assignee: "Roderic", stage: "Installation" },
+      { id: "3", name: "Pixel Installation", completed: true, assignee: "Roderic", stage: "Installation" },
+      { id: "4", name: "GTM Setup", completed: true, assignee: "Roderic", stage: "Installation" },
     ],
     comms: [
       {
         id: "1",
-        sender: "Garrett",
+        sender: "Roderic",
         avatar: "G",
         message: "Client fully onboarded and happy with results",
         timestamp: "1w ago",
@@ -389,7 +389,7 @@ export const mockClients: Client[] = [
     logo: "GR",
     stage: "Onboarding",
     health: "Green",
-    owner: "Josh",
+    owner: "Trevor",
     daysInStage: 2,
     supportTickets: 0,
     installTime: 0,
@@ -399,13 +399,13 @@ export const mockClients: Client[] = [
     tier: "Core",
     blocker: null, // Added blocker
     tasks: [
-      { id: "1", name: "Welcome Email Sent", completed: true, assignee: "Josh", stage: "Onboarding" },
-      { id: "2", name: "Kickoff Call Scheduled", completed: true, assignee: "Josh", stage: "Onboarding" },
+      { id: "1", name: "Welcome Email Sent", completed: true, assignee: "Trevor", stage: "Onboarding" },
+      { id: "2", name: "Kickoff Call Scheduled", completed: true, assignee: "Trevor", stage: "Onboarding" },
       {
         id: "3",
         name: "Access Credentials Received",
         completed: false,
-        assignee: "Josh",
+        assignee: "Trevor",
         dueDate: "Dec 1",
         stage: "Onboarding",
       },
@@ -413,7 +413,7 @@ export const mockClients: Client[] = [
     comms: [
       {
         id: "1",
-        sender: "Josh",
+        sender: "Trevor",
         avatar: "J",
         message: "Kickoff call scheduled for Thursday",
         timestamp: "1d ago",
@@ -448,7 +448,7 @@ export const mockClients: Client[] = [
     logo: "AY",
     stage: "Installation",
     health: "Green",
-    owner: "Luke",
+    owner: "Brent",
     daysInStage: 3,
     supportTickets: 0,
     installTime: 3,
@@ -458,15 +458,15 @@ export const mockClients: Client[] = [
     tier: "Enterprise",
     blocker: null, // Added blocker
     tasks: [
-      { id: "1", name: "Initial Setup Call", completed: true, assignee: "Luke", stage: "Onboarding" },
-      { id: "2", name: "DNS Configuration", completed: true, assignee: "Luke", stage: "Installation" },
-      { id: "3", name: "Pixel Installation", completed: true, assignee: "Luke", stage: "Installation" },
-      { id: "4", name: "GTM Setup", completed: false, assignee: "Luke", dueDate: "Nov 30", stage: "Installation" },
+      { id: "1", name: "Initial Setup Call", completed: true, assignee: "Brent", stage: "Onboarding" },
+      { id: "2", name: "DNS Configuration", completed: true, assignee: "Brent", stage: "Installation" },
+      { id: "3", name: "Pixel Installation", completed: true, assignee: "Brent", stage: "Installation" },
+      { id: "4", name: "GTM Setup", completed: false, assignee: "Brent", dueDate: "Nov 30", stage: "Installation" },
     ],
     comms: [
       {
         id: "1",
-        sender: "Luke",
+        sender: "Brent",
         avatar: "L",
         message: "Making great progress, GTM setup tomorrow",
         timestamp: "5h ago",
@@ -501,7 +501,7 @@ export const mockClients: Client[] = [
     logo: "BB",
     stage: "Needs Support",
     health: "Red",
-    owner: "Jeff",
+    owner: "Chase",
     daysInStage: 6,
     supportTickets: 5,
     installTime: 8,
@@ -512,12 +512,12 @@ export const mockClients: Client[] = [
     tier: "Core",
     blocker: null, // Added blocker
     tasks: [
-      { id: "1", name: "Diagnose Tracking Issue", completed: true, assignee: "Jeff", stage: "Support" },
+      { id: "1", name: "Diagnose Tracking Issue", completed: true, assignee: "Chase", stage: "Support" },
       {
         id: "2",
         name: "Rebuild Pixel Events",
         completed: false,
-        assignee: "Jeff",
+        assignee: "Chase",
         dueDate: "Nov 29",
         stage: "Support",
       },
@@ -525,7 +525,7 @@ export const mockClients: Client[] = [
         id: "3",
         name: "Test All Conversions",
         completed: false,
-        assignee: "Josh",
+        assignee: "Trevor",
         dueDate: "Nov 30",
         stage: "Support",
       },
@@ -533,7 +533,7 @@ export const mockClients: Client[] = [
     comms: [
       {
         id: "1",
-        sender: "Jeff",
+        sender: "Chase",
         avatar: "JF",
         message: "Client escalated, needs resolution by EOD Friday",
         timestamp: "30m ago",
@@ -579,7 +579,7 @@ export const mockClients: Client[] = [
     logo: "MV",
     stage: "Live",
     health: "Green",
-    owner: "Luke",
+    owner: "Brent",
     daysInStage: 120,
     supportTickets: 0,
     installTime: 4,
@@ -589,10 +589,10 @@ export const mockClients: Client[] = [
     tier: "Enterprise",
     blocker: null, // Added blocker
     tasks: [
-      { id: "1", name: "Initial Setup Call", completed: true, assignee: "Luke", stage: "Onboarding" },
-      { id: "2", name: "DNS Configuration", completed: true, assignee: "Luke", stage: "Installation" },
-      { id: "3", name: "Pixel Installation", completed: true, assignee: "Luke", stage: "Installation" },
-      { id: "4", name: "GTM Setup", completed: true, assignee: "Luke", stage: "Installation" },
+      { id: "1", name: "Initial Setup Call", completed: true, assignee: "Brent", stage: "Onboarding" },
+      { id: "2", name: "DNS Configuration", completed: true, assignee: "Brent", stage: "Installation" },
+      { id: "3", name: "Pixel Installation", completed: true, assignee: "Brent", stage: "Installation" },
+      { id: "4", name: "GTM Setup", completed: true, assignee: "Brent", stage: "Installation" },
     ],
     comms: [],
     performanceData: generatePerformanceData(),
@@ -621,7 +621,7 @@ export const mockClients: Client[] = [
     logo: "RG",
     stage: "Audit",
     health: "Green",
-    owner: "Josh",
+    owner: "Trevor",
     daysInStage: 2,
     supportTickets: 0,
     installTime: 6,
@@ -631,13 +631,13 @@ export const mockClients: Client[] = [
     tier: "Core",
     blocker: null, // Added blocker
     tasks: [
-      { id: "1", name: "Initial Audit", completed: true, assignee: "Josh", stage: "Audit" },
-      { id: "2", name: "Pixel Verification", completed: true, assignee: "Josh", stage: "Audit" },
+      { id: "1", name: "Initial Audit", completed: true, assignee: "Trevor", stage: "Audit" },
+      { id: "2", name: "Pixel Verification", completed: true, assignee: "Trevor", stage: "Audit" },
       {
         id: "3",
         name: "Conversion Tracking Test",
         completed: false,
-        assignee: "Josh",
+        assignee: "Trevor",
         dueDate: "Dec 1",
         stage: "Audit",
       },
@@ -645,7 +645,7 @@ export const mockClients: Client[] = [
     comms: [
       {
         id: "1",
-        sender: "Josh",
+        sender: "Trevor",
         avatar: "J",
         message: "Audit looking clean so far",
         timestamp: "1d ago",
@@ -680,7 +680,7 @@ export const mockClients: Client[] = [
     logo: "BO",
     stage: "Off-boarding",
     health: "Yellow",
-    owner: "Jeff",
+    owner: "Chase",
     daysInStage: 3,
     supportTickets: 0,
     installTime: 6,
@@ -691,12 +691,12 @@ export const mockClients: Client[] = [
     tier: "Starter",
     blocker: null, // Added blocker
     tasks: [
-      { id: "1", name: "Final Report Generated", completed: true, assignee: "Jeff", stage: "Off-boarding" },
+      { id: "1", name: "Final Report Generated", completed: true, assignee: "Chase", stage: "Off-boarding" },
       {
         id: "2",
         name: "Remove Tracking Code",
         completed: false,
-        assignee: "Jeff",
+        assignee: "Chase",
         dueDate: "Dec 1",
         stage: "Off-boarding",
       },
@@ -704,7 +704,7 @@ export const mockClients: Client[] = [
         id: "3",
         name: "Archive Client Data",
         completed: false,
-        assignee: "Jeff",
+        assignee: "Chase",
         dueDate: "Dec 5",
         stage: "Off-boarding",
       },
@@ -736,7 +736,7 @@ export const mockClients: Client[] = [
     logo: "CH",
     stage: "Off-boarding",
     health: "Yellow",
-    owner: "Jeff",
+    owner: "Chase",
     daysInStage: 3,
     supportTickets: 0,
     installTime: 6,
@@ -747,12 +747,12 @@ export const mockClients: Client[] = [
     tier: "Starter",
     blocker: null, // Added blocker
     tasks: [
-      { id: "1", name: "Final Report Generated", completed: true, assignee: "Jeff", stage: "Off-boarding" },
+      { id: "1", name: "Final Report Generated", completed: true, assignee: "Chase", stage: "Off-boarding" },
       {
         id: "2",
         name: "Remove Tracking Code",
         completed: false,
-        assignee: "Jeff",
+        assignee: "Chase",
         dueDate: "Dec 1",
         stage: "Off-boarding",
       },
@@ -760,7 +760,7 @@ export const mockClients: Client[] = [
         id: "3",
         name: "Archive Client Data",
         completed: false,
-        assignee: "Jeff",
+        assignee: "Chase",
         dueDate: "Dec 5",
         stage: "Off-boarding",
       },
@@ -792,7 +792,7 @@ export const mockClients: Client[] = [
     logo: "BL",
     stage: "Installation",
     health: "Red",
-    owner: "Josh",
+    owner: "Trevor",
     daysInStage: 15,
     supportTickets: 2,
     installTime: 15,
@@ -803,22 +803,22 @@ export const mockClients: Client[] = [
     tier: "Core",
     blocker: null, // Added blocker
     tasks: [
-      { id: "1", name: "Initial Setup Call", completed: true, assignee: "Josh", stage: "Onboarding" },
-      { id: "2", name: "DNS Configuration", completed: true, assignee: "Josh", stage: "Installation" },
+      { id: "1", name: "Initial Setup Call", completed: true, assignee: "Trevor", stage: "Onboarding" },
+      { id: "2", name: "DNS Configuration", completed: true, assignee: "Trevor", stage: "Installation" },
       {
         id: "3",
         name: "Pixel Installation",
         completed: false,
-        assignee: "Josh",
+        assignee: "Trevor",
         dueDate: "Nov 28",
         stage: "Installation",
       },
-      { id: "4", name: "GTM Setup", completed: false, assignee: "Josh", dueDate: "Dec 1", stage: "Installation" },
+      { id: "4", name: "GTM Setup", completed: false, assignee: "Trevor", dueDate: "Dec 1", stage: "Installation" },
     ],
     comms: [
       {
         id: "1",
-        sender: "Josh",
+        sender: "Trevor",
         avatar: "J",
         message: "Custom theme is blocking standard install, need dev help",
         timestamp: "6h ago",
@@ -854,7 +854,7 @@ export const mockClients: Client[] = [
     logo: "GS",
     stage: "Live",
     health: "Green",
-    owner: "Luke",
+    owner: "Brent",
     daysInStage: 90,
     supportTickets: 0,
     installTime: 4,
@@ -864,10 +864,10 @@ export const mockClients: Client[] = [
     tier: "Enterprise",
     blocker: null, // Added blocker
     tasks: [
-      { id: "1", name: "Initial Setup Call", completed: true, assignee: "Luke", stage: "Onboarding" },
-      { id: "2", name: "DNS Configuration", completed: true, assignee: "Luke", stage: "Installation" },
-      { id: "3", name: "Pixel Installation", completed: true, assignee: "Luke", stage: "Installation" },
-      { id: "4", name: "GTM Setup", completed: true, assignee: "Luke", stage: "Installation" },
+      { id: "1", name: "Initial Setup Call", completed: true, assignee: "Brent", stage: "Onboarding" },
+      { id: "2", name: "DNS Configuration", completed: true, assignee: "Brent", stage: "Installation" },
+      { id: "3", name: "Pixel Installation", completed: true, assignee: "Brent", stage: "Installation" },
+      { id: "4", name: "GTM Setup", completed: true, assignee: "Brent", stage: "Installation" },
     ],
     comms: [],
     performanceData: generatePerformanceData(),
@@ -896,7 +896,7 @@ export const mockClients: Client[] = [
     logo: "AB",
     stage: "Needs Support",
     health: "Yellow",
-    owner: "Jeff",
+    owner: "Chase",
     daysInStage: 2,
     supportTickets: 1,
     installTime: 5,
@@ -911,16 +911,16 @@ export const mockClients: Client[] = [
         id: "1",
         name: "Respond to iOS Question",
         completed: false,
-        assignee: "Jeff",
+        assignee: "Chase",
         dueDate: "Nov 29",
         stage: "Support",
       },
-      { id: "2", name: "Update Documentation", completed: false, assignee: "Jeff", dueDate: "Dec 2", stage: "Support" },
+      { id: "2", name: "Update Documentation", completed: false, assignee: "Chase", dueDate: "Dec 2", stage: "Support" },
     ],
     comms: [
       {
         id: "1",
-        sender: "Sarah (Client)",
+        sender: "Client Contact",
         avatar: "S",
         message: "How does iOS 17 affect our tracking?",
         timestamp: "4h ago",
@@ -955,7 +955,7 @@ export const mockClients: Client[] = [
     logo: "CA",
     stage: "Onboarding",
     health: "Green",
-    owner: "Garrett",
+    owner: "Roderic",
     daysInStage: 1,
     supportTickets: 0,
     installTime: 0,
@@ -965,12 +965,12 @@ export const mockClients: Client[] = [
     tier: "Enterprise",
     blocker: null, // Added blocker
     tasks: [
-      { id: "1", name: "Welcome Email Sent", completed: true, assignee: "Garrett", stage: "Onboarding" },
+      { id: "1", name: "Welcome Email Sent", completed: true, assignee: "Roderic", stage: "Onboarding" },
       {
         id: "2",
         name: "Kickoff Call Scheduled",
         completed: false,
-        assignee: "Garrett",
+        assignee: "Roderic",
         dueDate: "Dec 1",
         stage: "Onboarding",
       },
@@ -978,7 +978,7 @@ export const mockClients: Client[] = [
         id: "3",
         name: "Access Credentials Received",
         completed: false,
-        assignee: "Garrett",
+        assignee: "Roderic",
         dueDate: "Dec 3",
         stage: "Onboarding",
       },
@@ -986,7 +986,7 @@ export const mockClients: Client[] = [
     comms: [
       {
         id: "1",
-        sender: "Garrett",
+        sender: "Roderic",
         avatar: "G",
         message: "New high-value client, prioritizing onboarding",
         timestamp: "2h ago",
@@ -1026,7 +1026,7 @@ export const mockTickets: SupportTicket[] = [
     status: "In Progress",
     priority: "High",
     source: "Detected via Slack",
-    assignee: "Jeff",
+    assignee: "Chase",
     createdAt: "2h ago",
     description: "Conversion pixel not firing on checkout confirmation page after theme update.",
   },
@@ -1038,7 +1038,7 @@ export const mockTickets: SupportTicket[] = [
     status: "New",
     priority: "Medium",
     source: "Client Email",
-    assignee: "Josh",
+    assignee: "Trevor",
     createdAt: "4h ago",
     description: "Client requesting clarification on iOS 17 changes and impact on their tracking setup.",
   },
@@ -1050,7 +1050,7 @@ export const mockTickets: SupportTicket[] = [
     status: "Waiting on Client",
     priority: "High",
     source: "Internal",
-    assignee: "Luke",
+    assignee: "Brent",
     createdAt: "5d ago",
     description: "Waiting for client IT team to provide GTM admin access for pixel installation.",
   },
@@ -1062,7 +1062,7 @@ export const mockTickets: SupportTicket[] = [
     status: "In Progress",
     priority: "High",
     source: "Detected via AI",
-    assignee: "Luke",
+    assignee: "Brent",
     createdAt: "1d ago",
     description: "Custom Shopify theme blocking standard pixel installation methods.",
   },
@@ -1074,7 +1074,7 @@ export const mockTickets: SupportTicket[] = [
     status: "Resolved",
     priority: "Low",
     source: "Scheduled Task",
-    assignee: "Josh",
+    assignee: "Trevor",
     createdAt: "3d ago",
     description: "Generate and send November performance report to client.",
   },
@@ -1082,11 +1082,11 @@ export const mockTickets: SupportTicket[] = [
     id: "T006",
     title: "Conversion value discrepancy",
     clientId: "2",
-    clientName: "V Shred",
+    clientName: "Alo Yoga",
     status: "New",
     priority: "Medium",
     source: "Client Email",
-    assignee: "Luke",
+    assignee: "Brent",
     createdAt: "6h ago",
     description: "Client reporting 12% difference between Meta reported conversions and Shopify orders.",
   },
@@ -1120,7 +1120,7 @@ export const mockRecordings: Record<string, ZoomRecording[]> = {
   "2": [
     {
       id: "Z003",
-      title: "V Shred - Audit Review",
+      title: "Alo Yoga - Audit Review",
       date: "Nov 27, 2024",
       duration: "28 min",
       aiSummary: [

@@ -116,9 +116,9 @@ export function LinearSidebar({
   onViewChange,
   onQuickCreate,
   user = {
-    name: "Luke",
+    name: "Brent",
     role: "Head of Fulfillment",
-    initials: "L",
+    initials: "B",
     color: "bg-emerald-500",
   },
 }: LinearSidebarProps) {

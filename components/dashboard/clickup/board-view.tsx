@@ -43,7 +43,7 @@ const defaultTasks: Task[] = [
     title: "Complete DNS setup for RTA Outdoor Living",
     status: "in_progress",
     priority: "high",
-    assignee: { name: "Luke Thompson", initials: "LT", color: "bg-emerald-500" },
+    assignee: { name: "Brent", initials: "B", color: "bg-emerald-500" },
     client: "RTA Outdoor Living",
     dueDate: "2025-01-03",
     daysOpen: 3,
@@ -53,7 +53,7 @@ const defaultTasks: Task[] = [
     title: "Review quarterly metrics report",
     status: "todo",
     priority: "medium",
-    assignee: { name: "Alex Smith", initials: "AS", color: "bg-blue-500" },
+    assignee: { name: "Roderic Andrews", initials: "R", color: "bg-blue-500" },
     client: "Terren",
     dueDate: "2025-01-06",
     daysOpen: 1,
@@ -63,7 +63,7 @@ const defaultTasks: Task[] = [
     title: "Pixel installation verification",
     status: "in_progress",
     priority: "high",
-    assignee: { name: "Jordan Fields", initials: "JF", color: "bg-purple-500" },
+    assignee: { name: "Trevor", initials: "T", color: "bg-amber-500" },
     client: "Alo Yoga",
     dueDate: "2025-01-07",
     daysOpen: 2,
@@ -73,7 +73,7 @@ const defaultTasks: Task[] = [
     title: "Prepare launch checklist",
     status: "done",
     priority: "urgent",
-    assignee: { name: "Luke Thompson", initials: "LT", color: "bg-emerald-500" },
+    assignee: { name: "Brent", initials: "B", color: "bg-emerald-500" },
     client: "Glow Recipe",
     dueDate: "2025-01-08",
     daysOpen: 0,
@@ -83,7 +83,7 @@ const defaultTasks: Task[] = [
     title: "Resolve support ticket #4521",
     status: "blocked",
     priority: "high",
-    assignee: { name: "Sam Lee", initials: "SL", color: "bg-amber-500" },
+    assignee: { name: "Chase", initials: "C", color: "bg-purple-500" },
     client: "Beardbrand",
     dueDate: "2025-01-04",
     daysOpen: 6,
@@ -94,7 +94,7 @@ const defaultTasks: Task[] = [
     title: "Monthly performance report",
     status: "todo",
     priority: "medium",
-    assignee: { name: "Alex Smith", initials: "AS", color: "bg-blue-500" },
+    assignee: { name: "Roderic Andrews", initials: "R", color: "bg-blue-500" },
     client: "MVMT Watches",
     dueDate: "2025-01-10",
     daysOpen: 0,
@@ -104,7 +104,7 @@ const defaultTasks: Task[] = [
     title: "Client onboarding call",
     status: "todo",
     priority: "medium",
-    assignee: { name: "Jordan Fields", initials: "JF", color: "bg-purple-500" },
+    assignee: { name: "Trevor", initials: "T", color: "bg-amber-500" },
     client: "Ruggable",
     dueDate: "2025-01-05",
     daysOpen: 1,
@@ -114,8 +114,8 @@ const defaultTasks: Task[] = [
     title: "Data layer audit",
     status: "in_progress",
     priority: "high",
-    assignee: { name: "Luke Thompson", initials: "LT", color: "bg-emerald-500" },
-    client: "V Shred",
+    assignee: { name: "Brent", initials: "B", color: "bg-emerald-500" },
+    client: "RTA Outdoor Living",
     dueDate: "2025-01-04",
     daysOpen: 4,
   },
@@ -221,10 +221,10 @@ function TaskCard({ task, onClick }: { task: Task; onClick?: () => void }) {
                   Assign to
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
-                  <DropdownMenuItem>Luke Thompson</DropdownMenuItem>
-                  <DropdownMenuItem>Alex Smith</DropdownMenuItem>
-                  <DropdownMenuItem>Jordan Fields</DropdownMenuItem>
-                  <DropdownMenuItem>Sam Lee</DropdownMenuItem>
+                  <DropdownMenuItem>Brent</DropdownMenuItem>
+                  <DropdownMenuItem>Roderic</DropdownMenuItem>
+                  <DropdownMenuItem>Trevor</DropdownMenuItem>
+                  <DropdownMenuItem>Chase</DropdownMenuItem>
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
               <DropdownMenuSeparator />

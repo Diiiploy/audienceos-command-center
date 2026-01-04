@@ -35,7 +35,7 @@ const MOCK_AUDIT_LOG: AuditLogEntry[] = [
     },
     ip_address: "192.168.1.1",
     created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    user_name: "Luke Wilson",
+    user_name: "Brent CEO",
   },
   {
     id: "2",
@@ -52,7 +52,7 @@ const MOCK_AUDIT_LOG: AuditLogEntry[] = [
     },
     ip_address: "192.168.1.1",
     created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    user_name: "Luke Wilson",
+    user_name: "Brent CEO",
   },
   {
     id: "3",
@@ -67,7 +67,7 @@ const MOCK_AUDIT_LOG: AuditLogEntry[] = [
     },
     ip_address: "192.168.1.1",
     created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    user_name: "Luke Wilson",
+    user_name: "Brent CEO",
   },
   {
     id: "4",
@@ -81,7 +81,7 @@ const MOCK_AUDIT_LOG: AuditLogEntry[] = [
     },
     ip_address: "192.168.1.2",
     created_at: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-    user_name: "Sarah Johnson",
+    user_name: "Roderic Andrews",
   },
   {
     id: "5",
@@ -95,7 +95,7 @@ const MOCK_AUDIT_LOG: AuditLogEntry[] = [
     },
     ip_address: "192.168.1.1",
     created_at: new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString(),
-    user_name: "Luke Wilson",
+    user_name: "Brent CEO",
   },
 ]
 

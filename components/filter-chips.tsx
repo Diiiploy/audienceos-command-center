@@ -36,7 +36,7 @@ export function FilterChips({
   filters,
   onFilterChange,
   onClearFilters,
-  currentUser: _currentUser = "Luke",
+  currentUser: _currentUser = "Brent",
   activeFilterCount,
 }: FilterChipsProps) {
   return (
