@@ -266,12 +266,11 @@ export function KnowledgeBase() {
     <div className="flex h-full overflow-hidden">
       {/* Document list - shrinks when preview panel is open */}
       <motion.div
-        layout
         initial={false}
         animate={{ width: selectedDocument ? 280 : "100%" }}
         transition={slideTransition}
         className="flex flex-col border-r border-border overflow-hidden"
-        style={{ minWidth: selectedDocument ? 280 : undefined }}
+        style={{ minWidth: selectedDocument ? 280 : undefined, flexShrink: selectedDocument ? 0 : undefined }}
       >
         <ListHeader
           title="Knowledge Base"

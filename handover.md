@@ -40,6 +40,24 @@
 
 ---
 
+### Login Flow Verified (2026-01-04)
+
+**Supabase Auth User Created:**
+- Email: `test@audienceos.dev`
+- Password: `TestPassword123`
+- UID: `51f804ff-1c23-41d1-a602-cb2bbab770ee`
+- Auto-confirmed: ✅
+
+**Login Test:**
+- Production login page working ✅
+- Successful authentication → redirects to dashboard ✅
+- User session persists ✅
+- Real data visible (Support Tickets, Clients) ✅
+
+**Note:** Special characters in passwords may cause issues with browser automation form input. Use alphanumeric passwords for test users.
+
+---
+
 ## Prior Session (2026-01-04)
 
 ### PR #4 Merged - Linear UI + Security Hardening

@@ -480,12 +480,11 @@ export function OnboardingHub({ onClientClick }: OnboardingHubProps) {
     <div className="flex h-full overflow-hidden">
       {/* LEFT PANEL - Stages List (always visible) */}
       <motion.div
-        layout
         initial={false}
         animate={{ width: isCompact ? 288 : "100%" }}
         transition={slideTransition}
         className="flex flex-col border-r border-border/50 bg-muted/30 overflow-hidden"
-        style={{ minWidth: isCompact ? 288 : undefined }}
+        style={{ minWidth: isCompact ? 288 : undefined, flexShrink: isCompact ? 0 : undefined }}
       >
         {/* Header */}
         <div className="px-4 py-3 border-b border-border/50 bg-background shrink-0">

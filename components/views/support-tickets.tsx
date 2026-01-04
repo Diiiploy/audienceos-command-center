@@ -284,12 +284,11 @@ export function SupportTickets() {
     <div className="flex h-full overflow-hidden">
       {/* Ticket list - shrinks when detail panel is open */}
       <motion.div
-        layout
         initial={false}
         animate={{ width: selectedTicket ? 280 : "100%" }}
         transition={slideTransition}
         className="flex flex-col border-r border-border overflow-hidden"
-        style={{ minWidth: selectedTicket ? 280 : undefined }}
+        style={{ minWidth: selectedTicket ? 280 : undefined, flexShrink: selectedTicket ? 0 : undefined }}
       >
         <ListHeader
           title="Support Tickets"
