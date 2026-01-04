@@ -52,29 +52,32 @@ jobs:
             const delayMs = 5000;
 
             for (let i = 0; i < maxAttempts; i++) {
-              const { data: statuses } = await github.rest.repos.listCommitStatusesForRef({
+              // Use Deployments API for reliable URL extraction
+              const { data: deployments } = await github.rest.repos.listDeployments({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                ref: context.payload.pull_request.head.sha,
+                sha: context.payload.pull_request.head.sha,
+                per_page: 10,
               });
 
-              const vercelStatus = statuses.find(s =>
-                s.context.includes('Vercel') && s.target_url
+              // Find Vercel deployment
+              const vercelDeployment = deployments.find(d =>
+                d.creator?.login === 'vercel[bot]'
               );
 
-              if (vercelStatus && vercelStatus.state === 'success') {
-                // Extract the deployment URL from the target_url
-                const match = vercelStatus.target_url.match(/https:\/\/[^/]+/);
-                if (match) {
-                  // Get actual preview URL from Vercel deployment page
-                  const deployUrl = vercelStatus.description?.match(/https:\/\/[^\s]+\.vercel\.app/);
-                  if (deployUrl) {
-                    core.setOutput('url', deployUrl[0]);
-                    return;
-                  }
-                  // Fallback: construct from context
-                  const previewUrl = `https://${context.repo.repo}-git-${context.payload.pull_request.head.ref.replace(/\//g, '-')}-${context.repo.owner}.vercel.app`;
-                  core.setOutput('url', previewUrl);
+              if (vercelDeployment) {
+                // Get deployment statuses to find the environment_url
+                const { data: statuses } = await github.rest.repos.listDeploymentStatuses({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  deployment_id: vercelDeployment.id,
+                  per_page: 1,
+                });
+
+                const latestStatus = statuses[0];
+                if (latestStatus?.state === 'success' && latestStatus.environment_url) {
+                  console.log(`Found deployment URL: ${latestStatus.environment_url}`);
+                  core.setOutput('url', latestStatus.environment_url);
                   return;
                 }
               }
@@ -86,6 +89,7 @@ jobs:
             core.setFailed('Timeout waiting for Vercel deployment');
 
       - name: Health Check
+        if: steps.vercel.outputs.url
         run: |
           echo "Testing: ${{ steps.vercel.outputs.url }}/api/health"
           # Retry up to 5 times with 10s delay
