@@ -18,12 +18,20 @@
 
 | Layer | Technology |
 |-------|------------|
-| Framework | Next.js 16 (App Router, Turbopack) |
-| UI | React 19, Tailwind v4, shadcn/ui (Linear design system) |
-| Charts | Recharts |
-| State | Zustand |
-| Backend | Supabase (Postgres + Auth + Storage + Realtime) |
-| AI | Claude API + Gemini File Search (RAG) |
+| Framework | Next.js 16.0.10 (App Router, Turbopack) |
+| UI | React 19.2, Tailwind v4.1, shadcn/ui (Linear design system) |
+| Charts | Recharts 2.15 |
+| State | Zustand 5.0 |
+| Backend | Supabase 2.89 (Postgres + Auth + Storage + Realtime) |
+| ORM | Drizzle ORM 0.45 |
+| AI | Gemini 2.0 Flash (@google/generative-ai 0.24) |
+| Forms | React Hook Form + Zod validation |
+| DnD | @dnd-kit (Kanban boards) |
+| Icons | Lucide React |
+| Theming | next-themes |
+| Toasts | Sonner |
+| Markdown | react-markdown |
+| Monitoring | Sentry 10.32 |
 
 ---
 
@@ -35,7 +43,7 @@
 | MVP-PRD | `docs/01-product/MVP-PRD.md` | MVP scope and priorities |
 | Data Model | `docs/04-technical/DATA-MODEL.md` | 19 tables with RLS |
 | API Contracts | `docs/04-technical/API-CONTRACTS.md` | REST API spec |
-| Feature Specs | `features/INDEX.md` | 9 MVP features (323 tasks) |
+| Feature Specs | `features/INDEX.md` | 10 features (9 MVP + dashboard-redesign) |
 
 ---
 
@@ -54,17 +62,18 @@ docs/
 ├── 08-reports/        # (future: progress reports)
 └── 09-delivered/      # (future: handover docs)
 
-features/               # 9 specs, 206 tasks total
+features/               # 10 specs
 ├── INDEX.md                        # Feature status tracker
-├── client-pipeline-management.md   # 20 tasks
-├── unified-communications-hub.md   # 24 tasks
-├── ai-intelligence-layer.md        # 48 tasks (Chi Intelligent Chat)
-├── dashboard-overview.md           # 22 tasks
-├── integrations-management.md      # 26 tasks
-├── support-tickets.md              # 18 tasks
-├── knowledge-base.md               # 16 tasks
-├── automations.md                  # 20 tasks
-└── settings.md                     # 12 tasks
+├── client-pipeline-management.md   # Pipeline + Kanban
+├── unified-communications-hub.md   # Email/Slack/Timeline
+├── ai-intelligence-layer.md        # Holy Grail Chat (RAG/Memory)
+├── dashboard-overview.md           # KPIs + Charts
+├── integrations-management.md      # OAuth + Sync
+├── support-tickets.md              # Ticket Kanban
+├── knowledge-base.md               # Document RAG
+├── automations.md                  # Workflow engine
+├── settings.md                     # Agency + User management
+└── dashboard-redesign.md           # Linear design refresh
 ```
 
 ---
@@ -79,6 +88,53 @@ npm run test         # Run test suite (Vitest)
 npm run lint         # ESLint
 npm run typecheck    # TypeScript check
 ```
+
+---
+
+## Directory Guide
+
+| Directory | Purpose | Count |
+|-----------|---------|-------|
+| `components/` | React components | 137 files |
+| `components/ui/` | shadcn/ui primitives | 27 files |
+| `components/linear/` | Linear design system | 28 dirs |
+| `lib/` | Utilities and services | 40 files |
+| `lib/chat/` | Chat service, router, functions | 7 files |
+| `lib/rag/` | Document processing, search | 8 files |
+| `lib/workflows/` | Automation engine | 7 files |
+| `hooks/` | Custom React hooks | 13 files |
+| `types/` | TypeScript definitions | 7 files |
+| `stores/` | Zustand state stores | 7 files |
+| `app/api/` | API routes | 34 endpoints |
+| `__tests__/` | Unit tests (Vitest) | 14 files |
+| `e2e/` | E2E tests (Playwright) | 3 files |
+
+### Key Stores
+
+| Store | Purpose |
+|-------|---------|
+| `pipeline-store` | Client pipeline state |
+| `communications-store` | Email/Slack threads |
+| `dashboard-store` | KPIs and metrics |
+| `ticket-store` | Support tickets |
+| `knowledge-base-store` | Documents and RAG |
+| `automations-store` | Workflow definitions |
+| `settings-store` | Agency/user settings |
+
+---
+
+## Technical Docs (04-technical/)
+
+| Document | Purpose |
+|----------|---------|
+| DATA-MODEL.md | 19 tables with RLS |
+| API-CONTRACTS.md | REST API spec (34 endpoints) |
+| TECH-STACK.md | Technology decisions |
+| ARCHITECTURE.md | System architecture |
+| DEPENDENCIES.md | Package management |
+| DEVOPS.md | DevOps setup |
+| SCAFFOLDING.md | Project setup |
+| WAR-ROOM-MIGRATION.md | Migration patterns |
 
 ---
 
@@ -183,4 +239,4 @@ gemini-2.0-flash-001
 
 ---
 
-*Updated: 2026-01-04 (Maintenance: DRY refactoring, version sync)*
+*Updated: 2026-01-04 (Documentation audit: added Directory Guide, expanded Tech Stack, fixed metrics)*

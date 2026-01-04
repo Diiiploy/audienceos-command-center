@@ -2,7 +2,7 @@
 
 **Location:** `~/PAI/projects/command_center_audience_OS/features/`
 **Purpose:** Track status of all product features
-**Last Audit:** 2026-01-01 (CTO-level codebase verification)
+**Last Audit:** 2026-01-04 (Documentation accuracy audit)
 
 ---
 
@@ -10,10 +10,11 @@
 
 | Metric | Count |
 |--------|-------|
-| React Components | 80+ (16,154 lines) |
-| API Endpoints | 24 (2,852 lines) |
-| Zustand Stores | 6 complete |
-| Total Custom Code | 29,159 lines |
+| React Components | 137 files |
+| API Endpoints | 34 endpoints |
+| Zustand Stores | 7 complete |
+| Custom Hooks | 13 |
+| Type Definitions | 7 files |
 | Build Status | ✅ Zero errors |
 
 ---
@@ -31,6 +32,7 @@
 | automations | ✅ Complete | [automations.md](automations.md) | 85% | 5 components, 8 APIs, workflow engine |
 | settings | ✅ Complete | [settings.md](settings.md) | 85% | SET-001/002: Agency + User APIs complete. SET-003-007: Invitations pending |
 | ai-intelligence-layer (HGC) | 🚧 Building | [ai-intelligence-layer.md](ai-intelligence-layer.md) | 30% | **Holy Grail Chat** - Standalone project. RAG/Web/Memory working. Function calling NOT implemented. |
+| dashboard-redesign | 📝 Specced | [dashboard-redesign.md](dashboard-redesign.md) | 0% | Linear design system refresh for dashboard |
 
 **Overall Completion:** ~86% (Settings APIs added 2026-01-04, needs invitations + email service)
 
@@ -61,6 +63,7 @@
 
 | Date | Score | Gaps Fixed |
 |------|-------|------------|
+| 2026-01-04 | 10/10 | **DOC AUDIT**: Fixed metrics (137 components, 34 APIs, 7 stores, 13 hooks). Added dashboard-redesign feature. Corrected test count (14 unit, 3 e2e). |
 | 2026-01-01 | 10/10 | **CTO AUDIT**: Full codebase verification. Batch 2 was marked "Specced" but actually BUILT. 80+ components, 24 APIs, 5 stores, 29K lines. Updated all statuses to reflect reality. |
 | 2026-01-01 | - | **BATCH 1 COMPLETE**: 4 features built in parallel (client-pipeline, dashboard, communications, integrations). 38 files, 4,733 lines. Build passes. 113/323 tasks done. |
 | 2025-12-31 | 10/10 | **D-2 SpecKit COMPLETE**: All 9 MVP features fully specced with correct user story numbers (US-025 to US-041). Expanded all features to 40 comprehensive implementation tasks each. Added TypeScript code snippets, edge cases, testing checklists, performance considerations, security sections, and monitoring for each feature. Total tasks: 206 → 323. |
@@ -77,7 +80,7 @@
 | **Database** | Seed Supabase with schema, configure RLS, storage buckets |
 | **Auth** | Real auth context (currently hardcoded "Luke"), RBAC |
 | **Third-party APIs** | Gmail, Slack, Google Ads, Meta (OAuth handlers exist) |
-| **Testing** | ✅ Unit tests (76), E2E tests (Playwright) pending |
+| **Testing** | Unit tests (14), E2E tests (3), more tests needed |
 | **Monitoring** | Sentry integration, structured logging |
 
 ---
