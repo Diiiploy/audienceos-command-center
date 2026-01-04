@@ -94,6 +94,11 @@ export interface DashboardState {
   setRealtimeConnected: (connected: boolean) => void
   updateSingleKPI: (kpiType: KPIType, value: Partial<KPI>) => void
   reset: () => void
+
+  // API Actions
+  fetchKPIs: () => Promise<void>
+  fetchTrends: (period?: TimePeriod) => Promise<void>
+  refreshAll: () => Promise<void>
 }
 
 // API request/response types

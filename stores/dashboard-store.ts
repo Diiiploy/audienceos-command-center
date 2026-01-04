@@ -120,6 +120,73 @@ export const useDashboardStore = create<DashboardState>()(
           refresh: initialRefreshState,
           realtimeConnected: false,
         }),
+
+      // API Actions
+      fetchKPIs: async () => {
+        set({ kpisLoading: true, kpisError: null })
+
+        try {
+          const response = await fetch('/api/v1/dashboard/kpis')
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch KPIs')
+          }
+
+          const { data } = await response.json()
+          set({
+            kpis: data,
+            kpisLoading: false,
+            kpisError: null,
+            refresh: {
+              ...get().refresh,
+              lastRefreshed: new Date().toISOString(),
+              isRefreshing: false,
+            },
+          })
+        } catch (error) {
+          set({
+            kpisError: error instanceof Error ? error.message : 'Failed to fetch KPIs',
+            kpisLoading: false,
+          })
+        }
+      },
+
+      fetchTrends: async (period?: TimePeriod) => {
+        const selectedPeriod = period || get().selectedPeriod
+        set({ trendsLoading: true, trendsError: null })
+
+        try {
+          const response = await fetch(`/api/v1/dashboard/trends?period=${selectedPeriod}`)
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch trends')
+          }
+
+          const { data } = await response.json()
+          set({
+            trends: data,
+            trendsLoading: false,
+            trendsError: null,
+            selectedPeriod,
+          })
+        } catch (error) {
+          set({
+            trendsError: error instanceof Error ? error.message : 'Failed to fetch trends',
+            trendsLoading: false,
+          })
+        }
+      },
+
+      refreshAll: async () => {
+        set((state) => ({
+          refresh: { ...state.refresh, isRefreshing: true },
+        }))
+
+        await Promise.all([
+          get().fetchKPIs(),
+          get().fetchTrends(),
+        ])
+      },
     }),
     { name: 'dashboard-store' }
   )
