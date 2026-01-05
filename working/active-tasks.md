@@ -6,17 +6,18 @@
 - [x] Database Connection: Real Supabase connected (1 agency, 4 users, 20 clients)
 - [x] Mock Mode Disabled: Local dev now uses real database (2026-01-05)
 
-## 🔒 Production Blockers (Sequential - Must Clear First)
+## ✅ Production Status (Verified 2026-01-05)
 
-### Blocker 1: Vercel Mock Mode
-- status: NEEDS ACTION
-- action: Set `NEXT_PUBLIC_MOCK_MODE=false` in Vercel env vars
-- impact: Production still using mock data
+### Mock Mode: OFF
+- Vercel has no `NEXT_PUBLIC_MOCK_MODE` set → defaults to false
+- Runtime verified: `curl /api/v1/clients` returns 401 "No session"
+- APIs correctly enforce authentication
 
-### Blocker 2: RESEND_API_KEY
-- status: NEEDS ACTION
-- action: Get real Resend API key, add to Vercel
-- impact: Invitation emails won't send in production
+### Email Service: Graceful Degradation
+- `RESEND_API_KEY` not on Vercel (optional)
+- Invitation flow works - email silently skipped
+- Accept URLs can be shared manually
+- To enable: `vercel env add RESEND_API_KEY`
 
 ## 🚧 Next Features (After Blockers Clear)
 
