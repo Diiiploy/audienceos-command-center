@@ -179,12 +179,12 @@ export function DocumentPreviewPanel({
           )}
         </div>
 
-        {/* Metadata - 2-Column Grid of Key-Value Pairs */}
+        {/* Metadata - Single Column Key-Value List */}
         <div className="px-3 py-2 max-h-[220px] overflow-y-auto">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+          <div className="space-y-1">
             {/* Category */}
             {document.category && (
-              <div className="flex items-center justify-between py-0.5">
+              <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">Category</span>
                 <span
                   className={cn(
@@ -199,55 +199,49 @@ export function DocumentPreviewPanel({
 
             {/* Size */}
             {document.size && (
-              <div className="flex items-center justify-between py-0.5">
+              <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">Size</span>
                 <span className="text-xs text-foreground">{document.size}</span>
               </div>
             )}
 
             {/* Views */}
-            <div className="flex items-center justify-between py-0.5">
+            <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">Views</span>
               <span className="text-xs text-foreground">{document.viewCount ?? 0}</span>
             </div>
 
             {/* Downloads */}
-            <div className="flex items-center justify-between py-0.5">
+            <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">Downloads</span>
               <span className="text-xs text-foreground">{document.downloadCount ?? 0}</span>
             </div>
 
             {/* Created */}
-            <div className="flex items-center justify-between py-0.5">
+            <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">Created</span>
-              <span className="text-xs text-foreground">{document.createdAt}</span>
+              <span className="text-xs text-foreground text-right">
+                {document.createdAt}
+                {document.createdBy && (
+                  <span className="text-muted-foreground"> by {document.createdBy}</span>
+                )}
+              </span>
             </div>
 
             {/* Updated */}
-            <div className="flex items-center justify-between py-0.5">
+            <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">Updated</span>
-              <span className="text-xs text-foreground">{document.updatedAt}</span>
+              <span className="text-xs text-foreground text-right">
+                {document.updatedAt}
+                {document.updatedBy && (
+                  <span className="text-muted-foreground"> by {document.updatedBy}</span>
+                )}
+              </span>
             </div>
-
-            {/* Created By */}
-            {document.createdBy && (
-              <div className="flex items-center justify-between py-0.5">
-                <span className="text-xs text-muted-foreground">Created by</span>
-                <span className="text-xs text-foreground">{document.createdBy}</span>
-              </div>
-            )}
-
-            {/* Updated By */}
-            {document.updatedBy && (
-              <div className="flex items-center justify-between py-0.5">
-                <span className="text-xs text-muted-foreground">Updated by</span>
-                <span className="text-xs text-foreground">{document.updatedBy}</span>
-              </div>
-            )}
 
             {/* Client */}
             {document.clientName && (
-              <div className="flex items-center justify-between py-0.5">
+              <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">Client</span>
                 <span className="text-xs text-foreground">{document.clientName}</span>
               </div>
@@ -255,7 +249,7 @@ export function DocumentPreviewPanel({
 
             {/* AI Training */}
             {onToggleTraining && (
-              <div className="flex items-center justify-between py-0.5">
+              <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">AI Training</span>
                 <button
                   onClick={onToggleTraining}
@@ -278,11 +272,11 @@ export function DocumentPreviewPanel({
               </div>
             )}
 
-            {/* Tags - spans both columns */}
+            {/* Tags */}
             {document.tags && document.tags.length > 0 && (
-              <div className="col-span-2 flex items-start justify-between py-0.5">
+              <div className="flex items-start justify-between">
                 <span className="text-xs text-muted-foreground pt-0.5">Tags</span>
-                <div className="flex flex-wrap gap-1 justify-end max-w-[75%]">
+                <div className="flex flex-wrap gap-1 justify-end max-w-[70%]">
                   {document.tags.map((tag) => (
                     <span
                       key={tag}
