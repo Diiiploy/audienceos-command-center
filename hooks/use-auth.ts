@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
-import type { User, Session } from '@supabase/supabase-js'
+import type { User, Session, SupabaseClient } from '@supabase/supabase-js'
 
 // Mock mode detection - allows app to work without real Supabase
 const MOCK_AGENCY_ID = 'demo-agency'
@@ -9,6 +9,77 @@ const isMockMode = () => {
   if (process.env.NEXT_PUBLIC_MOCK_MODE === 'true') return true
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
   return url.includes('placeholder') || url === ''
+}
+
+/**
+ * Parse session from Supabase auth cookie
+ * Cookie format: sb-{projectRef}-auth-token = base64-{base64EncodedJSON}
+ *
+ * NOTE: This bypasses the hanging getSession() issue in @supabase/ssr
+ * discovered 2026-01-05. Direct cookie reading is reliable.
+ */
+function getSessionFromCookie(): { access_token: string; refresh_token: string; user: User } | null {
+  if (typeof document === 'undefined') return null
+
+  const cookies = document.cookie.split(';').map(c => c.trim())
+  const authCookie = cookies.find(c => c.startsWith('sb-') && c.includes('-auth-token='))
+
+  if (!authCookie) return null
+
+  try {
+    let cookieValue = authCookie.split('=').slice(1).join('=')
+    cookieValue = decodeURIComponent(cookieValue)
+
+    // Strip 'base64-' prefix if present
+    if (cookieValue.startsWith('base64-')) {
+      cookieValue = cookieValue.substring(7)
+    }
+
+    const session = JSON.parse(atob(cookieValue))
+
+    if (session.access_token && session.refresh_token && session.user) {
+      return {
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+        user: session.user as User
+      }
+    }
+  } catch (e) {
+    console.error('[AUTH] Failed to parse session cookie:', e)
+  }
+
+  return null
+}
+
+/**
+ * Initialize session from cookie using setSession()
+ * This bypasses the hanging getSession() in @supabase/ssr
+ */
+async function initSessionFromCookie(supabase: SupabaseClient): Promise<Session | null> {
+  const cookieSession = getSessionFromCookie()
+
+  if (!cookieSession) {
+    console.log('[AUTH] No session cookie found')
+    return null
+  }
+
+  console.log('[AUTH] Found session cookie, calling setSession...')
+  const startTime = performance.now()
+
+  const { data, error } = await supabase.auth.setSession({
+    access_token: cookieSession.access_token,
+    refresh_token: cookieSession.refresh_token
+  })
+
+  const duration = performance.now() - startTime
+  console.log(`[AUTH] setSession completed in ${duration.toFixed(0)}ms`)
+
+  if (error) {
+    console.error('[AUTH] setSession error:', error.message)
+    return null
+  }
+
+  return data.session
 }
 
 export interface UserProfile {
@@ -95,18 +166,13 @@ export function useAuth() {
       }
 
       try {
+        // Use cookie-based session init to bypass hanging getSession()
         const sessionStart = performance.now()
-        const { data: { session }, error } = await supabase.auth.getSession()
+        const session = await initSessionFromCookie(supabase)
         const sessionDuration = performance.now() - sessionStart
-        console.log(`[AUTH-SESSION] getSession() completed in ${sessionDuration.toFixed(0)}ms`)
+        console.log(`[AUTH-SESSION] initSessionFromCookie completed in ${sessionDuration.toFixed(0)}ms`)
 
         if (!isMounted) return
-
-        if (error) {
-          console.error('Error getting session:', error)
-          setState(prev => ({ ...prev, isLoading: false, error: error.message }))
-          return
-        }
 
         if (session?.user) {
           const profileStart = performance.now()
