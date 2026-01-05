@@ -57,22 +57,23 @@ function ensureCsrfCookie(request: NextRequest, response: NextResponse): NextRes
 
 // Routes that don't require authentication
 const PUBLIC_ROUTES = [
-  '/', // Allow root for demo/dev
   '/login',
   '/auth/callback',
   '/api/v1/oauth/callback', // OAuth callback needs to work without auth
+  '/invite', // Invitation acceptance pages
 ]
 
 // Page routes that allow demo mode (show demo data without auth)
-const DEMO_ALLOWED_PAGE_ROUTES = [
-  '/',       // Home page (Dashboard/Pipeline) - DEV MODE
-  '/client', // Client detail pages work with demo data
+// NOTE: All protected pages now require authentication for production
+const DEMO_ALLOWED_PAGE_ROUTES: string[] = [
+  // Removed '/' - requires login in production
+  // '/client' removed - client pages require auth
 ]
 
 // API routes that allow demo mode (return mock data instead of 401)
-const DEMO_ALLOWED_API_ROUTES = [
-  '/api/v1/workflows', // GET returns demo data for unauthenticated users
-  '/api/v1/clients',   // GET returns demo data for unauthenticated users
+// NOTE: All API routes now require authentication for production
+const DEMO_ALLOWED_API_ROUTES: string[] = [
+  // Removed - all APIs require auth
 ]
 
 // Static files and Next.js internals to skip
