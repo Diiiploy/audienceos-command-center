@@ -1,5 +1,24 @@
 # AudienceOS Command Center - RUNBOOK
 
+---
+
+## ⛔ CRITICAL: Gemini 3 ONLY Policy
+
+**THIS PROJECT USES GEMINI 3 EXCLUSIVELY.**
+
+| Allowed | NOT Allowed |
+|---------|-------------|
+| `gemini-3-flash-preview` | ~~gemini-2.0-flash-001~~ |
+| `gemini-3-pro-preview` | ~~gemini-2.0-flash~~ |
+| Any `gemini-3-*` model | ~~gemini-1.5-*~~ |
+| | ~~gemini-pro~~ |
+
+**Rationale:** Gemini 3 provides superior function calling, reasoning, and consistency for AudienceOS Chat requirements.
+
+**If you see Gemini 2.x or 1.x anywhere:** Stop. Fix it immediately. Do not proceed.
+
+---
+
 ## Quick Start
 
 ```bash
@@ -143,7 +162,7 @@ npm run start        # Run production build locally
 |---------|---------|--------|-----------|
 | **Supabase** | Database, Auth, Storage | ✅ Configured | [supabase.com/dashboard](https://supabase.com/dashboard) |
 | **Anthropic** | Claude AI integration | ⏳ Optional | [console.anthropic.com](https://console.anthropic.com) |
-| **Google AI** | Gemini 2.0 Flash (Chat + Document RAG) | ✅ Configured | [aistudio.google.com](https://aistudio.google.com) |
+| **Google AI** | Gemini 3 Flash (Chat + Document RAG) | ✅ Configured | [aistudio.google.com](https://aistudio.google.com) |
 | Slack | Communication integration | ⏳ Optional | [api.slack.com/apps](https://api.slack.com/apps) |
 | Google Cloud | Gmail/Ads OAuth | ⏳ Optional | [console.cloud.google.com](https://console.cloud.google.com) |
 | Meta for Developers | Ads integration | ⏳ Optional | [developers.facebook.com](https://developers.facebook.com) |

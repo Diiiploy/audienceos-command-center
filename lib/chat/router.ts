@@ -70,7 +70,7 @@ export class SmartRouter {
 
   constructor(apiKey: string) {
     if (!apiKey) {
-      throw new Error('SmartRouter requires GEMINI_API_KEY');
+      throw new Error('SmartRouter requires GOOGLE_AI_API_KEY');
     }
     this.genai = new GoogleGenAI({ apiKey });
   }
@@ -298,9 +298,9 @@ let routerInstance: SmartRouter | null = null;
  */
 export function getSmartRouter(): SmartRouter {
   if (!routerInstance) {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GOOGLE_AI_API_KEY;
     if (!apiKey) {
-      throw new Error('GEMINI_API_KEY environment variable is required');
+      throw new Error('GOOGLE_AI_API_KEY environment variable is required');
     }
     routerInstance = new SmartRouter(apiKey);
   }

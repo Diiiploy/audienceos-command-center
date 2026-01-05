@@ -4,6 +4,21 @@
 
 ---
 
+## ⛔ CRITICAL: Gemini 3 ONLY Policy
+
+**THIS PROJECT USES GEMINI 3 EXCLUSIVELY.**
+
+| Allowed | NOT Allowed |
+|---------|-------------|
+| `gemini-3-flash-preview` | ~~gemini-2.0-flash-001~~ |
+| `gemini-3-pro-preview` | ~~gemini-2.0-flash~~ |
+| Any `gemini-3-*` model | ~~gemini-1.5-*~~ |
+| | ~~gemini-pro~~ |
+
+**If you see Gemini 2.x or 1.x anywhere in this codebase:** Stop. Fix it immediately.
+
+---
+
 ## 🚪 MANDATORY: READ GLOBAL PAI SYSTEM FIRST
 
 **Before doing anything on this project:**
@@ -242,8 +257,8 @@ Location: `components/cartridges/`
 // Required env var
 GOOGLE_AI_API_KEY=your-gemini-api-key
 
-// Model used
-gemini-2.0-flash-001
+// Model used (Gemini 3 ONLY)
+gemini-3-flash-preview
 ```
 
 ### Smart Router Categories

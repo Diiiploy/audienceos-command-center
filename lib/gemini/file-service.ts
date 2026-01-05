@@ -105,7 +105,8 @@ export class GeminiFileService {
     documents: Array<{ id: string; mimeType: string }>
   ): Promise<string> {
     try {
-      const model = this.genAI.getGenerativeModel({ model: "gemini-2.0-flash-001" })
+      // CRITICAL: Gemini 3 ONLY per project requirements
+      const model = this.genAI.getGenerativeModel({ model: "gemini-3-flash-preview" })
 
       // Create file references with actual MIME types
       const fileRefs = documents.map(doc => ({

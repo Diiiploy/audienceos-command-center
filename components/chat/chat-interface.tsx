@@ -197,9 +197,12 @@ export function ChatInterface({
       const response = await fetch("/api/v1/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include", // Send auth cookies
         body: JSON.stringify({
           message: messageContent,
           sessionId,
+          agencyId,
+          userId,
         }),
       })
 

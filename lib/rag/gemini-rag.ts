@@ -61,7 +61,8 @@ interface ErrorState {
  */
 export class GeminiRAGService {
   private genai: GoogleGenAI;
-  private model: string = 'gemini-2.0-flash-001';
+  // CRITICAL: Gemini 3 ONLY per project requirements
+  private model: string = 'gemini-3-flash-preview';
   private documents: Map<string, DocumentMetadata> = new Map();
   private onProgress?: (progress: UploadProgress) => void;
   private filesLoaded: boolean = false;
