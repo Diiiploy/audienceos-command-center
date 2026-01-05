@@ -13,6 +13,7 @@ import { getAlerts } from './get-alerts';
 import { getAgencyStats } from './get-agency-stats';
 import { getRecentCommunications } from './get-communications';
 import { navigateTo } from './navigate-to';
+import { validateFunctionArgs } from './schemas';
 
 // Re-export types
 export type { ExecutorContext } from './types';
@@ -176,6 +177,7 @@ export const executors: Record<string, FunctionExecutor> = {
 
 /**
  * Execute a function by name with context and args
+ * Arguments are validated against Zod schemas
  */
 export async function executeFunction(
   name: string,
@@ -188,7 +190,10 @@ export async function executeFunction(
     throw new Error(`Unknown function: ${name}`);
   }
 
-  return executor(context, args);
+  // Validate arguments against schema
+  const validatedArgs = validateFunctionArgs(name, args);
+
+  return executor(context, validatedArgs);
 }
 
 /**
