@@ -95,7 +95,10 @@ export function useAuth() {
       }
 
       try {
+        const sessionStart = performance.now()
         const { data: { session }, error } = await supabase.auth.getSession()
+        const sessionDuration = performance.now() - sessionStart
+        console.log(`[AUTH-SESSION] getSession() completed in ${sessionDuration.toFixed(0)}ms`)
 
         if (!isMounted) return
 
@@ -106,9 +109,14 @@ export function useAuth() {
         }
 
         if (session?.user) {
+          const profileStart = performance.now()
           const profile = await fetchProfile(session.user.id)
+          const profileDuration = performance.now() - profileStart
+          console.log(`[AUTH-PROFILE] fetchProfile() completed in ${profileDuration.toFixed(0)}ms`)
+
           if (!isMounted) return
 
+          console.log('[AUTH-SETSTATE] Setting state with user profile, isLoading=false')
           setState({
             user: session.user,
             profile,
@@ -118,6 +126,7 @@ export function useAuth() {
             error: profile ? null : 'Profile not found - please contact support',
           })
         } else {
+          console.log('[AUTH-SETSTATE] No session found, setting isLoading=false')
           setState({
             user: null,
             profile: null,
@@ -138,8 +147,14 @@ export function useAuth() {
       }
     }
 
+    // DIAGNOSTIC: Log auth initialization start
+    const authStartTime = performance.now()
+    console.log('[AUTH-INIT] Starting auth initialization')
+
     // Add timeout to prevent infinite loading
     const timeout = setTimeout(() => {
+      const elapsed = performance.now() - authStartTime
+      console.warn(`[AUTH-TIMEOUT] Auth timeout after ${elapsed.toFixed(0)}ms`)
       if (isMounted) {
         setState(prev => {
           if (prev.isLoading) {

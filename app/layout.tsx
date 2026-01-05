@@ -27,9 +27,17 @@ export default function RootLayout({
   const [chatPortalHost, setChatPortalHost] = useState<HTMLElement | null>(null)
   const [chatContext, setChatContext] = useState<any>(null)
 
+  // DIAGNOSTIC: Log initial render
+  useEffect(() => {
+    console.log('[CHAT-INIT] RootLayout mounted')
+  }, [])
+
   // Initialize portal host after DOM is ready
   useEffect(() => {
+    const startTime = performance.now()
+    console.log('[CHAT-INIT] Setting portal host')
     setChatPortalHost(document.body)
+    console.log('[CHAT-INIT] Portal host set in', performance.now() - startTime, 'ms')
   }, [])
 
   // Make setChatContext available globally for pages to set context
@@ -51,19 +59,34 @@ export default function RootLayout({
     !EXCLUDED_PATHS.some((path) => pathname.startsWith(path)) &&
     !isLoading
 
+  // DIAGNOSTIC: Log chat visibility decision
+  useEffect(() => {
+    console.log('[CHAT-VIS] Visibility decision:', {
+      chatPortalHost: !!chatPortalHost,
+      excludedPath: EXCLUDED_PATHS.some((path) => pathname.startsWith(path)),
+      isLoading,
+      shouldShowChat,
+      pathname,
+    })
+  }, [chatPortalHost, shouldShowChat, isLoading, pathname])
+
   return (
     <html lang="en">
       <body className={`font-sans antialiased ${inter.variable}`} suppressHydrationWarning>
         {children}
-        {shouldShowChat &&
-          createPortal(
-            <ChatInterface
-              agencyId={agencyId || 'demo-agency'}
-              userId={profile?.id || 'anonymous'}
-              context={chatContext}
-            />,
-            chatPortalHost
-          )}
+        {shouldShowChat && (
+          <>
+            {console.log('[CHAT-PORTAL] Rendering ChatInterface into portal')}
+            {createPortal(
+              <ChatInterface
+                agencyId={agencyId || 'demo-agency'}
+                userId={profile?.id || 'anonymous'}
+                context={chatContext}
+              />,
+              chatPortalHost
+            )}
+          </>
+        )}
       </body>
     </html>
   )

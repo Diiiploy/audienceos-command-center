@@ -57,6 +57,11 @@ export function ChatInterface({
   context,
   onSendMessage,
 }: ChatInterfaceProps) {
+  // DIAGNOSTIC: Log component mount
+  useEffect(() => {
+    console.log('[CHAT-COMPONENT] ChatInterface mounted, agencyId:', agencyId)
+  }, [agencyId])
+
   // Panel state
   const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
