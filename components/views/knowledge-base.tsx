@@ -519,7 +519,7 @@ export function KnowledgeBase() {
         style={{ minWidth: selectedDocument ? 400 : undefined, flexShrink: selectedDocument ? 0 : undefined }}
       >
         <ListHeader
-          title="Knowledge Base"
+          title="X Knowledge Base"
           count={activeTab === "documents" ? filteredDocuments.length : undefined}
           onSearch={activeTab === "documents" ? setSearchQuery : undefined}
           searchValue={activeTab === "documents" ? searchQuery : ""}

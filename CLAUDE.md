@@ -4,6 +4,21 @@
 
 ---
 
+## 🚪 MANDATORY: READ GLOBAL PAI SYSTEM FIRST
+
+**Before doing anything on this project:**
+
+Read `/Users/rodericandrews/.claude/CLAUDE.md` completely.
+
+This file contains:
+- The mandatory startup sequence (mem0, chi-gateway MCPs, local docs)
+- Tool selection priorities (which tools to use, when)
+- The entire PAI infrastructure that makes this system work
+
+**Do not proceed with project work until you understand the global system.**
+
+---
+
 ## Project Overview
 
 **AudienceOS Command Center** centralizes client lifecycle management, communications (Slack/Gmail), ad performance (Google Ads/Meta), support tickets, and AI-assisted workflows for marketing agencies.
