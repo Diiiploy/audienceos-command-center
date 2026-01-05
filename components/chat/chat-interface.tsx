@@ -421,7 +421,7 @@ export function ChatInterface({
                   className={`flex flex-col w-full ${msg.role === "user" ? "items-end" : "items-start"}`}
                 >
                   {/* Timestamp and Route Indicator */}
-                  <div className="flex items-center gap-2 mb-1 px-1 max-w-[80%]">
+                  <div className="flex items-center gap-2 mb-1 px-1 w-full">
                     <span className="text-[10px] text-gray-500">
                       {new Date(msg.timestamp).toLocaleTimeString([], {
                         hour: "2-digit",
@@ -436,7 +436,7 @@ export function ChatInterface({
                   {/* Message bubble */}
                   <div
                     className={cn(
-                      "relative w-full max-w-[80%] p-3 rounded-lg",
+                      "relative p-3 rounded-lg max-w-[85%]",
                       msg.role === "user"
                         ? "bg-blue-500 text-white"
                         : "bg-gray-100 text-gray-800 border border-black/5"
