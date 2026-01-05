@@ -45,10 +45,10 @@ Fix: Rewrote with full SmartRouter + Gemini integration
 Deleted: app/api/chat/route.ts (dead stub code)
 ```
 
-### Issue 4: ChatService Empty - ✅ NOT A BLOCKER
+### Issue 4: ChatService Empty - ✅ RESOLVED
 ```
 Status: Logic implemented directly in route.ts
-ChatService is dead code - can be deleted later
+ChatService was dead code - DELETED (commit 25da84c)
 ```
 
 ### Issue 5: Missing Context in API Call - ✅ FIXED
@@ -158,22 +158,19 @@ User Message
   - Added credentials: 'include'
   - Added agencyId and userId to request body
 
-### Phase 2: Port ChatService (4-6 hours)
+### Phase 2: ChatService - ✅ SKIPPED (Not Needed)
 
-- [ ] TASK-006: Port ChatService from HGC
-  - Copy service.ts from holy-grail-chat/src/lib/chat/
-  - Adapt imports for AudienceOS paths
-  - Wire streaming to API route
+- [x] TASK-006: Port ChatService from HGC - **SKIPPED**
+  - Logic implemented directly in app/api/v1/chat/route.ts
+  - ChatService stub deleted (commit 25da84c)
 
-- [ ] TASK-007: Wire SmartRouter to service
-  - Initialize router in API handler
-  - Pass query to classifyQuery()
-  - Route to appropriate handler
+- [x] TASK-007: Wire SmartRouter to service - **DONE**
+  - SmartRouter wired directly in route.ts
+  - classifyQuery() working with Gemini 3
 
-- [ ] TASK-008: Test function calling
-  - Verify all 6 executors work
-  - Test with real Supabase queries
-  - Verify fallback to mock data
+- [x] TASK-008: Test function calling - **DONE**
+  - All 6 executors verified working (runtime test 2026-01-05)
+  - Returns real Supabase data (4 clients with health status)
 
 ### Phase 3: Integration Testing (2-3 hours)
 
@@ -208,16 +205,16 @@ User Message
 
 ## Files to Modify
 
-| File | Action | Priority |
-|------|--------|----------|
-| `lib/chat/router.ts` | Fix imports, env var, model | P0 |
-| `app/api/v1/chat/route.ts` | Implement handler | P0 |
-| `components/chat/chat-interface.tsx` | Add context, credentials | P0 |
-| `lib/chat/service.ts` | Port from HGC | P1 |
-| `lib/rag/gemini-rag.ts` | Update model to Gemini 3 | P1 |
-| `lib/gemini/file-service.ts` | Update model to Gemini 3 | P1 |
-| `.env.example` | Document GOOGLE_AI_API_KEY | P2 |
-| `package.json` | Verify @google/generative-ai | P0 |
+| File | Action | Status |
+|------|--------|--------|
+| `lib/chat/router.ts` | Fix imports, env var, model | ✅ Done |
+| `app/api/v1/chat/route.ts` | Implement handler | ✅ Done |
+| `components/chat/chat-interface.tsx` | Add context, credentials | ✅ Done |
+| `lib/chat/service.ts` | ~~Port from HGC~~ | 🗑️ Deleted |
+| `lib/rag/gemini-rag.ts` | Update model to Gemini 3 | ✅ Done |
+| `lib/gemini/file-service.ts` | Update model to Gemini 3 | ✅ Done |
+| `.env.example` | Document GOOGLE_AI_API_KEY | ⏳ Pending |
+| `package.json` | Verify @google/generative-ai | ✅ Verified |
 
 ---
 
@@ -239,13 +236,13 @@ MEM0_API_KEY=xxx               # For cross-session memory
 ## Testing Checklist
 
 - [ ] Chat widget appears on all pages (except login)
-- [ ] Message sends successfully (no 501)
-- [ ] SmartRouter classifies queries correctly
-- [ ] Dashboard route executes functions
-- [ ] get_clients returns real data from Supabase
+- [x] Message sends successfully (no 501) - **Verified 2026-01-05**
+- [x] SmartRouter classifies queries correctly - **Verified 2026-01-05**
+- [x] Dashboard route executes functions - **Verified 2026-01-05**
+- [x] get_clients returns real data from Supabase - **4 clients returned**
 - [ ] Responses stream progressively
 - [ ] Error states display gracefully
-- [ ] Agency scoping works (multi-tenant)
+- [x] Agency scoping works (multi-tenant) - **User's agency only**
 - [ ] Session persists across page navigation
 
 ---
@@ -278,6 +275,8 @@ MEM0_API_KEY=xxx               # For cross-session memory
 
 | Date | Change |
 |------|--------|
+| 2026-01-05 | Deleted dead ChatService stub (commit 25da84c). Phase 2 marked complete. Runtime verified. |
+| 2026-01-05 | All 5 blockers resolved. Gemini 3 enforced. Runtime test passed (4 clients returned). |
 | 2026-01-05 | Created spec after investigation. 20 issues found (5 critical). |
 | 2026-01-04 | HGC transplant started - router, functions, types ported |
 
