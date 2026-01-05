@@ -27,7 +27,15 @@ import {
   Search,
   Settings,
   Cloud,
+  Users,
+  ChevronDown,
 } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 // Diiiploy - Knowledge Base Documents (initial data, will be replaced by API)
 const initialDocuments: Document[] = [
@@ -214,6 +222,14 @@ const categories: (DocumentCategory | "all")[] = [
   "training",
 ]
 
+// Extract unique client names from documents
+function getUniqueClients(docs: Document[]): string[] {
+  const clients = docs
+    .map(d => d.clientName)
+    .filter((c): c is string => Boolean(c))
+  return [...new Set(clients)].sort()
+}
+
 export function KnowledgeBase() {
   const [documents, setDocuments] = useState<Document[]>(initialDocuments)
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
@@ -221,9 +237,13 @@ export function KnowledgeBase() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [viewFilter, setViewFilter] = useState<ViewFilter>("all")
   const [categoryFilter, setCategoryFilter] = useState<DocumentCategory | "all">("all")
+  const [clientFilter, setClientFilter] = useState<string | "all">("all")
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
   const [isDriveLinkModalOpen, setIsDriveLinkModalOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("documents")
+
+  // Get unique clients for filter dropdown
+  const availableClients = useMemo(() => getUniqueClients(documents), [documents])
 
   const slideTransition = useSlideTransition()
 
@@ -247,6 +267,11 @@ export function KnowledgeBase() {
       result = result.filter((d) => d.category === categoryFilter)
     }
 
+    // Apply client filter
+    if (clientFilter !== "all") {
+      result = result.filter((d) => d.clientName === clientFilter)
+    }
+
     // Apply search
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
@@ -259,7 +284,7 @@ export function KnowledgeBase() {
     }
 
     return result
-  }, [documents, viewFilter, categoryFilter, searchQuery])
+  }, [documents, viewFilter, categoryFilter, clientFilter, searchQuery])
 
   // Toggle star status on a document
   const handleStar = useCallback(async (docId: string) => {
@@ -499,6 +524,7 @@ export function KnowledgeBase() {
           onSearch={activeTab === "documents" ? setSearchQuery : undefined}
           searchValue={activeTab === "documents" ? searchQuery : ""}
           searchPlaceholder="Search documents..."
+          searchAsButton={activeTab === "documents"}
           viewMode={!selectedDocument && activeTab === "documents" ? (viewMode === "grid" ? "board" : "list") : undefined}
           onViewModeChange={!selectedDocument && activeTab === "documents" ? (mode) => setViewMode(mode === "board" ? "grid" : "list") : undefined}
           actions={
@@ -580,6 +606,52 @@ export function KnowledgeBase() {
                 </button>
               ))}
             </div>
+
+            {/* Client filter dropdown */}
+            {availableClients.length > 0 && (
+              <>
+                <div className="w-px h-6 bg-border" />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant={clientFilter !== "all" ? "secondary" : "ghost"}
+                      size="sm"
+                      className={cn(
+                        "h-7 px-2 text-xs gap-1",
+                        clientFilter !== "all" && "bg-primary/10 text-primary border border-primary/30"
+                      )}
+                    >
+                      <Users className="h-3.5 w-3.5" />
+                      {clientFilter === "all" ? "Client" : clientFilter}
+                      <ChevronDown className="h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-40">
+                    <DropdownMenuItem
+                      onClick={() => setClientFilter("all")}
+                      className={cn(
+                        "text-sm cursor-pointer",
+                        clientFilter === "all" && "bg-primary/10 text-primary"
+                      )}
+                    >
+                      All Clients
+                    </DropdownMenuItem>
+                    {availableClients.map((client) => (
+                      <DropdownMenuItem
+                        key={client}
+                        onClick={() => setClientFilter(client)}
+                        className={cn(
+                          "text-sm cursor-pointer",
+                          clientFilter === client && "bg-primary/10 text-primary"
+                        )}
+                      >
+                        {client}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            )}
           </div>
         )}
 

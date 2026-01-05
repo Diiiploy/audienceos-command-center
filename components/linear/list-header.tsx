@@ -40,6 +40,8 @@ interface ListHeaderProps {
   onSearch?: (query: string) => void
   searchValue?: string
   searchPlaceholder?: string
+  /** Render search as a compact button that opens Command Palette (Cmd+K) */
+  searchAsButton?: boolean
   viewMode?: "list" | "board"
   onViewModeChange?: (mode: "list" | "board") => void
   actions?: React.ReactNode
@@ -58,6 +60,7 @@ export function ListHeader({
   onSearch,
   searchValue = "",
   searchPlaceholder = "Search...",
+  searchAsButton = false,
   viewMode = "list",
   onViewModeChange,
   actions,
@@ -68,6 +71,15 @@ export function ListHeader({
   activeSort,
   onSortChange,
 }: ListHeaderProps) {
+  // Opens Command Palette via keyboard event
+  const openCommandPalette = () => {
+    const event = new KeyboardEvent("keydown", {
+      key: "k",
+      metaKey: true,
+      bubbles: true,
+    })
+    window.dispatchEvent(event)
+  }
   const activeFilterCount = Object.values(activeFilters).filter(Boolean).length
   const activeSortOption = sortOptions?.find(s => s.id === activeSort)
 
@@ -82,17 +94,29 @@ export function ListHeader({
             )}
           </div>
 
-          {/* Search */}
+          {/* Search - either button (opens Command Palette) or input */}
           {onSearch && (
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder={searchPlaceholder}
-                value={searchValue}
-                onChange={(e) => onSearch(e.target.value)}
-                className="pl-8 h-8 w-48 bg-secondary border-border text-sm"
-              />
-            </div>
+            searchAsButton ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2.5 gap-1.5 text-muted-foreground hover:text-foreground"
+                onClick={openCommandPalette}
+              >
+                <Search className="h-4 w-4" />
+                <kbd className="text-[10px] bg-secondary px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
+              </Button>
+            ) : (
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={searchPlaceholder}
+                  value={searchValue}
+                  onChange={(e) => onSearch(e.target.value)}
+                  className="pl-8 h-8 w-48 bg-secondary border-border text-sm"
+                />
+              </div>
+            )
           )}
         </div>
 

@@ -210,7 +210,7 @@ export function DocumentCard({
             {starred && <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500 flex-shrink-0" />}
           </div>
           {description && (
-            <p className="text-sm text-muted-foreground truncate">{description}</p>
+            <p className="text-sm text-muted-foreground leading-tight truncate">{description}</p>
           )}
         </div>
 
@@ -403,7 +403,7 @@ export function DocumentCard({
         </div>
 
         {description && (
-          <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+          <p className="text-xs text-muted-foreground leading-tight line-clamp-2 mb-2">
             {description}
           </p>
         )}

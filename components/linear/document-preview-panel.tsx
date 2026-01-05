@@ -175,7 +175,7 @@ export function DocumentPreviewPanel({
             {document.name}
           </h2>
           {document.description && (
-            <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{document.description}</p>
+            <p className="text-xs text-muted-foreground leading-tight mt-0.5">{document.description}</p>
           )}
         </div>
 
