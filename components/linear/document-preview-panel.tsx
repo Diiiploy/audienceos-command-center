@@ -25,6 +25,7 @@ import {
   Check,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { SendToAiButton } from "@/components/ui/send-to-ai-button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -184,110 +185,82 @@ export function DocumentPreviewPanel({
           )}
         </div>
 
-        {/* Metadata - compact */}
-        <div className="px-3 py-2 space-y-1.5 max-h-[200px] overflow-y-auto">
-          {/* Category */}
-          {document.category && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Folder className="w-3 h-3" />
-                <span>Category</span>
-              </div>
-              <span
-                className={cn(
-                  "text-[10px] px-1.5 py-0.5 rounded font-medium",
-                  categoryColors[document.category]
-                )}
-              >
-                {categoryLabels[document.category]}
-              </span>
-            </div>
-          )}
-
-          {/* Client */}
-          {document.clientName && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <User className="w-3 h-3" />
-                <span>Client</span>
-              </div>
-              <span className="text-xs text-foreground">{document.clientName}</span>
-            </div>
-          )}
-
-          {/* Size */}
-          {document.size && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <FileText className="w-3 h-3" />
-                <span>Size</span>
-              </div>
-              <span className="text-xs text-foreground">{document.size}</span>
-            </div>
-          )}
-
-          {/* Created */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Clock className="w-3 h-3" />
-              <span>Created</span>
-            </div>
-            <div className="text-right">
-              <span className="text-xs text-foreground">{document.createdAt}</span>
-              {document.createdBy && (
-                <p className="text-[10px] text-muted-foreground">by {document.createdBy}</p>
+        {/* Metadata - Two Column Layout */}
+        <div className="px-3 py-2 max-h-[220px] overflow-y-auto">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+            {/* Left Column */}
+            <div className="space-y-2">
+              {/* Category */}
+              {document.category && (
+                <div>
+                  <p className="text-[10px] text-muted-foreground mb-0.5">Category</p>
+                  <span
+                    className={cn(
+                      "text-[10px] px-1.5 py-0.5 rounded font-medium inline-block",
+                      categoryColors[document.category]
+                    )}
+                  >
+                    {categoryLabels[document.category]}
+                  </span>
+                </div>
               )}
+
+              {/* Size */}
+              {document.size && (
+                <div>
+                  <p className="text-[10px] text-muted-foreground mb-0.5">Size</p>
+                  <p className="text-xs text-foreground font-medium">{document.size}</p>
+                </div>
+              )}
+
+              {/* Created */}
+              <div>
+                <p className="text-[10px] text-muted-foreground mb-0.5">Created</p>
+                <p className="text-xs text-foreground font-medium">
+                  {document.createdAt}
+                  {document.createdBy && (
+                    <span className="text-muted-foreground font-normal"> by {document.createdBy}</span>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            {/* Right Column */}
+            <div className="space-y-2">
+              {/* Views */}
+              <div>
+                <p className="text-[10px] text-muted-foreground mb-0.5">Views</p>
+                <p className="text-xs text-foreground font-medium">{document.viewCount ?? 0}</p>
+              </div>
+
+              {/* Downloads */}
+              <div>
+                <p className="text-[10px] text-muted-foreground mb-0.5">Downloads</p>
+                <p className="text-xs text-foreground font-medium">{document.downloadCount ?? 0}</p>
+              </div>
+
+              {/* Updated */}
+              <div>
+                <p className="text-[10px] text-muted-foreground mb-0.5">Updated</p>
+                <p className="text-xs text-foreground font-medium">
+                  {document.updatedAt}
+                  {document.updatedBy && (
+                    <span className="text-muted-foreground font-normal"> by {document.updatedBy}</span>
+                  )}
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Updated */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Clock className="w-3 h-3" />
-              <span>Updated</span>
-            </div>
-            <div className="text-right">
-              <span className="text-xs text-foreground">{document.updatedAt}</span>
-              {document.updatedBy && (
-                <p className="text-[10px] text-muted-foreground">by {document.updatedBy}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Views */}
-          {document.viewCount !== undefined && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Eye className="w-3 h-3" />
-                <span>Views</span>
-              </div>
-              <span className="text-xs text-foreground">{document.viewCount}</span>
-            </div>
-          )}
-
-          {/* Downloads */}
-          {document.downloadCount !== undefined && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Download className="w-3 h-3" />
-                <span>Downloads</span>
-              </div>
-              <span className="text-xs text-foreground">{document.downloadCount}</span>
-            </div>
-          )}
-
-          {/* Tags */}
+          {/* Tags - Two Column Distribution */}
           {document.tags && document.tags.length > 0 && (
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Tag className="w-3 h-3" />
-                <span>Tags</span>
-              </div>
-              <div className="flex items-center gap-1 flex-wrap justify-end max-w-[65%]">
+            <div className="mt-3 pt-2 border-t border-border">
+              <p className="text-[10px] text-muted-foreground mb-1.5">Tags</p>
+              <div className="grid grid-cols-2 gap-1">
                 {document.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground"
+                    className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground truncate"
                   >
                     {tag}
                   </span>
@@ -296,60 +269,80 @@ export function DocumentPreviewPanel({
             </div>
           )}
 
-          {/* AI Training */}
-          {onToggleTraining && (
-            <div className="flex items-center justify-between pt-1.5 border-t border-border mt-1.5">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <BrainCircuit className="w-3 h-3" />
-                <span>Use for AI Training</span>
-              </div>
-              <button
-                onClick={onToggleTraining}
-                className={cn(
-                  "flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors cursor-pointer",
-                  document.useForTraining
-                    ? "bg-foreground text-background"
-                    : "bg-secondary text-muted-foreground hover:bg-secondary/80"
-                )}
-              >
-                {document.useForTraining ? (
-                  <>
-                    <Check className="w-3 h-3" />
-                    Enabled
-                  </>
-                ) : (
-                  "Enable"
-                )}
-              </button>
+          {/* Client & AI Training Row */}
+          {(document.clientName || onToggleTraining) && (
+            <div className="mt-3 pt-2 border-t border-border grid grid-cols-2 gap-x-4">
+              {document.clientName && (
+                <div>
+                  <p className="text-[10px] text-muted-foreground mb-0.5">Client</p>
+                  <p className="text-xs text-foreground font-medium">{document.clientName}</p>
+                </div>
+              )}
+              {onToggleTraining && (
+                <div>
+                  <p className="text-[10px] text-muted-foreground mb-0.5">AI Training</p>
+                  <button
+                    onClick={onToggleTraining}
+                    className={cn(
+                      "flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium transition-colors cursor-pointer",
+                      document.useForTraining
+                        ? "bg-foreground text-background"
+                        : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                    )}
+                  >
+                    {document.useForTraining ? (
+                      <>
+                        <Check className="w-3 h-3" />
+                        Enabled
+                      </>
+                    ) : (
+                      "Enable"
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* Actions - inside bottom section */}
+        {/* Action Buttons - 2x2 Grid */}
         <div className="p-3 border-t border-border">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onShare}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-secondary text-foreground rounded-md text-sm font-medium hover:bg-secondary/80 transition-colors cursor-pointer"
-          >
-            <Share2 className="w-4 h-4" />
-            Share
-          </button>
-          <button
-            onClick={onDownload}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors cursor-pointer"
-          >
-            <Download className="w-4 h-4" />
-            Download
-          </button>
-        </div>
-        <button
-          onClick={onDelete}
-          className="w-full mt-2 flex items-center justify-center gap-2 px-3 py-2 text-red-500 border border-red-500/30 hover:bg-red-500/10 rounded-md text-sm font-medium transition-colors cursor-pointer"
-        >
-          <Trash2 className="w-4 h-4" />
-          Delete
-        </button>
+          <div className="grid grid-cols-2 gap-2">
+            <SendToAiButton
+              context={{
+                type: "document",
+                id: document.id,
+                title: document.name,
+                metadata: {
+                  category: document.category,
+                  tags: document.tags,
+                },
+              }}
+              label="Send to AI"
+              className="h-9 text-xs"
+            />
+            <button
+              onClick={onShare}
+              className="flex items-center justify-center gap-1.5 h-9 bg-secondary text-foreground rounded-md text-xs font-medium hover:bg-secondary/80 transition-colors cursor-pointer"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              Share
+            </button>
+            <button
+              onClick={onDownload}
+              className="flex items-center justify-center gap-1.5 h-9 bg-secondary text-foreground rounded-md text-xs font-medium hover:bg-secondary/80 transition-colors cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Download
+            </button>
+            <button
+              onClick={onDelete}
+              className="flex items-center justify-center gap-1.5 h-9 text-red-500 border border-red-500/30 hover:bg-red-500/10 rounded-md text-xs font-medium transition-colors cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete
+            </button>
+          </div>
         </div>
       </div>
     </div>

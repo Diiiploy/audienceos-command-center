@@ -6,6 +6,14 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   UserPlus,
   Search,
@@ -14,7 +22,11 @@ import {
   Copy,
   Check,
   Download,
-  ChevronDown
+  ChevronDown,
+  ChevronLeft,
+  Calendar,
+  Github,
+  Slack,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -110,12 +122,205 @@ function getMemberColor(name: string): string {
   return MEMBER_COLORS[Math.abs(hash) % MEMBER_COLORS.length]
 }
 
+// ============================================================================
+// Member Profile View Component
+// ============================================================================
+
+interface MemberProfileProps {
+  member: TeamMember
+  onBack: () => void
+}
+
+function MemberProfile({ member, onBack }: MemberProfileProps) {
+  const [firstName, setFirstName] = useState(member.first_name)
+  const [lastName, setLastName] = useState(member.last_name)
+  const [nickname, setNickname] = useState(member.first_name.toLowerCase())
+  const [role, setRole] = useState(member.role)
+
+  const fullName = member.full_name ?? `${member.first_name} ${member.last_name}`
+  const avatarColor = getMemberColor(fullName)
+
+  return (
+    <div className="space-y-6">
+      {/* Back button and header */}
+      <div>
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Back to members
+        </button>
+        <h2 className="text-lg font-medium text-foreground">Profile</h2>
+        <p className="text-sm text-muted-foreground">
+          Manage team member profile
+        </p>
+      </div>
+
+      {/* Profile Picture Section */}
+      <div className="border border-border rounded-lg p-6">
+        <p className="text-sm text-muted-foreground mb-4">Profile picture</p>
+        <div className="flex justify-center">
+          <Avatar className={`h-32 w-32 ${avatarColor}`}>
+            <AvatarFallback className="text-white text-4xl font-medium">
+              {getInitials(member.first_name, member.last_name)}
+            </AvatarFallback>
+          </Avatar>
+        </div>
+      </div>
+
+      {/* Profile Form */}
+      <div className="border border-border rounded-lg divide-y divide-border">
+        {/* Email - read only */}
+        <div className="p-4 flex items-center justify-between">
+          <div>
+            <Label className="text-sm font-medium">Email</Label>
+          </div>
+          <Input
+            value={member.email}
+            disabled
+            className="max-w-[280px] bg-secondary/50"
+          />
+        </div>
+
+        {/* Full Name */}
+        <div className="p-4 flex items-center justify-between">
+          <div>
+            <Label className="text-sm font-medium">Full name</Label>
+          </div>
+          <div className="flex gap-2 max-w-[280px]">
+            <Input
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="First name"
+              className="flex-1"
+            />
+            <Input
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="Last name"
+              className="flex-1"
+            />
+          </div>
+        </div>
+
+        {/* Nickname */}
+        <div className="p-4 flex items-center justify-between">
+          <div>
+            <Label className="text-sm font-medium">Nickname</Label>
+            <p className="text-sm text-muted-foreground">
+              How they appear in mentions
+            </p>
+          </div>
+          <Input
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            className="max-w-[280px]"
+          />
+        </div>
+
+        {/* Role */}
+        <div className="p-4 flex items-center justify-between">
+          <div>
+            <Label className="text-sm font-medium">Role</Label>
+            <p className="text-sm text-muted-foreground">
+              Permissions level in workspace
+            </p>
+          </div>
+          <Select value={role} onValueChange={(v) => setRole(v as "admin" | "user")}>
+            <SelectTrigger className="w-[280px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="admin">Admin</SelectItem>
+              <SelectItem value="user">User</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Connected Integrations */}
+      <div className="border border-border rounded-lg">
+        <div className="p-4 border-b border-border">
+          <p className="text-sm text-muted-foreground">Personal integrations</p>
+        </div>
+
+        <div className="divide-y divide-border">
+          {/* Google Calendar */}
+          <div className="p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-md bg-secondary">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">Google Calendar</p>
+                <p className="text-sm text-muted-foreground">
+                  Display out of office status
+                </p>
+              </div>
+            </div>
+            <Button variant="ghost" className="text-primary">
+              Connect →
+            </Button>
+          </div>
+
+          {/* Slack */}
+          <div className="p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-md bg-secondary">
+                <Slack className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">Slack</p>
+                <p className="text-sm text-muted-foreground">
+                  Receive notifications in Slack
+                </p>
+              </div>
+            </div>
+            <Button variant="ghost" className="text-primary">
+              Connect →
+            </Button>
+          </div>
+
+          {/* GitHub */}
+          <div className="p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-md bg-secondary">
+                <Github className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">GitHub</p>
+                <p className="text-sm text-muted-foreground">
+                  Link activity with account
+                </p>
+              </div>
+            </div>
+            <Button variant="ghost" className="text-primary">
+              Connect →
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Save Button */}
+      <div className="flex justify-end">
+        <Button>Save changes</Button>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// Main Team Members Section
+// ============================================================================
+
 export function TeamMembersSection() {
   const [searchQuery, setSearchQuery] = useState("")
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
   const [inviteLinkEnabled, setInviteLinkEnabled] = useState(false)
   const [copied, setCopied] = useState(false)
   const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "user">("all")
+  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null)
 
   // In production, this would come from the store
   const teamMembers = MOCK_TEAM_MEMBERS
@@ -144,6 +349,16 @@ export function TeamMembersSection() {
   const handleExport = () => {
     // In production, this would generate and download a CSV
     console.log("Exporting members list...")
+  }
+
+  // Show profile view if a member is selected
+  if (selectedMember) {
+    return (
+      <MemberProfile
+        member={selectedMember}
+        onBack={() => setSelectedMember(null)}
+      />
+    )
   }
 
   return (
@@ -247,7 +462,8 @@ export function TeamMembersSection() {
         {filteredMembers.map((member) => (
           <div
             key={member.id}
-            className="flex items-center justify-between px-4 py-3 hover:bg-secondary/50 transition-colors"
+            onClick={() => setSelectedMember(member)}
+            className="flex items-center justify-between px-4 py-3 hover:bg-secondary/50 transition-colors cursor-pointer"
           >
             <div className="flex items-center gap-3">
               <Avatar className={`h-8 w-8 ${getMemberColor(member.full_name ?? `${member.first_name} ${member.last_name}`)}`}>
@@ -272,12 +488,19 @@ export function TeamMembersSection() {
               </Badge>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem>Edit profile</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSelectedMember(member)}>
+                    Edit profile
+                  </DropdownMenuItem>
                   <DropdownMenuItem>Change role</DropdownMenuItem>
                   <DropdownMenuItem>View activity</DropdownMenuItem>
                   <DropdownMenuSeparator />
