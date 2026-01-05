@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -27,6 +27,8 @@ import {
   Calendar,
   Github,
   Slack,
+  Loader2,
+  AlertCircle,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -35,68 +37,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { UserInvitationModal } from "@/components/settings/modals/user-invitation-modal"
+import { toast } from "sonner"
 import type { TeamMember } from "@/types/settings"
-
-// Mock data for demo
-const MOCK_TEAM_MEMBERS: TeamMember[] = [
-  {
-    id: "1",
-    agency_id: "demo",
-    email: "brent@diiiploy.io",
-    first_name: "Brent",
-    last_name: "Walker",
-    role: "admin",
-    avatar_url: null,
-    is_active: true,
-    last_active_at: new Date().toISOString(),
-    created_at: "2024-01-01T00:00:00Z",
-    full_name: "Brent Walker",
-    client_count: 12,
-  },
-  {
-    id: "2",
-    agency_id: "demo",
-    email: "roderic@diiiploy.io",
-    first_name: "Roderic",
-    last_name: "Andrews",
-    role: "admin",
-    avatar_url: null,
-    is_active: true,
-    last_active_at: new Date(Date.now() - 3600000).toISOString(),
-    created_at: "2024-03-15T00:00:00Z",
-    full_name: "Roderic Andrews",
-    client_count: 8,
-  },
-  {
-    id: "3",
-    agency_id: "demo",
-    email: "trevor@diiiploy.io",
-    first_name: "Trevor",
-    last_name: "Mills",
-    role: "user",
-    avatar_url: null,
-    is_active: true,
-    last_active_at: new Date(Date.now() - 86400000).toISOString(),
-    created_at: "2024-06-20T00:00:00Z",
-    full_name: "Trevor Mills",
-    client_count: 5,
-  },
-  {
-    id: "4",
-    agency_id: "demo",
-    email: "chase@diiiploy.io",
-    first_name: "Chase",
-    last_name: "Digital",
-    role: "user",
-    avatar_url: null,
-    is_active: true,
-    last_active_at: new Date(Date.now() - 172800000).toISOString(),
-    created_at: "2024-08-01T00:00:00Z",
-    full_name: "Chase Digital",
-    client_count: 3,
-  },
-]
 
 function getInitials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
@@ -129,16 +82,54 @@ function getMemberColor(name: string): string {
 interface MemberProfileProps {
   member: TeamMember
   onBack: () => void
+  onUpdate: (member: TeamMember) => void
 }
 
-function MemberProfile({ member, onBack }: MemberProfileProps) {
+function MemberProfile({ member, onBack, onUpdate }: MemberProfileProps) {
   const [firstName, setFirstName] = useState(member.first_name)
   const [lastName, setLastName] = useState(member.last_name)
   const [nickname, setNickname] = useState(member.first_name.toLowerCase())
   const [role, setRole] = useState(member.role)
+  const [isSaving, setIsSaving] = useState(false)
 
   const fullName = member.full_name ?? `${member.first_name} ${member.last_name}`
   const avatarColor = getMemberColor(fullName)
+
+  const hasChanges =
+    firstName !== member.first_name ||
+    lastName !== member.last_name ||
+    role !== member.role
+
+  const handleSave = async () => {
+    if (!hasChanges) return
+
+    setIsSaving(true)
+    try {
+      const response = await fetch(`/api/v1/settings/users/${member.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          first_name: firstName,
+          last_name: lastName,
+          role: role,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to update user')
+      }
+
+      const updated = await response.json()
+      toast.success('Profile updated successfully')
+      onUpdate({ ...member, ...updated })
+      onBack()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update profile')
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -304,7 +295,10 @@ function MemberProfile({ member, onBack }: MemberProfileProps) {
 
       {/* Save Button */}
       <div className="flex justify-end">
-        <Button>Save changes</Button>
+        <Button onClick={handleSave} disabled={!hasChanges || isSaving}>
+          {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+          Save changes
+        </Button>
       </div>
     </div>
   )
@@ -321,9 +315,66 @@ export function TeamMembersSection() {
   const [copied, setCopied] = useState(false)
   const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "user">("all")
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null)
+  const [memberToRemove, setMemberToRemove] = useState<TeamMember | null>(null)
+  const [isRemoving, setIsRemoving] = useState(false)
 
-  // In production, this would come from the store
-  const teamMembers = MOCK_TEAM_MEMBERS
+  // API state
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetch team members from API
+  const fetchMembers = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+      const response = await fetch('/api/v1/settings/users')
+      if (!response.ok) {
+        const err = await response.json()
+        throw new Error(err.error || 'Failed to fetch team members')
+      }
+      const data = await response.json()
+      setTeamMembers(data.users || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load team members')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchMembers()
+  }, [fetchMembers])
+
+  // Handle member update (from profile edit)
+  const handleMemberUpdate = (updated: TeamMember) => {
+    setTeamMembers(prev => prev.map(m => m.id === updated.id ? updated : m))
+  }
+
+  // Handle member removal
+  const handleRemoveMember = async () => {
+    if (!memberToRemove) return
+
+    setIsRemoving(true)
+    try {
+      const response = await fetch(`/api/v1/settings/users/${memberToRemove.id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to remove user')
+      }
+
+      toast.success(`${memberToRemove.first_name} has been removed from the workspace`)
+      setTeamMembers(prev => prev.filter(m => m.id !== memberToRemove.id))
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to remove user')
+    } finally {
+      setIsRemoving(false)
+      setMemberToRemove(null)
+    }
+  }
 
   // Filter members by search and role
   const filteredMembers = teamMembers.filter((member) => {
@@ -357,7 +408,30 @@ export function TeamMembersSection() {
       <MemberProfile
         member={selectedMember}
         onBack={() => setSelectedMember(null)}
+        onUpdate={handleMemberUpdate}
       />
+    )
+  }
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 gap-4">
+        <AlertCircle className="h-8 w-8 text-destructive" />
+        <p className="text-sm text-muted-foreground">{error}</p>
+        <Button variant="outline" onClick={fetchMembers}>
+          Try again
+        </Button>
+      </div>
     )
   }
 
@@ -504,7 +578,13 @@ export function TeamMembersSection() {
                   <DropdownMenuItem>Change role</DropdownMenuItem>
                   <DropdownMenuItem>View activity</DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-destructive">
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setMemberToRemove(member)
+                    }}
+                  >
                     Remove from workspace
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -534,9 +614,33 @@ export function TeamMembersSection() {
         isOpen={isInviteModalOpen}
         onClose={() => setIsInviteModalOpen(false)}
         onSuccess={() => {
-          // In production, refresh the invitations list here
+          fetchMembers() // Refresh members list after invite
         }}
       />
+
+      {/* Remove Member Confirmation Dialog */}
+      <AlertDialog open={!!memberToRemove} onOpenChange={() => setMemberToRemove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove team member?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove {memberToRemove?.first_name} {memberToRemove?.last_name} from the workspace?
+              This action will revoke their access immediately.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isRemoving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRemoveMember}
+              disabled={isRemoving}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isRemoving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
