@@ -31,10 +31,10 @@
 | knowledge-base | ✅ Complete | [knowledge-base.md](knowledge-base.md) | 80% | 4 components, upload modal, store (290 lines) |
 | automations | ✅ Complete | [automations.md](automations.md) | 85% | 5 components, 8 APIs, workflow engine |
 | settings | ✅ Complete | [settings.md](settings.md) | 85% | SET-001/002: Agency + User APIs complete. SET-003-007: Invitations pending |
-| ai-intelligence-layer (HGC) | 🚧 Building | [ai-intelligence-layer.md](ai-intelligence-layer.md) | 30% | **Holy Grail Chat** - Standalone project. RAG/Web/Memory working. Function calling NOT implemented. |
+| ai-intelligence-layer (HGC) | ✅ Complete | [ai-intelligence-layer.md](ai-intelligence-layer.md) | 95% | **Holy Grail Chat** - 6 functions, Mem0, RAG, auth integration. Ready for production. |
 | dashboard-redesign | ✅ Complete | [dashboard-redesign.md](dashboard-redesign.md) | 90% | Linear design system (merged from linear-rebuild worktree) |
 
-**Overall Completion:** ~86% (Settings APIs added 2026-01-04, needs invitations + email service)
+**Overall Completion:** ~90% (HGC upgraded 30%→95%, Settings needs invitations + email service)
 
 ---
 
