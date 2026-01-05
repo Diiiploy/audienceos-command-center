@@ -402,10 +402,10 @@ export function ChatInterface({
               {messages.map((msg, msgIndex) => (
                 <div
                   key={msg.id}
-                  className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
+                  className={`flex flex-col w-full ${msg.role === "user" ? "items-end" : "items-start"}`}
                 >
                   {/* Timestamp and Route Indicator */}
-                  <div className="flex items-center gap-2 mb-1 px-1">
+                  <div className="flex items-center gap-2 mb-1 px-1 max-w-[80%]">
                     <span className="text-[10px] text-gray-500">
                       {new Date(msg.timestamp).toLocaleTimeString([], {
                         hour: "2-digit",
