@@ -239,17 +239,18 @@ export function useAuth() {
 
     initAuth()
 
-    // Subscribe to auth changes
+    // Subscribe to auth changes - uses direct REST API to avoid hanging Supabase client
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!isMounted) return
         if (event === 'SIGNED_IN' && session?.user) {
-          const profile = await fetchProfile(session.user.id)
+          // Use fetchProfileDirect to bypass hanging Supabase client methods
+          const profile = await fetchProfileDirect(session.user.id, session.access_token)
           if (!isMounted) return
           setState({
             user: session.user,
             profile,
-            session,
+            session: null, // Session object not needed - we have user and profile
             isLoading: false,
             isAuthenticated: true,
             error: null,
