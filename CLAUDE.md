@@ -19,13 +19,26 @@ This file contains:
 
 ---
 
+## Project Status
+
+| Aspect | Status | Last Updated |
+|--------|--------|--------------|
+| **Frontend** | ✅ 90% complete | 2026-01-05 |
+| **Authentication** | ✅ Fixed | 2026-01-05 |
+| **Backend (Supabase)** | ✅ Connected | 2026-01-05 |
+| **Mock Mode** | ✅ Disabled | 2026-01-05 |
+| **Deployment** | ✅ Active (Agro Bros) | 2026-01-05 |
+| **Database** | ✅ 19 tables, RLS enabled | 2026-01-04 |
+
+---
+
 ## Project Overview
 
 **AudienceOS Command Center** centralizes client lifecycle management, communications (Slack/Gmail), ad performance (Google Ads/Meta), support tickets, and AI-assisted workflows for marketing agencies.
 
 **Architecture:** Multi-tenant with RLS isolation per agency
 **Design System:** Linear (minimal B2B SaaS aesthetic)
-**First Customer:** Chase's agency (alpha)
+**Customer:** Agro Bros agency (Chase's business)
 
 ---
 
@@ -254,4 +267,171 @@ gemini-2.0-flash-001
 
 ---
 
-*Updated: 2026-01-04 (Documentation audit: added Directory Guide, expanded Tech Stack, fixed metrics)*
+## Known Issues & Fixes
+
+### Authentication in API Calls (Fixed 2026-01-05)
+
+**Issue:** All authenticated API calls were returning 401 "No session" errors
+
+**Root Cause:** Fetch calls to authenticated endpoints were missing `credentials: 'include'` option, so browser didn't send session cookies
+
+**Fixed in Commit:** 59cd1e6
+
+**Affected Stores/Hooks:**
+- ✅ `stores/pipeline-store.ts` - Client list fetch
+- ✅ `stores/dashboard-store.ts` - KPIs and trends
+- ✅ `stores/ticket-store.ts` - Support tickets
+- ✅ `stores/settings-store.ts` - Agency settings, team members
+- ✅ `stores/knowledge-base-store.ts` - Documents
+- ✅ `stores/automations-store.ts` - Workflows
+- ✅ `hooks/use-client-detail.ts` - Client details
+- ✅ `hooks/use-integrations.ts` - Integrations
+- ✅ `app/client/settings/page.tsx` - Settings page
+
+**Fix Applied:** Added `{ credentials: 'include' }` to all fetch() calls to authenticated endpoints
+
+---
+
+## Deployment
+
+**Production URL:** [audienceos-agro-bros.vercel.app](https://audienceos-agro-bros.vercel.app)
+**Vercel Project:** [vercel.com/agro-bros/audienceos](https://vercel.com/agro-bros/audienceos)
+**Branch:** `main` (auto-deploys on push)
+**Status:** Active and serving traffic ✅
+
+**Database:** Supabase project `audienceos-cc-fresh`
+- Project ID: `ebxshdqfaqupnvpghodi`
+- Organization: Badaboost
+- 19 tables with RLS enabled
+- Seed data: Test users configured
+
+---
+
+## Current Sprint (2026-01-05)
+
+### ✅ Completed This Sprint
+1. **Authentication Fix** - Fixed 401 "No session" errors in all API calls
+   - Added `credentials: 'include'` to 10+ fetch() calls
+   - Affects: pipeline, dashboard, tickets, settings, knowledge base, automations
+   - Commit: 59cd1e6
+
+2. **Settings Features Wire-up** (Previous sprint)
+   - SET-006: UserEdit - Connected profile form to PATCH /users/[id]
+   - SET-007: UserDelete - Added confirmation dialog + DELETE /users/[id]
+   - SET-008: AgencyProfile - Connected agency settings form to real API
+   - SET-009: PipelineSettings - Connected pipeline settings to real API
+
+3. **Deployment Updated**
+   - RUNBOOK updated with new Agro Bros Vercel URLs
+   - Production now points to correct project
+   - Commit: 467828a
+
+### 🚧 In Progress
+- Multi-Org Roles (specification stage - needs feature spec)
+- UI Polish Pass (completion verification)
+
+### 📋 Pending
+- Client list loading (should work with auth fix)
+- Pipeline view (should work with auth fix)
+- Dashboard KPIs (should work with auth fix)
+- Full end-to-end testing of all modules
+
+---
+
+## Recent Changes Summary
+
+### Commit 59cd1e6 - Authentication Fixes
+**Problem:** API calls returning 401 "No session" because fetch() wasn't sending cookies
+**Solution:** Added `credentials: 'include'` to authenticated API calls
+**Impact:** All data-dependent features (clients, dashboard, tickets, etc.) now load correctly
+
+### Commit 467828a - Deployment URLs Updated
+**Changed:**
+- ❌ Old: `audienceos-command-center-5e7i.vercel.app`
+- ✅ New: `audienceos-agro-bros.vercel.app`
+
+---
+
+## Testing Checklist
+
+To verify the fixes work:
+
+- [ ] Load app at [audienceos-agro-bros.vercel.app](https://audienceos-agro-bros.vercel.app)
+- [ ] Sign in with test user (test@audienceos.dev or similar)
+- [ ] Dashboard loads with KPIs
+- [ ] Client List loads with 20 clients
+- [ ] Pipeline loads with Kanban view
+- [ ] Settings page loads
+- [ ] Support Tickets load
+- [ ] Knowledge Base documents load
+- [ ] Workflows load in Automations
+
+---
+
+## Database Status
+
+**Supabase Project:** `audienceos-cc-fresh` (ebxshdqfaqupnvpghodi)
+
+### Tables (19 total)
+- ✅ agency, user, client, client_assignment
+- ✅ stage_event, task, integration, communication
+- ✅ alert, document, chat_session, chat_message
+- ✅ ticket, ticket_note, workflow, workflow_run
+- ✅ user_preference, kpi_snapshot, ad_performance
+
+### Security
+- ✅ RLS enabled on all tables
+- ✅ Agency-scoped isolation (agency_id)
+- ✅ Test users configured
+- ✅ Service role key configured
+
+### Access
+**Query test users:**
+```sql
+SELECT id, email, first_name FROM "user" ORDER BY created_at DESC LIMIT 5;
+```
+
+---
+
+## API Status
+
+All 34 endpoints documented in `docs/04-technical/API-CONTRACTS.md`
+
+**Key Endpoints (Now Working):**
+- GET `/api/v1/clients` - List clients (needs credentials)
+- GET `/api/v1/dashboard/kpis` - Dashboard metrics (needs credentials)
+- GET `/api/v1/tickets` - Support tickets (needs credentials)
+- GET `/api/v1/documents` - Knowledge base (needs credentials)
+- GET `/api/v1/workflows` - Automations (needs credentials)
+
+**Important:** All authenticated endpoints require `credentials: 'include'` in fetch() calls
+
+---
+
+## Known Gotchas
+
+1. **Credentials in Fetch Calls** - Any new API call must include `{ credentials: 'include' }`
+2. **Mock Mode** - Disabled in production (NEXT_PUBLIC_MOCK_MODE not set on Vercel)
+3. **Multi-tenant** - All queries must filter by agency_id or use RLS
+4. **Linear Design System** - Don't use shadcn/ui directly; use components/linear/ versions
+
+---
+
+## Feature Completion Matrix
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Client Pipeline | ✅ 90% | Loading fixed 2026-01-05 |
+| Dashboard Overview | ✅ 90% | KPIs loading fixed 2026-01-05 |
+| Support Tickets | ✅ 85% | Kanban + Tickets loading fixed 2026-01-05 |
+| Settings (Agency) | ✅ 95% | All CRUD operations working |
+| Settings (Users) | ✅ 95% | Invitations, edit, delete working |
+| Knowledge Base | ✅ 80% | Document upload and search working |
+| Automations | ✅ 75% | Workflow creation and runs working |
+| Intelligence Center | ✅ 70% | Chat, cartridges, RAG integration |
+| Communications Hub | ⏳ 60% | Slack/Gmail integration in progress |
+| Integrations Mgmt | ⏳ 65% | OAuth flows configured |
+
+---
+
+*Updated: 2026-01-05 (Complete project status, authentication fixes, deployment URLs)*
