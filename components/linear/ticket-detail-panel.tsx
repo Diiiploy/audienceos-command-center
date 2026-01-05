@@ -225,10 +225,10 @@ export function TicketDetailPanel({
           <p className="text-sm text-muted-foreground">{ticket.description}</p>
         </div>
 
-        {/* Properties */}
-        <div className="px-4 py-4 border-b border-border space-y-3">
-          {/* Client */}
-          <div className="flex items-center justify-between">
+        {/* Properties - using fixed-width label pattern */}
+        <div className="px-4 py-4 border-b border-border">
+          <div className="grid grid-cols-[100px_1fr] gap-x-3 gap-y-2.5 items-center">
+            {/* Client */}
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Building2 className="w-4 h-4" />
               <span>Client</span>
@@ -246,10 +246,8 @@ export function TicketDetailPanel({
               </Avatar>
               <span className="text-sm text-foreground">{ticket.client.name}</span>
             </div>
-          </div>
 
-          {/* Assignee */}
-          <div className="flex items-center justify-between">
+            {/* Assignee */}
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <User className="w-4 h-4" />
               <span>Assignee</span>
@@ -275,63 +273,59 @@ export function TicketDetailPanel({
             ) : (
               <span className="text-sm text-muted-foreground">Unassigned</span>
             )}
-          </div>
 
-          {/* Priority */}
-          <div className="flex items-center justify-between">
+            {/* Priority */}
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <AlertCircle className="w-4 h-4" />
               <span>Priority</span>
             </div>
             <span
               className={cn(
-                "text-xs px-2 py-0.5 rounded border font-medium",
+                "text-xs px-2 py-0.5 rounded border font-medium w-fit",
                 priorityColors[ticket.priority]
               )}
             >
               {priorityLabels[ticket.priority]}
             </span>
-          </div>
 
-          {/* Due date */}
-          {ticket.dueDate && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Calendar className="w-4 h-4" />
-                <span>Due date</span>
-              </div>
-              <span className="text-sm text-foreground">{ticket.dueDate}</span>
-            </div>
-          )}
+            {/* Due date */}
+            {ticket.dueDate && (
+              <>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Calendar className="w-4 h-4" />
+                  <span>Due date</span>
+                </div>
+                <span className="text-sm text-foreground">{ticket.dueDate}</span>
+              </>
+            )}
 
-          {/* Created */}
-          <div className="flex items-center justify-between">
+            {/* Created */}
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="w-4 h-4" />
               <span>Created</span>
             </div>
             <span className="text-sm text-foreground">{ticket.createdAt}</span>
-          </div>
 
-          {/* Tags */}
-          {ticket.tags && ticket.tags.length > 0 && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Tag className="w-4 h-4" />
-                <span>Tags</span>
-              </div>
-              <div className="flex items-center gap-1 flex-wrap justify-end">
-                {ticket.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="text-xs px-1.5 py-0.5 rounded bg-secondary text-muted-foreground"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
+            {/* Tags */}
+            {ticket.tags && ticket.tags.length > 0 && (
+              <>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Tag className="w-4 h-4" />
+                  <span>Tags</span>
+                </div>
+                <div className="flex items-center gap-1 flex-wrap">
+                  {ticket.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="text-xs px-1.5 py-0.5 rounded bg-secondary text-muted-foreground"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Activity feed */}

@@ -90,48 +90,42 @@ export function ClientDetailPanel({ client, onClose }: ClientDetailPanelProps) {
         </div>
       </header>
 
-      {/* Properties */}
+      {/* Properties - using fixed-width label pattern */}
       <div className="p-4 border-b border-border">
         <h3 className="text-sm font-medium mb-3">Properties</h3>
 
-        <div className="space-y-3">
+        <div className="grid grid-cols-[80px_1fr] gap-x-3 gap-y-2.5 items-center">
           {/* Stage */}
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">Stage</span>
-            <span className="text-sm text-foreground">{client.stage}</span>
-          </div>
+          <span className="text-xs text-muted-foreground">Stage</span>
+          <span className="text-sm text-foreground">{client.stage}</span>
 
           {/* Health */}
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">Health</span>
+          <span className="text-xs text-muted-foreground">Health</span>
+          <span>
             <Badge variant="outline" className={cn("text-xs", getHealthBadgeStyle(client.health))}>
               {client.health}
             </Badge>
-          </div>
+          </span>
 
           {/* Owner */}
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">Owner</span>
-            <div className="flex items-center gap-2">
-              <Avatar className={cn("h-6 w-6", client.owner.color)}>
-                <AvatarFallback className={cn(client.owner.color, "text-xs font-medium text-white")}>
-                  {client.owner.initials}
-                </AvatarFallback>
-              </Avatar>
-              <span className="text-sm">{client.owner.name}</span>
-            </div>
+          <span className="text-xs text-muted-foreground">Owner</span>
+          <div className="flex items-center gap-2">
+            <Avatar className={cn("h-6 w-6", client.owner.color)}>
+              <AvatarFallback className={cn(client.owner.color, "text-xs font-medium text-white")}>
+                {client.owner.initials}
+              </AvatarFallback>
+            </Avatar>
+            <span className="text-sm">{client.owner.name}</span>
           </div>
 
           {/* Days in stage */}
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">Days in Stage</span>
-            <span className={cn(
-              "text-sm tabular-nums",
-              client.daysInStage > 4 ? "text-status-red font-medium" : ""
-            )}>
-              {client.daysInStage}
-            </span>
-          </div>
+          <span className="text-xs text-muted-foreground">Days in Stage</span>
+          <span className={cn(
+            "text-sm tabular-nums",
+            client.daysInStage > 4 ? "text-status-red font-medium" : ""
+          )}>
+            {client.daysInStage}
+          </span>
         </div>
       </div>
 
