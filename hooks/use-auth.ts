@@ -52,34 +52,42 @@ function getSessionFromCookie(): { access_token: string; refresh_token: string; 
 }
 
 /**
- * Initialize session from cookie using setSession()
- * This bypasses the hanging getSession() in @supabase/ssr
+ * Fetch user profile directly using REST API
+ * This bypasses ALL Supabase client auth methods which hang in @supabase/ssr
  */
-async function initSessionFromCookie(supabase: SupabaseClient): Promise<Session | null> {
-  const cookieSession = getSessionFromCookie()
+async function fetchProfileDirect(
+  userId: string,
+  accessToken: string
+): Promise<UserProfile | null> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  if (!cookieSession) {
-    console.log('[AUTH] No session cookie found')
+  if (!supabaseUrl || !anonKey) return null
+
+  try {
+    const response = await fetch(
+      `${supabaseUrl}/rest/v1/user?id=eq.${userId}&select=id,agency_id,first_name,last_name,email,avatar_url,role`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': anonKey,
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    )
+
+    if (!response.ok) {
+      console.error('[AUTH] Profile fetch failed:', response.status)
+      return null
+    }
+
+    const data = await response.json()
+    return data[0] as UserProfile || null
+  } catch (e) {
+    console.error('[AUTH] Profile fetch error:', e)
     return null
   }
-
-  console.log('[AUTH] Found session cookie, calling setSession...')
-  const startTime = performance.now()
-
-  const { data, error } = await supabase.auth.setSession({
-    access_token: cookieSession.access_token,
-    refresh_token: cookieSession.refresh_token
-  })
-
-  const duration = performance.now() - startTime
-  console.log(`[AUTH] setSession completed in ${duration.toFixed(0)}ms`)
-
-  if (error) {
-    console.error('[AUTH] setSession error:', error.message)
-    return null
-  }
-
-  return data.session
 }
 
 export interface UserProfile {
@@ -166,33 +174,30 @@ export function useAuth() {
       }
 
       try {
-        // Use cookie-based session init to bypass hanging getSession()
-        const sessionStart = performance.now()
-        const session = await initSessionFromCookie(supabase)
-        const sessionDuration = performance.now() - sessionStart
-        console.log(`[AUTH-SESSION] initSessionFromCookie completed in ${sessionDuration.toFixed(0)}ms`)
+        // Parse session directly from cookie - bypasses ALL hanging Supabase auth methods
+        const cookieSession = getSessionFromCookie()
 
         if (!isMounted) return
 
-        if (session?.user) {
+        if (cookieSession) {
+          // Fetch profile using direct REST API call (proven to work in testing)
           const profileStart = performance.now()
-          const profile = await fetchProfile(session.user.id)
+          const profile = await fetchProfileDirect(cookieSession.user.id, cookieSession.access_token)
           const profileDuration = performance.now() - profileStart
-          console.log(`[AUTH-PROFILE] fetchProfile() completed in ${profileDuration.toFixed(0)}ms`)
+          console.warn(`[AUTH] Profile fetched in ${profileDuration.toFixed(0)}ms`)
 
           if (!isMounted) return
 
-          console.log('[AUTH-SETSTATE] Setting state with user profile, isLoading=false')
           setState({
-            user: session.user,
+            user: cookieSession.user,
             profile,
-            session,
+            session: null, // Session object not available without Supabase auth methods
             isLoading: false,
             isAuthenticated: true,
             error: profile ? null : 'Profile not found - please contact support',
           })
         } else {
-          console.log('[AUTH-SETSTATE] No session found, setting isLoading=false')
+          console.warn('[AUTH] No session cookie found')
           setState({
             user: null,
             profile: null,
@@ -203,7 +208,7 @@ export function useAuth() {
           })
         }
       } catch (error) {
-        console.error('Error in initAuth:', error)
+        console.error('[AUTH] Error in initAuth:', error)
         if (!isMounted) return
         setState(prev => ({
           ...prev,
