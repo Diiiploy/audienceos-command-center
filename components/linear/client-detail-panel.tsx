@@ -1,11 +1,18 @@
 "use client"
 
-import React from "react"
+import React, { useState } from "react"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   X,
   Copy,
@@ -15,6 +22,12 @@ import {
   FolderKanban,
   Send,
   Paperclip,
+  MoreVertical,
+  ExternalLink,
+  FolderOpen,
+  ArrowRight,
+  UserPlus,
+  Trash2,
 } from "lucide-react"
 
 interface ClientDetailPanelProps {
@@ -65,6 +78,62 @@ function getTierBadgeStyle(tier: string) {
 }
 
 export function ClientDetailPanel({ client, onClose }: ClientDetailPanelProps) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [noteText, setNoteText] = useState("")
+
+  // Handler functions
+  const handleEdit = () => {
+    setIsEditing(!isEditing)
+    // TODO: Toggle edit mode for inline editing
+  }
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(client.id)
+    // TODO: Show toast notification
+  }
+
+  const handleOpen = () => {
+    // TODO: Open client in new tab/view
+    console.log("Open client:", client.id)
+  }
+
+  const handleMove = () => {
+    // TODO: Open stage picker modal
+    console.log("Move client:", client.id)
+  }
+
+  const handleAssign = () => {
+    // TODO: Open owner picker modal
+    console.log("Assign client:", client.id)
+  }
+
+  const handleDelete = () => {
+    // TODO: Open delete confirmation modal
+    console.log("Delete client:", client.id)
+  }
+
+  const handleSendNote = () => {
+    if (!noteText.trim()) return
+    // TODO: Save note via API
+    console.log("Send note:", noteText)
+    setNoteText("")
+  }
+
+  const handleAttachment = () => {
+    // TODO: Open file picker
+    console.log("Attach file")
+  }
+
+  const handleAddLabel = () => {
+    // TODO: Open label picker
+    console.log("Add label")
+  }
+
+  const handleSetDueDate = () => {
+    // TODO: Open date picker
+    console.log("Set due date")
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -78,12 +147,42 @@ export function ClientDetailPanel({ client, onClose }: ClientDetailPanelProps) {
         </div>
 
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={handleEdit}>
             <Pencil className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={handleCopy}>
             <Copy className="w-4 h-4" />
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={handleOpen}>
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Open
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleEdit}>
+                <FolderOpen className="w-4 h-4 mr-2" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleMove}>
+                <ArrowRight className="w-4 h-4 mr-2" />
+                Move
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleAssign}>
+                <UserPlus className="w-4 h-4 mr-2" />
+                Assign
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleDelete} className="text-destructive">
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={onClose}>
             <X className="w-4 h-4" />
           </Button>
@@ -148,7 +247,10 @@ export function ClientDetailPanel({ client, onClose }: ClientDetailPanelProps) {
             </div>
           )}
 
-          <button className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+          <button
+            onClick={handleAddLabel}
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          >
             <Tag className="w-4 h-4" />
             <span className="text-xs">Add label</span>
           </button>
@@ -169,10 +271,13 @@ export function ClientDetailPanel({ client, onClose }: ClientDetailPanelProps) {
       <div className="p-4 border-b border-border">
         <h3 className="text-sm font-medium mb-3">Due Date</h3>
 
-        <div className="flex items-center gap-2 text-muted-foreground">
+        <button
+          onClick={handleSetDueDate}
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+        >
           <Calendar className="w-4 h-4" />
           <span className="text-sm">Set due date</span>
-        </div>
+        </button>
       </div>
 
       {/* Notes */}
@@ -202,12 +307,31 @@ export function ClientDetailPanel({ client, onClose }: ClientDetailPanelProps) {
             </Avatar>
             <Input
               placeholder="Add a note..."
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSendNote()
+                }
+              }}
               className="flex-1 bg-transparent border-none h-8 text-sm focus-visible:ring-0"
             />
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+              onClick={handleAttachment}
+            >
               <Paperclip className="w-4 h-4" />
             </Button>
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground disabled:opacity-50"
+              onClick={handleSendNote}
+              disabled={!noteText.trim()}
+            >
               <Send className="w-4 h-4" />
             </Button>
           </div>
