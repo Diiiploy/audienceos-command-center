@@ -340,7 +340,7 @@ export function ChatInterface({
             onClick={closePanel}
           />
 
-          {/* Message Panel - iOS Liquid Glass style (light theme) */}
+          {/* Message Panel - iOS Liquid Glass style (true glassmorphic) */}
           <div
             className="z-[9999] flex flex-col"
             style={{
@@ -349,16 +349,16 @@ export function ChatInterface({
               maxWidth: MAX_PANEL_WIDTH,
               height: `${panelHeight}vh`,
               maxHeight: "85vh",
-              bottom: "82px", // Above the chat bar (matches HGC)
+              bottom: "65px", // Slides up from behind input bar
               left: "50%",
               transform: "translateX(-50%) scale(0.90)",
               transformOrigin: "bottom center",
-              background: "rgba(255, 255, 255, 0.85)",
+              background: "rgba(255, 255, 255, 0.10)", // 10% white tint - subtle glass effect
               backdropFilter: "blur(40px) saturate(180%)",
               WebkitBackdropFilter: "blur(40px) saturate(180%)",
-              border: "1px solid rgba(0, 0, 0, 0.08)",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
               borderRadius: "20px",
-              boxShadow: "0 8px 40px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1)",
+              boxShadow: "0 8px 40px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1), inset 0 0 0 1px rgba(255, 255, 255, 0.1)",
               animation: isClosing
                 ? "slideDown 0.2s ease-out forwards"
                 : "slideUp 0.35s ease-out forwards",
@@ -443,7 +443,7 @@ export function ChatInterface({
                       "relative p-3 rounded-lg max-w-[85%]",
                       msg.role === "user"
                         ? "bg-blue-500 text-white"
-                        : "bg-gray-100 text-gray-800 border border-black/5"
+                        : "bg-white/40 text-gray-900 border border-white/40 backdrop-blur-sm"
                     )}
                   >
                     <div className="text-[14px] leading-[1.5]">
@@ -479,7 +479,7 @@ export function ChatInterface({
               {/* Streaming message */}
               {isLoading && streaming.displayedText && (
                 <div className="flex flex-col items-start">
-                  <div className="max-w-[80%] p-3 rounded-lg bg-gray-100 text-gray-800 border border-black/5">
+                  <div className="max-w-[80%] p-3 rounded-lg bg-white/40 text-gray-900 border border-white/40 backdrop-blur-sm">
                     <p className="text-[14px] leading-[1.5]">
                       {streaming.displayedText}
                       {streaming.isAnimating && <TypingCursor visible />}
@@ -490,8 +490,8 @@ export function ChatInterface({
 
               {/* Loading indicator */}
               {isLoading && !streaming.displayedText && (
-                <div className="flex items-center gap-3 text-gray-500">
-                  <div className="p-2 rounded-lg bg-gray-100">
+                <div className="flex items-center gap-3 text-gray-600">
+                  <div className="p-2 rounded-lg bg-white/40 backdrop-blur-sm border border-white/40">
                     <Loader2 className="h-4 w-4 animate-spin" />
                   </div>
                   <span className="text-sm">Thinking...</span>
@@ -505,7 +505,7 @@ export function ChatInterface({
         </>
       )}
 
-      {/* PERSISTENT CHAT BAR - iOS Liquid Glass style (light theme) */}
+      {/* PERSISTENT CHAT BAR - iOS Liquid Glass style (double-layer frosted) */}
       <div
         className="flex items-center gap-3 z-[10000]"
         style={{
@@ -516,12 +516,12 @@ export function ChatInterface({
           left: "50%",
           transform: "translateX(-50%) scale(0.90)",
           transformOrigin: "bottom center",
-          background: "rgba(255, 255, 255, 0.72)",
+          background: "rgba(255, 255, 255, 0.15)", // 15% white tint - double-layer effect (more frosted than panel)
           backdropFilter: "blur(40px) saturate(180%)",
           WebkitBackdropFilter: "blur(40px) saturate(180%)",
-          border: "1px solid rgba(0, 0, 0, 0.08)",
+          border: "1px solid rgba(255, 255, 255, 0.25)",
           borderRadius: "20px",
-          boxShadow: "0 4px 24px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08)",
+          boxShadow: "0 4px 24px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.15)",
           padding: "12px 16px",
         }}
       >
@@ -542,7 +542,7 @@ export function ChatInterface({
           </button>
         </div>
 
-        {/* Textarea */}
+        {/* Textarea - extra frosted layer */}
         <textarea
           ref={textareaRef}
           placeholder="Ask about clients, alerts, or anything..."
@@ -551,7 +551,7 @@ export function ChatInterface({
           onKeyDown={handleKeyDown}
           onFocus={handleInputFocus}
           disabled={isLoading}
-          className="flex-1 min-h-[48px] max-h-[120px] p-3 bg-black/5 border border-black/10 rounded-xl text-gray-800 text-[14px] leading-[1.5] resize-none outline-none transition-colors placeholder:text-gray-500 focus:border-black/20 hover:border-black/15"
+          className="flex-1 min-h-[48px] max-h-[120px] p-3 bg-white/20 border border-white/30 rounded-xl text-gray-900 text-[14px] leading-[1.5] resize-none outline-none transition-colors placeholder:text-gray-600 focus:border-white/40 hover:border-white/35 backdrop-blur-sm"
         />
 
         {/* Send Button */}
