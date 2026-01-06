@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { getSmartRouter } from '@/lib/chat/router';
 import { executeFunction, hgcFunctions } from '@/lib/chat/functions';
+import type { Citation } from '@/lib/chat/types';
 
 // CRITICAL: Gemini 3 ONLY per project requirements
 const GEMINI_MODEL = 'gemini-3-flash-preview';
@@ -51,13 +52,14 @@ export async function POST(request: NextRequest) {
     // 4. Handle based on route
     let responseContent: string;
     let functionCalls: Array<{ name: string; result: unknown }> = [];
+    let citations: Citation[] = [];
 
     if (route === 'dashboard') {
       // Use function calling for dashboard queries
       responseContent = await handleDashboardRoute(apiKey, message, agencyId, userId, functionCalls);
     } else {
-      // Use basic Gemini response for other routes
-      responseContent = await handleCasualRoute(apiKey, message, route);
+      // Use basic Gemini response for other routes (may include web grounding citations)
+      responseContent = await handleCasualRoute(apiKey, message, route, citations);
     }
 
     // 5. Return response (streaming or JSON)
@@ -102,7 +104,7 @@ export async function POST(request: NextRequest) {
                 route,
                 routeConfidence,
                 functionCalls: functionCalls.length > 0 ? functionCalls : undefined,
-                citations: [],
+                citations: citations.length > 0 ? citations : [],
               },
             });
             controller.enqueue(encoder.encode(`data: ${completeData}\n\n`));
@@ -136,7 +138,7 @@ export async function POST(request: NextRequest) {
           route,
           routeConfidence,
           functionCalls: functionCalls.length > 0 ? functionCalls : undefined,
-          citations: [],
+          citations: citations.length > 0 ? citations : [],
         },
         sessionId: sessionId || `session-${Date.now()}`,
       });
@@ -234,11 +236,13 @@ Please provide a helpful, natural language summary of this data for the user.`,
 
 /**
  * Handle casual/rag/web/memory routes with basic Gemini response
+ * Extracts citations from grounding metadata when available
  */
 async function handleCasualRoute(
   apiKey: string,
   message: string,
-  route: string
+  route: string,
+  citations: Citation[]
 ): Promise<string> {
   const genai = new GoogleGenAI({ apiKey });
 
@@ -246,13 +250,43 @@ async function handleCasualRoute(
 You help agency teams manage their clients, view performance data, and navigate the app.
 Be concise and helpful. This query was classified as: ${route}`;
 
-  const response = await genai.models.generateContent({
+  // Build request config
+  const requestConfig: any = {
     model: GEMINI_MODEL,
     contents: `${systemPrompt}\n\nUser: ${message}`,
     config: { temperature: 0.7 },
-  });
+  };
 
-  return response.candidates?.[0]?.content?.parts?.[0]?.text ||
+  // Enable Google Search grounding for web queries (provides citations)
+  if (route === 'web') {
+    requestConfig.config.tools = [{
+      googleSearch: {},
+    }];
+  }
+
+  const response = await genai.models.generateContent(requestConfig);
+
+  // Extract citations from grounding metadata if available
+  const candidate = response.candidates?.[0];
+  if (candidate?.groundingMetadata?.groundingChunks) {
+    for (const groundingChunk of candidate.groundingMetadata.groundingChunks) {
+      const web = groundingChunk.web;
+      if (web?.uri && web?.title) {
+        const citation: Citation = {
+          index: citations.length + 1,
+          title: web.title,
+          url: web.uri,
+          source: 'web',
+        };
+        // Avoid duplicates
+        if (!citations.find(c => c.url === citation.url)) {
+          citations.push(citation);
+        }
+      }
+    }
+  }
+
+  return candidate?.content?.parts?.[0]?.text ||
     "I'm here to help! You can ask me about clients, performance metrics, or app features.";
 }
 
