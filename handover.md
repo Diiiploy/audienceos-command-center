@@ -174,5 +174,69 @@ scripts/add-diiiploy-team.ts  - Team member creation script (new)
 
 ---
 
+## Session 2026-01-06 (Multi-Org Roles - Core Infrastructure)
+
+### Completed This Session
+
+**7. Multi-Org Roles - Core Infrastructure (Sprint 1) ✅**
+- **Feature:** Role-based access control (RBAC) system
+- **Spec:** `features/multi-org-roles.md` (60 tasks total, first 5 completed)
+- **What Was Built:**
+  - TASK-001: Created `role`, `permission`, `role_permission` tables ✅
+  - TASK-002: Created `member_client_access` table ✅
+  - TASK-003: Wrote migration script for existing user roles ✅
+  - TASK-004: Seed system roles (Owner, Admin, Manager, Member) ✅
+  - TASK-005: Seed 48 permissions (12 resources × 4 actions) ✅
+
+**Database Schema:**
+- 4 new tables with RLS policies
+- 3 new enums (resource_type, permission_action, client_access_permission)
+- 15 indexes for performance
+- 2 helper functions (has_permission, get_user_permissions)
+- User table: added `role_id` and `is_owner` columns
+
+**System Roles Created:**
+- Owner (hierarchy 1) - Full access, immutable
+- Admin (hierarchy 2) - Full access except billing
+- Manager (hierarchy 3) - Client management, read-only settings
+- Member (hierarchy 4) - Read-only + assigned client access
+
+**Permissions Seeded:**
+- 48 total: 12 resources × 4 actions
+- Resources: clients, communications, tickets, knowledge-base, automations, settings, users, billing, roles, integrations, analytics, ai-features
+- Actions: read, write, delete, manage
+
+**Migration Strategy:**
+- Old `role='admin'` → Admin role
+- Old `role='user'` → Member role
+- First admin per agency → Owner (prioritizing @diiiploy.io)
+- Old role column preserved for safety
+
+### Files Created
+
+```
+supabase/migrations/20260106_multi_org_roles.sql      - Schema migration
+supabase/migrations/20260106_seed_rbac_data.sql       - Data seeding
+supabase/migrations/README.md                          - Migration guide
+```
+
+### Next Sprint (Tasks 6-15)
+
+**Permission Service Layer (TASK-006 to TASK-010):**
+- Create PermissionService class with caching
+- Implement getUserPermissions() with role resolution
+- Build checkPermission() with hierarchy
+- Create permission caching layer
+- Implement effective permission calculation
+
+**API Middleware (TASK-011 to TASK-015):**
+- Create withPermission() middleware wrapper
+- Implement permission denial logging
+- Add client-scoped permission checking
+- Create error response standardization
+- Apply middleware to existing API routes
+
+---
+
 *Session ended: 2026-01-06*
-*Next session: Continue with Multi-Org Roles or wait for Trevor's PR*
+*Next session: Continue with Permission Service Layer (Sprint 2) or wait for Trevor's PR*

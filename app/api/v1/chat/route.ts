@@ -248,6 +248,11 @@ async function handleCasualRoute(
 
   const systemPrompt = `You are an AI assistant for AudienceOS Command Center.
 You help agency teams manage their clients, view performance data, and navigate the app.
+
+When using information from web search, include inline citation markers like [1], [2], [3] in the text.
+Each citation number should reference a source you found.
+Example: "Google Ads typically has higher CTR [1] than Meta Ads in search campaigns [2]."
+
 Be concise and helpful. This query was classified as: ${route}`;
 
   // Build request config
