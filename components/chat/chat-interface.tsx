@@ -1269,6 +1269,14 @@ function MessageContent({
       return `<cite-marker data-index="${sequentialIndex}"></cite-marker>`
     })
 
+    console.log('[MessageContent] Preprocessing:', {
+      originalHadMarkers: citationRegex.test(content),
+      markersFound: content.match(citationRegex),
+      citationCount,
+      resultSample: result.substring(0, 200),
+      hasCiteMarkers: result.includes('<cite-marker')
+    })
+
     return result
   }, [content])
 
@@ -1282,6 +1290,7 @@ function MessageContent({
       // Render cite-marker as CitationBadge
       "cite-marker": ({ "data-index": dataIndex }: { "data-index"?: string }) => {
         const index = parseInt(dataIndex || "1", 10)
+        console.log(`[cite-marker component] Rendering cite-marker with dataIndex=${dataIndex}, parsed index=${index}`)
         return (
           <CitationBadge
             index={index}

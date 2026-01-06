@@ -185,10 +185,20 @@ class PermissionService {
       // Handle permission hierarchy
       if (this.hasActionPermission(perm.action, action)) {
         // If permission is client-scoped, check client ID
-        if (perm.source === 'client_access' && clientId) {
-          if (perm.clientId === clientId) {
-            return true;
+        if (perm.source === 'client_access') {
+          // For specific client checks (e.g., GET /clients/:id)
+          if (clientId !== undefined) {
+            // Only return true if this specific client matches
+            // Continue checking other permissions if no match
+            if (perm.clientId === clientId) {
+              return true;
+            }
+            // Don't return false yet - might have other client_access permissions
+            continue;
           }
+          // For listing (e.g., GET /clients) - allow if user has ANY client_access
+          // RLS will filter results to only their assigned clients
+          return true;
         } else if (perm.source === 'role') {
           // Role permissions are not client-scoped
           return true;
