@@ -499,15 +499,17 @@ WHERE r.agency_id = u.agency_id
 AND r.name = 'Admin'
 AND u.role_id IS NULL;
 
--- Set first user in each agency as Owner
+-- Set first user in each agency as Owner (by created_at timestamp)
 UPDATE "user" u
 SET role_id = r.id, is_owner = true
 FROM role r
 WHERE r.agency_id = u.agency_id
 AND r.name = 'Owner'
 AND u.id = (
-  SELECT MIN(id) FROM "user" u2
+  SELECT id FROM "user" u2
   WHERE u2.agency_id = u.agency_id
+  ORDER BY created_at ASC
+  LIMIT 1
 )
 AND NOT u.is_owner;
 
