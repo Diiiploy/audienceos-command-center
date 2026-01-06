@@ -81,6 +81,33 @@
 
 ---
 
+## 📊 Session Summary (2026-01-06 - Continued)
+
+### Database Team Setup
+
+**6. Diiiploy Team Added to Database ✅**
+- **What:** Replaced mock data with real Diiiploy team members
+- **Why:** User requested actual team data for development
+- **Implementation:**
+  - Created `scripts/add-diiiploy-team.ts` using Supabase Admin API
+  - Used service role key to bypass RLS
+  - Created auth users with `admin.createUser()` (auto-confirmed emails)
+  - Inserted corresponding app user records
+- **Team Members:**
+  1. roderic@diiiploy.io (Roderic Andrews) - admin
+  2. brent@diiiploy.io (Brent CEO) - admin
+  3. chase@diiiploy.io (Chase Dimond) - admin
+  4. rod@diiiploy.io (Rod Khleif) - admin
+  5. trevor@diiiploy.io (Trevor Developer) - admin
+- **Credentials:** Temporary password `Diiiploy2026!` for all accounts
+- **Learnings:**
+  - Chi-gateway can't create users (anon key, RLS blocks)
+  - Must use Supabase Admin API with service role
+  - Role enum only has "admin" and "user" (no "owner")
+- **Status:** ✅ All 5 team members in database and ready to use
+
+---
+
 ## 📊 Session Summary (2026-01-05 - Continued)
 
 ### Runtime-First Verification Session

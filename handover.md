@@ -132,5 +132,47 @@ RUNBOOK.md                                - Work assignments, status
 
 ---
 
+## Session 2026-01-06 (Continued)
+
+### Completed This Session
+
+**6. Diiiploy Team Database Setup ✅**
+- User requested real Diiiploy team data instead of mock test accounts
+- Created server-side script: `scripts/add-diiiploy-team.ts`
+- Used Supabase Admin API to create auth users + app records
+- Successfully added all 5 team members:
+  - roderic@diiiploy.io (Roderic Andrews) - admin
+  - brent@diiiploy.io (Brent CEO) - admin
+  - chase@diiiploy.io (Chase Dimond) - admin
+  - rod@diiiploy.io (Rod Khleif) - admin
+  - trevor@diiiploy.io (Trevor Developer) - admin
+- Temporary password: `Diiiploy2026!` (users should change on first login)
+- Agency: Diiiploy (ID: `11111111-1111-1111-1111-111111111111`)
+
+**Key Learning:**
+- Cannot insert users directly via chi-gateway (anon key, RLS blocks)
+- Must use Supabase Admin API (`admin.createUser()`) with service role key
+- Script located at `scripts/add-diiiploy-team.ts` for future reference
+- Role "owner" doesn't exist in enum - only "admin" and "user"
+
+### Files Created This Session
+
+```
+scripts/add-diiiploy-team.ts  - Team member creation script (new)
+```
+
+### Database State
+
+**Before:**
+- 7 test accounts (e2e.tester, test@audienceos.dev, etc.)
+- No real team members
+
+**After:**
+- 7 test accounts (unchanged)
+- 5 real Diiiploy team members (all @diiiploy.io)
+- Total: 12 users in database
+
+---
+
 *Session ended: 2026-01-06*
 *Next session: Continue with Multi-Org Roles or wait for Trevor's PR*
