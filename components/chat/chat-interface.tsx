@@ -74,6 +74,7 @@ export function ChatInterface({
   const [panelHeight, setPanelHeight] = useState(60)
   const [isDragging, setIsDragging] = useState(false)
   const dragStartRef = useRef<{ y: number; height: number } | null>(null)
+  const [isInputFocused, setIsInputFocused] = useState(false)
 
   // Chat state
   const [messages, setMessages] = useState<ChatMessageType[]>([])
@@ -169,10 +170,15 @@ export function ChatInterface({
 
   // Handle input focus - opens panel
   const handleInputFocus = () => {
+    setIsInputFocused(true)
     if (!isPanelOpen) {
       setIsPanelOpen(true)
       setIsClosing(false)
     }
+  }
+
+  const handleInputBlur = () => {
+    setIsInputFocused(false)
   }
 
   // Close panel with animation
@@ -349,7 +355,7 @@ export function ChatInterface({
               maxWidth: MAX_PANEL_WIDTH,
               height: `${panelHeight}vh`,
               maxHeight: "85vh",
-              bottom: "65px", // Slides up from behind input bar
+              bottom: "75px", // Slides up from behind input bar (increased from 65px)
               left: "50%",
               transform: "translateX(-50%) scale(0.90)",
               transformOrigin: "bottom center",
@@ -375,19 +381,10 @@ export function ChatInterface({
                 <div className={`w-12 h-1 rounded-full pointer-events-none transition-colors ${isDragging ? "bg-blue-500" : "bg-gray-300 group-hover:bg-gray-400"}`} />
               </div>
 
-              {/* Close Button */}
-              <button
-                onClick={closePanel}
-                className="absolute top-2.5 right-2 text-gray-500 hover:text-gray-700 transition-colors p-1 rounded hover:bg-black/5"
-                title="Close"
-              >
-                <X className="w-4 h-4" />
-              </button>
-
-              {/* Expand Button */}
+              {/* Expand Button - Top Right Corner */}
               <button
                 onClick={() => setPanelHeight(panelHeight === 85 ? 50 : 85)}
-                className="absolute top-2.5 right-10 text-gray-500 hover:text-gray-700 transition-colors p-1 rounded hover:bg-black/5"
+                className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 transition-colors p-1 rounded hover:bg-black/5"
                 title={panelHeight === 85 ? "Minimize" : "Expand"}
               >
                 {panelHeight === 85 ? (
@@ -523,10 +520,11 @@ export function ChatInterface({
           borderRadius: "20px",
           boxShadow: "0 4px 24px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.15)",
           padding: "12px 16px",
+          pointerEvents: isInputFocused || isPanelOpen ? "auto" : "none", // Pass through clicks when not in use
         }}
       >
         {/* Stacked Buttons */}
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5" style={{ pointerEvents: "auto" }}>
           <button
             className="w-8 h-8 rounded-md border border-black/10 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:border-black/20 hover:bg-black/5 transition-colors cursor-pointer"
             title="Chat History"
@@ -550,7 +548,9 @@ export function ChatInterface({
           onChange={handleTextareaChange}
           onKeyDown={handleKeyDown}
           onFocus={handleInputFocus}
+          onBlur={handleInputBlur}
           disabled={isLoading}
+          style={{ pointerEvents: "auto" }}
           className="flex-1 min-h-[48px] max-h-[120px] p-3 bg-white/20 border border-white/30 rounded-xl text-gray-900 text-[14px] leading-[1.5] resize-none outline-none transition-colors placeholder:text-gray-600 focus:border-white/40 hover:border-white/35 backdrop-blur-sm"
         />
 
@@ -558,6 +558,7 @@ export function ChatInterface({
         <button
           onClick={handleSend}
           disabled={isLoading || !inputValue.trim()}
+          style={{ pointerEvents: "auto" }}
           className={cn(
             "w-12 h-12 rounded-xl border flex items-center justify-center transition-all cursor-pointer",
             isLoading || !inputValue.trim()

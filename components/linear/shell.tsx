@@ -41,7 +41,7 @@ export function LinearShell({
   return (
     <div className="flex h-screen bg-background text-foreground">
       <LinearSidebar activeView={activeView} onViewChange={onViewChange} onQuickCreate={onQuickCreate} user={user} />
-      <main className="flex-1 flex flex-col overflow-hidden pb-[70px]">{children}</main>
+      <main className="flex-1 flex flex-col overflow-hidden pb-[110px]">{children}</main>
       <AnimatePresence mode="wait">
         {showDetailPanel && (
           <motion.aside
@@ -50,7 +50,7 @@ export function LinearShell({
             animate={{ width: 480, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={slideTransition}
-            className="bg-card border-l border-border flex flex-col overflow-hidden pb-[70px]"
+            className="bg-card border-l border-border flex flex-col overflow-hidden pb-[110px]"
           >
             {detailPanel}
           </motion.aside>
