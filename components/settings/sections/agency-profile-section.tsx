@@ -74,7 +74,9 @@ export function AgencyProfileSection() {
       setIsLoading(true)
       setError(null)
 
-      const response = await fetch('/api/v1/settings/agency')
+      const response = await fetch('/api/v1/settings/agency', {
+        credentials: 'include',
+      })
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
         throw new Error(errorData.error || 'Failed to load agency settings')

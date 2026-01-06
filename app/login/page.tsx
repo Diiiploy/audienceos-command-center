@@ -53,6 +53,7 @@ export default function LoginPage() {
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
+              data-testid="login-email"
               type="email"
               placeholder="you@agency.com"
               value={email}
@@ -66,6 +67,7 @@ export default function LoginPage() {
             <Label htmlFor="password">Password</Label>
             <Input
               id="password"
+              data-testid="login-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -75,12 +77,12 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div className="text-sm text-red-500 bg-red-50 p-3 rounded-md">
+            <div data-testid="login-error" className="text-sm text-red-500 bg-red-50 p-3 rounded-md">
               {error}
             </div>
           )}
 
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" data-testid="login-submit" className="w-full" disabled={loading}>
             {loading ? "Signing in..." : "Sign in"}
           </Button>
         </form>

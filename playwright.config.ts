@@ -1,5 +1,9 @@
 import { defineConfig, devices } from '@playwright/test'
 
+// Support environment switching for local vs production testing
+const testEnv = process.env.TEST_ENV || 'local'
+const isProduction = testEnv === 'production'
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -8,7 +12,10 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:3000',
+    // Dynamic baseURL based on environment
+    baseURL: isProduction
+      ? 'https://audienceos-agro-bros.vercel.app'
+      : 'http://localhost:3000',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
@@ -18,7 +25,8 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: {
+  // Only start dev server for local testing
+  webServer: isProduction ? undefined : {
     command: 'npm run dev',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,

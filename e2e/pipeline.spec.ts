@@ -1,13 +1,10 @@
 import { test, expect } from '@playwright/test'
+import { login } from './helpers/auth'
 
 test.describe('Pipeline View', () => {
   test.beforeEach(async ({ page }) => {
-    // Login first
-    await page.goto('/login')
-    await page.fill('input[type="email"], input[placeholder*="email" i]', 'test@audienceos.com')
-    await page.fill('input[type="password"]', 'TestPassword123!')
-    await page.click('button[type="submit"], button:has-text("Sign in")')
-    await expect(page).toHaveURL('/', { timeout: 10000 })
+    // Login using helper
+    await login(page)
   })
 
   test('displays pipeline stages', async ({ page }) => {

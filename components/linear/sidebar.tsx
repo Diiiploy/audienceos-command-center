@@ -300,7 +300,7 @@ export function LinearSidebar({
       </nav>
 
       {/* User Profile Footer - clickable to open settings */}
-      <div className="p-3 border-t border-sidebar-border">
+      <div className="p-3 border-t border-sidebar-border" data-testid="user-profile">
         {collapsed ? (
           <button
             onClick={() => onViewChange("settings")}

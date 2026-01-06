@@ -171,6 +171,7 @@ export function Sidebar({ activeView, onViewChange, collapsed, onCollapsedChange
       {/* User Profile - clickable to open settings */}
       <div className="p-3 border-t border-border">
         <button
+          data-testid="user-profile"
           onClick={() => onViewChange("settings")}
           className={cn(
             "flex items-center gap-2.5 w-full hover:bg-accent/50 rounded-md p-1.5 -m-1.5 transition-colors cursor-pointer",
