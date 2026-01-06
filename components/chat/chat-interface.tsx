@@ -12,6 +12,7 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import ReactMarkdown from "react-markdown"
+import rehypeRaw from "rehype-raw"
 import {
   MessageSquare,
   Send,
@@ -297,12 +298,12 @@ export function ChatInterface({
       existingStyle.setAttribute(refCountAttr, "1")
       existingStyle.textContent = `
         @keyframes slideUp {
-          from { transform: translateY(100%); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
+          from { transform: translateX(-50%) translateY(100%) scale(0.90); opacity: 0; }
+          to { transform: translateX(-50%) translateY(0) scale(0.90); opacity: 1; }
         }
         @keyframes slideDown {
-          from { transform: translateY(0); opacity: 1; }
-          to { transform: translateY(100%); opacity: 0; }
+          from { transform: translateX(-50%) translateY(0) scale(0.90); opacity: 1; }
+          to { transform: translateX(-50%) translateY(100%) scale(0.90); opacity: 0; }
         }
       `
       document.head.appendChild(existingStyle)
@@ -341,15 +342,17 @@ export function ChatInterface({
 
           {/* Message Panel - iOS Liquid Glass style (light theme) */}
           <div
-            className="fixed left-1/2 z-[9999] flex flex-col"
+            className="z-[9999] flex flex-col"
             style={{
+              position: "fixed",
               width: PANEL_WIDTH,
               maxWidth: MAX_PANEL_WIDTH,
               height: `${panelHeight}vh`,
               maxHeight: "85vh",
-              bottom: "88px", // Above the chat bar
+              bottom: "82px", // Above the chat bar (matches HGC)
               left: "50%",
-              transform: "translateX(-50%)",
+              transform: "translateX(-50%) scale(0.90)",
+              transformOrigin: "bottom center",
               background: "rgba(255, 255, 255, 0.85)",
               backdropFilter: "blur(40px) saturate(180%)",
               WebkitBackdropFilter: "blur(40px) saturate(180%)",
@@ -504,13 +507,15 @@ export function ChatInterface({
 
       {/* PERSISTENT CHAT BAR - iOS Liquid Glass style (light theme) */}
       <div
-        className="fixed left-1/2 flex items-center gap-3 z-[10000]"
+        className="flex items-center gap-3 z-[10000]"
         style={{
+          position: "fixed",
           width: PANEL_WIDTH,
           maxWidth: MAX_PANEL_WIDTH,
-          bottom: "16px", // 16px from bottom of viewport
+          bottom: "10px", // 10px from bottom (matches HGC)
           left: "50%",
-          transform: "translateX(-50%)",
+          transform: "translateX(-50%) scale(0.90)",
+          transformOrigin: "bottom center",
           background: "rgba(255, 255, 255, 0.72)",
           backdropFilter: "blur(40px) saturate(180%)",
           WebkitBackdropFilter: "blur(40px) saturate(180%)",
@@ -577,12 +582,16 @@ export function ChatInterface({
 function CitationBadge({
   index,
   citation,
+  onCitationClick,
 }: {
   index: number
   citation?: Citation
+  onCitationClick?: (citation?: Citation) => void
 }) {
   const handleClick = () => {
-    if (citation?.url) {
+    if (onCitationClick) {
+      onCitationClick(citation)
+    } else if (citation?.url) {
       window.open(citation.url, "_blank", "noopener,noreferrer")
     }
   }
@@ -609,6 +618,7 @@ function CitationBadge({
 
 /**
  * MessageContent - Renders markdown content with inline citations
+ * Uses cite-marker HTML approach (HGC pattern) to preserve markdown structure
  */
 function MessageContent({
   content,
@@ -635,58 +645,56 @@ function MessageContent({
     return undefined
   }, [citations])
 
-  const renderContent = useMemo(() => {
+  const onCitationClick = useCallback((citation?: Citation) => {
+    if (citation?.url) {
+      window.open(citation.url, "_blank", "noopener,noreferrer")
+    }
+  }, [])
+
+  // Pre-process content: replace [1], [2], [1.2] with HTML cite-marker elements
+  // Use sequential numbering to normalize Gemini's decimal format
+  const processedContent = useMemo(() => {
     const citationRegex = /\[(\d+(?:\.\d+)?)\]/g
-    const elements: React.ReactNode[] = []
-    let lastIndex = 0
-    let match
-    let sequentialIndex = 1
+    let sequentialIndex = 0
+    let citationCount = 0
 
-    while ((match = citationRegex.exec(content)) !== null) {
-      const textBefore = content.slice(lastIndex, match.index)
-
-      if (textBefore) {
-        elements.push(
-          <ReactMarkdown
-            key={`text-${elements.length}`}
-            allowedElements={SAFE_MARKDOWN_ELEMENTS}
-            unwrapDisallowed
-            components={{ p: ({ children }) => <>{children}</> }}
-          >
-            {textBefore}
-          </ReactMarkdown>
-        )
-      }
-
-      elements.push(
-        <CitationBadge
-          key={`cite-${elements.length}`}
-          index={sequentialIndex}
-          citation={getCitation(sequentialIndex)}
-        />
-      )
-
+    const result = content.replace(citationRegex, (match) => {
       sequentialIndex++
-      lastIndex = match.index + match[0].length
-    }
+      citationCount++
+      return `<cite-marker data-index="${sequentialIndex}"></cite-marker>`
+    })
 
-    if (lastIndex < content.length) {
-      elements.push(
-        <ReactMarkdown
-          key={`text-${elements.length}`}
-          allowedElements={SAFE_MARKDOWN_ELEMENTS}
-          unwrapDisallowed
-          components={{ p: ({ children }) => <>{children}</> }}
-        >
-          {content.slice(lastIndex)}
-        </ReactMarkdown>
-      )
-    }
+    return result
+  }, [content])
 
-    return elements
-  }, [content, getCitation])
+  // Custom components for ReactMarkdown
+  const components = useMemo(
+    () => ({
+      // Render cite-marker as CitationBadge
+      "cite-marker": ({ "data-index": dataIndex }: { "data-index"?: string }) => {
+        const index = parseInt(dataIndex || "1", 10)
+        return (
+          <CitationBadge
+            index={index}
+            citation={getCitation(index)}
+            onCitationClick={onCitationClick}
+          />
+        )
+      },
+    }),
+    [getCitation, onCitationClick]
+  )
 
-  return <>{renderContent}</>
+  return (
+    <ReactMarkdown
+      allowedElements={[...SAFE_MARKDOWN_ELEMENTS, "cite-marker"]}
+      unwrapDisallowed
+      rehypePlugins={[rehypeRaw]}
+      components={components}
+    >
+      {processedContent}
+    </ReactMarkdown>
+  )
 }
 
 /**

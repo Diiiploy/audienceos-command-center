@@ -34,6 +34,19 @@ This file contains:
 
 ---
 
+## 📋 ALWAYS CHECK RUNBOOK FIRST
+
+**Before starting ANY work session:**
+
+1. Read `RUNBOOK.md` for current operational state
+2. Check deployment URLs (we use Vercel ONLY, not localhost)
+3. Verify service status and configuration
+4. Check for any blockers or known issues
+
+**Current Deployment:** https://audienceos-agro-bros.vercel.app
+
+---
+
 ## Project Status
 
 | Aspect | Status | Last Updated |

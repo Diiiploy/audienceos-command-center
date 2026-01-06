@@ -40,12 +40,11 @@ npm run dev
 
 | Environment | URL | Status |
 |-------------|-----|---------|
-| Local | http://localhost:3000 | ✅ Working |
-| Staging | https://command-center-linear-git-staging-growthpigs.vercel.app | ✅ Deployed |
-| Production | https://command-center-linear.vercel.app | ✅ Deployed |
+| Local | http://localhost:3000 | ⚠️ NOT USED (we use Vercel only) |
+| Production | https://audienceos-agro-bros.vercel.app | ✅ Deployed |
 
-**Vercel Project:** `command_center_linear`
-**Vercel Team:** `growthpigs`
+**Vercel Project:** `audienceos-agro-bros`
+**Vercel Team:** TBD
 
 ## Repository
 
