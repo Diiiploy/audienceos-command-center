@@ -237,7 +237,7 @@ export function ChatInterface({
     e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"
   }
 
-  // Core chat function
+  // Core chat function with SSE streaming support (Phase 2)
   const sendChatMessage = async (messageContent: string) => {
     const userMessage: ChatMessageType = {
       id: crypto.randomUUID(),
@@ -260,6 +260,7 @@ export function ChatInterface({
           sessionId,
           agencyId,
           userId,
+          stream: true, // Enable SSE streaming
         }),
       })
 
@@ -267,29 +268,36 @@ export function ChatInterface({
         throw new Error(`API error: ${response.status}`)
       }
 
-      const data = await response.json()
+      // Check if response is SSE stream
+      const contentType = response.headers.get('content-type')
+      if (contentType?.includes('text/event-stream')) {
+        // SSE streaming response
+        await handleStreamingResponse(response)
+      } else {
+        // Fallback to JSON response (backwards compatibility)
+        const data = await response.json()
 
-      if (data.error) {
-        throw new Error(data.error)
+        if (data.error) {
+          throw new Error(data.error)
+        }
+
+        const messageData = data.message
+        if (!messageData) {
+          throw new Error('Invalid API response: missing message data')
+        }
+
+        const assistantMessage: ChatMessageType = {
+          id: messageData.id || crypto.randomUUID(),
+          role: "assistant",
+          content: messageData.content || "I received your message.",
+          timestamp: messageData.timestamp ? new Date(messageData.timestamp) : new Date(),
+          route: messageData.route,
+          citations: messageData.citations || [],
+          suggestions: messageData.suggestions,
+        }
+
+        setMessages((prev) => [...prev, assistantMessage])
       }
-
-      // API returns nested structure: { message: {...}, sessionId: "..." }
-      const messageData = data.message
-      if (!messageData) {
-        throw new Error('Invalid API response: missing message data')
-      }
-
-      const assistantMessage: ChatMessageType = {
-        id: messageData.id || crypto.randomUUID(),
-        role: "assistant",
-        content: messageData.content || "I received your message.",
-        timestamp: messageData.timestamp ? new Date(messageData.timestamp) : new Date(),
-        route: messageData.route,
-        citations: messageData.citations || [],
-        suggestions: messageData.suggestions,
-      }
-
-      setMessages((prev) => [...prev, assistantMessage])
     } catch (error) {
       console.error("Chat error:", error)
       const errorMessage: ChatMessageType = {
@@ -302,6 +310,86 @@ export function ChatInterface({
       setMessages((prev) => [...prev, errorMessage])
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  // SSE stream handler (Phase 2)
+  const handleStreamingResponse = async (response: Response) => {
+    const reader = response.body?.getReader()
+    if (!reader) {
+      throw new Error('Response body is not readable')
+    }
+
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let streamedContent = ''
+    let metadata: { route?: RouteType; sessionId?: string } = {}
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+
+        if (done) {
+          break
+        }
+
+        // Decode chunk and add to buffer
+        buffer += decoder.decode(value, { stream: true })
+
+        // Process complete SSE events (format: "data: {...}\n\n")
+        const events = buffer.split('\n\n')
+        buffer = events.pop() || '' // Keep incomplete event in buffer
+
+        for (const event of events) {
+          if (!event.startsWith('data: ')) continue
+
+          const data = event.slice(6) // Remove "data: " prefix
+
+          try {
+            const parsed = JSON.parse(data)
+
+            switch (parsed.type) {
+              case 'metadata':
+                // Store metadata for final message
+                metadata.route = parsed.route
+                metadata.sessionId = parsed.sessionId
+                break
+
+              case 'content':
+                // Accumulate content and trigger streaming display
+                streamedContent += parsed.content
+                streaming.processChunk({ type: 'content', content: parsed.content })
+                break
+
+              case 'complete':
+                // Final message with citations
+                const messageData = parsed.message
+                const assistantMessage: ChatMessageType = {
+                  id: messageData.id || crypto.randomUUID(),
+                  role: "assistant",
+                  content: messageData.content || streamedContent,
+                  timestamp: messageData.timestamp ? new Date(messageData.timestamp) : new Date(),
+                  route: messageData.route || metadata.route,
+                  citations: messageData.citations || [],
+                  suggestions: messageData.suggestions,
+                }
+
+                setMessages((prev) => [...prev, assistantMessage])
+                break
+
+              case 'error':
+                throw new Error(parsed.error || 'Streaming error')
+
+              default:
+                console.warn('[SSE] Unknown event type:', parsed.type)
+            }
+          } catch (parseError) {
+            console.error('[SSE] Failed to parse event:', data, parseError)
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock()
     }
   }
 
