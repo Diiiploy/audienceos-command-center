@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
   try {
     // 1. Parse request body
     const body = await request.json();
-    const { message, sessionId, agencyId, userId } = body;
+    const { message, sessionId, agencyId, userId, stream = false } = body;
 
     if (!message) {
       return NextResponse.json(
@@ -60,20 +60,87 @@ export async function POST(request: NextRequest) {
       responseContent = await handleCasualRoute(apiKey, message, route);
     }
 
-    // 5. Return response
-    return NextResponse.json({
-      message: {
-        id: `msg-${Date.now()}`,
-        role: 'assistant',
-        content: responseContent,
-        timestamp: new Date().toISOString(),
-        route,
-        routeConfidence,
-        functionCalls: functionCalls.length > 0 ? functionCalls : undefined,
-        citations: [],
-      },
-      sessionId: sessionId || `session-${Date.now()}`,
-    });
+    // 5. Return response (streaming or JSON)
+    if (stream === true) {
+      // PHASE 1: SSE Streaming Support (backwards compatible)
+      const encoder = new TextEncoder();
+
+      const readable = new ReadableStream({
+        async start(controller) {
+          try {
+            // Send initial metadata
+            const metadata = JSON.stringify({
+              type: 'metadata',
+              route,
+              routeConfidence,
+              sessionId: sessionId || `session-${Date.now()}`,
+            });
+            controller.enqueue(encoder.encode(`data: ${metadata}\n\n`));
+
+            // Stream content in chunks (simulate streaming for now - Phase 2 will add real streaming)
+            const chunkSize = 50;
+            for (let i = 0; i < responseContent.length; i += chunkSize) {
+              const chunk = responseContent.slice(i, i + chunkSize);
+              const chunkData = JSON.stringify({
+                type: 'content',
+                content: chunk,
+              });
+              controller.enqueue(encoder.encode(`data: ${chunkData}\n\n`));
+
+              // Small delay to simulate streaming
+              await new Promise(resolve => setTimeout(resolve, 20));
+            }
+
+            // Send completion
+            const completeData = JSON.stringify({
+              type: 'complete',
+              message: {
+                id: `msg-${Date.now()}`,
+                role: 'assistant',
+                content: responseContent,
+                timestamp: new Date().toISOString(),
+                route,
+                routeConfidence,
+                functionCalls: functionCalls.length > 0 ? functionCalls : undefined,
+                citations: [],
+              },
+            });
+            controller.enqueue(encoder.encode(`data: ${completeData}\n\n`));
+            controller.close();
+          } catch (error) {
+            const errorData = JSON.stringify({
+              type: 'error',
+              error: error instanceof Error ? error.message : 'Streaming failed',
+            });
+            controller.enqueue(encoder.encode(`data: ${errorData}\n\n`));
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(readable, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      });
+    } else {
+      // Existing JSON response (unchanged - Phase 1 backwards compatibility)
+      return NextResponse.json({
+        message: {
+          id: `msg-${Date.now()}`,
+          role: 'assistant',
+          content: responseContent,
+          timestamp: new Date().toISOString(),
+          route,
+          routeConfidence,
+          functionCalls: functionCalls.length > 0 ? functionCalls : undefined,
+          citations: [],
+        },
+        sessionId: sessionId || `session-${Date.now()}`,
+      });
+    }
 
   } catch (error) {
     console.error('[Chat API] Error:', error);

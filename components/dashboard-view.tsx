@@ -513,7 +513,7 @@ function TaskDetailDrawer({
   }
 
   return (
-    <div className="flex flex-col h-full bg-card border-l border-border">
+    <div className="flex flex-col h-full bg-card border-l border-b border-border">
       <header className="flex items-center justify-between p-4 border-b border-border">
         <div className="flex items-center gap-2 min-w-0">
           <CheckSquare className="w-4 h-4 text-primary shrink-0" />
@@ -600,7 +600,7 @@ function ClientDetailDrawer({
   const ownerData = getOwnerData(client.owner)
 
   return (
-    <div className="flex flex-col h-full bg-card border-l border-border">
+    <div className="flex flex-col h-full bg-card border-l border-b border-border">
       <header className="flex items-center justify-between p-4 border-b border-border">
         <div className="flex items-center gap-2 min-w-0">
           <div className={cn("w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-white", ownerData?.color || "bg-gray-500")}>
@@ -728,7 +728,7 @@ function AlertDetailDrawer({
   }
 
   return (
-    <div className="flex flex-col h-full bg-card border-l border-border">
+    <div className="flex flex-col h-full bg-card border-l border-b border-border">
       <header className="flex items-center justify-between p-4 border-b border-border">
         <div className="flex items-center gap-2 min-w-0">
           <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
@@ -812,7 +812,7 @@ function PerformanceDetailDrawer({
   }
 
   return (
-    <div className="flex flex-col h-full bg-card border-l border-border">
+    <div className="flex flex-col h-full bg-card border-l border-b border-border">
       <header className="flex items-center justify-between p-4 border-b border-border">
         <div className="flex items-center gap-2 min-w-0">
           <TrendingUp className="w-4 h-4 text-primary shrink-0" />

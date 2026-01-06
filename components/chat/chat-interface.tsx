@@ -12,6 +12,7 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import ReactMarkdown from "react-markdown"
+import * as ReactDOM from "react-dom"
 import rehypeRaw from "rehype-raw"
 import {
   MessageSquare,
@@ -26,6 +27,7 @@ import {
   MessageCircle,
   LayoutDashboard,
   X,
+  ExternalLink,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useStreamingText } from "./use-streaming-text"
@@ -82,10 +84,20 @@ export function ChatInterface({
   const [isLoading, setIsLoading] = useState(false)
   const [sessionId] = useState(() => crypto.randomUUID()) // Generate session ID once
 
+  // File upload state
+  const [uploadProgress, setUploadProgress] = useState<{
+    stage: "idle" | "uploading" | "processing" | "complete" | "error"
+    progress: number
+    message: string
+    fileName?: string
+  }>({ stage: "idle", progress: 0, message: "" })
+  const [isDragOver, setIsDragOver] = useState(false)
+
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Streaming text hook
   const streaming = useStreamingText({ charsPerSecond: 40 })
@@ -264,6 +276,185 @@ export function ChatInterface({
       setIsLoading(false)
     }
   }
+
+  // File upload handlers - ported from Holy Grail Chat
+  const SUPPORTED_TYPES = [
+    "application/pdf",
+    "text/plain",
+    "text/csv",
+    "text/html",
+    "application/json",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "image/png",
+    "image/jpeg",
+    "image/gif",
+    "image/webp",
+  ]
+  const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
+
+  const handleFileSelect = useCallback(
+    async (files: FileList | File[]) => {
+      const fileArray = Array.from(files)
+      if (fileArray.length === 0) return
+
+      // Prevent multiple simultaneous uploads
+      if (uploadProgress.stage === "uploading") {
+        console.warn("[File Upload] Upload already in progress, ignoring new file")
+        return
+      }
+
+      // Handle one file at a time
+      const file = fileArray[0]
+
+      // Validate file type
+      if (!SUPPORTED_TYPES.includes(file.type) && !file.name.endsWith(".md")) {
+        setUploadProgress({
+          stage: "error",
+          progress: 0,
+          message: `Unsupported file type: ${file.type || "unknown"}. Supported: PDF, TXT, CSV, HTML, JSON, DOCX, XLSX, MD, PNG, JPG, GIF, WebP`,
+          fileName: file.name,
+        })
+        return
+      }
+
+      // Validate file size
+      if (file.size > MAX_FILE_SIZE) {
+        setUploadProgress({
+          stage: "error",
+          progress: 0,
+          message: `File too large: ${(file.size / 1024 / 1024).toFixed(1)}MB. Max: 50MB`,
+          fileName: file.name,
+        })
+        return
+      }
+
+      // Validate not empty
+      if (file.size === 0) {
+        setUploadProgress({
+          stage: "error",
+          progress: 0,
+          message: "Cannot upload empty file",
+          fileName: file.name,
+        })
+        return
+      }
+
+      // Start upload
+      setUploadProgress({
+        stage: "uploading",
+        progress: 10,
+        message: "Uploading...",
+        fileName: file.name,
+      })
+
+      try {
+        const formData = new FormData()
+        formData.append("file", file)
+        formData.append(
+          "metadata",
+          JSON.stringify({
+            agencyId,
+            displayName: file.name,
+            uploadedBy: userId,
+            scope: "global",
+            tags: [],
+          })
+        )
+
+        setUploadProgress({
+          stage: "uploading",
+          progress: 30,
+          message: "Sending to server...",
+          fileName: file.name,
+        })
+
+        // AOS uses /api/v1/documents/ instead of /api/rag
+        const response = await fetch("/api/v1/documents/", {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+        })
+
+        if (!response.ok) {
+          throw new Error(`Upload failed: ${response.status} ${response.statusText}`)
+        }
+
+        const result = await response.json()
+
+        if (result.success || result.id) {
+          setUploadProgress({
+            stage: "complete",
+            progress: 100,
+            message: `"${file.name}" uploaded successfully!`,
+            fileName: file.name,
+          })
+
+          // Auto-dismiss after 3 seconds
+          setTimeout(() => {
+            setUploadProgress({ stage: "idle", progress: 0, message: "" })
+          }, 3000)
+        } else {
+          throw new Error(result.error || "Upload failed")
+        }
+      } catch (error) {
+        console.error("Upload error:", error)
+        setUploadProgress({
+          stage: "error",
+          progress: 0,
+          message: error instanceof Error ? error.message : "Upload failed. Please try again.",
+          fileName: file.name,
+        })
+      }
+    },
+    [agencyId, userId, uploadProgress.stage]
+  )
+
+  const handleFileInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files) {
+        handleFileSelect(e.target.files)
+        e.target.value = "" // Reset for same file selection
+      }
+    },
+    [handleFileSelect]
+  )
+
+  const handleUploadClick = useCallback(() => {
+    fileInputRef.current?.click()
+  }, [])
+
+  // Drag-and-drop handlers
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(true)
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(false)
+  }, [])
+
+  const handleDragOverFile = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }, [])
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      setIsDragOver(false)
+
+      const files = e.dataTransfer.files
+      if (files.length > 0) {
+        handleFileSelect(files)
+      }
+    },
+    [handleFileSelect]
+  )
 
   // Handle send button / Enter key
   const handleSend = async () => {
@@ -457,6 +648,29 @@ export function ChatInterface({
                     </div>
                   </div>
 
+                  {/* Citations Footer */}
+                  {msg.role === "assistant" && msg.citations && msg.citations.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-black/10 text-xs text-gray-600 space-y-1 max-w-[85%]">
+                      {msg.citations.map((citation, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <span className="text-blue-600 font-medium">[{citation.index || idx + 1}]</span>
+                          <button
+                            onClick={() => {
+                              if (citation.url) {
+                                window.open(citation.url, "_blank", "noopener,noreferrer")
+                              }
+                            }}
+                            className="hover:underline truncate flex items-center gap-1 text-left flex-1"
+                            title={citation.title}
+                          >
+                            <span className="truncate">{citation.title}</span>
+                            <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Suggestion Pills */}
                   {msg.role === "assistant" &&
                     msg.suggestions &&
@@ -532,26 +746,63 @@ export function ChatInterface({
             <MessageSquare className="w-4 h-4" />
           </button>
           <button
-            className="w-8 h-8 rounded-md border border-black/5 flex items-center justify-center text-gray-400 cursor-not-allowed"
-            disabled
-            title="Attachments (coming soon)"
+            onClick={handleUploadClick}
+            disabled={uploadProgress.stage === "uploading"}
+            className={cn(
+              "w-8 h-8 rounded-md border flex items-center justify-center transition-colors cursor-pointer",
+              uploadProgress.stage === "uploading"
+                ? "border-blue-500/30 bg-blue-500/20 text-blue-500 cursor-wait"
+                : "border-black/10 text-gray-500 hover:text-gray-700 hover:border-black/20 hover:bg-black/5"
+            )}
+            title="Upload document (PDF, TXT, DOCX, etc.)"
           >
-            <Paperclip className="w-4 h-4" />
+            {uploadProgress.stage === "uploading" ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Paperclip className="w-4 h-4" />
+            )}
           </button>
         </div>
 
-        {/* Textarea - extra frosted layer */}
-        <textarea
-          ref={textareaRef}
-          placeholder="Ask about clients, alerts, or anything..."
-          value={inputValue}
-          onChange={handleTextareaChange}
-          onKeyDown={handleKeyDown}
-          onFocus={handleInputFocus}
-          onBlur={handleInputBlur}
-          disabled={isLoading}
+        {/* Textarea with drag-and-drop - extra frosted layer */}
+        <div
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOverFile}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className="flex-1 relative"
           style={{ pointerEvents: "auto" }}
-          className="flex-1 min-h-[48px] max-h-[120px] p-3 bg-white/20 border border-white/30 rounded-xl text-gray-900 text-[14px] leading-[1.5] resize-none outline-none transition-colors placeholder:text-gray-600 focus:border-white/40 hover:border-white/35 backdrop-blur-sm"
+        >
+          <textarea
+            ref={textareaRef}
+            placeholder="Ask about clients, alerts, or anything..."
+            value={inputValue}
+            onChange={handleTextareaChange}
+            onKeyDown={handleKeyDown}
+            onFocus={handleInputFocus}
+            onBlur={handleInputBlur}
+            disabled={isLoading}
+            className={cn(
+              "w-full min-h-[48px] max-h-[120px] p-3 bg-white/20 border rounded-xl text-gray-900 text-[14px] leading-[1.5] resize-none outline-none transition-colors placeholder:text-gray-600 backdrop-blur-sm",
+              isDragOver
+                ? "border-blue-500 border-2 bg-blue-500/10"
+                : "border-white/30 focus:border-white/40 hover:border-white/35"
+            )}
+          />
+          {isDragOver && (
+            <div className="absolute inset-0 flex items-center justify-center bg-blue-500/5 rounded-xl pointer-events-none">
+              <div className="text-blue-600 text-sm font-medium">Drop file to upload</div>
+            </div>
+          )}
+        </div>
+
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          onChange={handleFileInputChange}
+          accept=".pdf,.txt,.csv,.html,.json,.docx,.xlsx,.md,.png,.jpg,.jpeg,.gif,.webp"
+          style={{ display: "none" }}
         />
 
         {/* Send Button */}
@@ -573,12 +824,114 @@ export function ChatInterface({
           )}
         </button>
       </div>
+
+      {/* Upload Progress Toast */}
+      {uploadProgress.stage !== "idle" && (
+        <div
+          style={{
+            position: "fixed",
+            top: "20px",
+            right: "20px",
+            zIndex: 10000,
+            background:
+              uploadProgress.stage === "error"
+                ? "rgba(239, 68, 68, 0.95)"
+                : uploadProgress.stage === "complete"
+                  ? "rgba(34, 197, 94, 0.95)"
+                  : "rgba(30, 41, 59, 0.95)",
+            borderRadius: "8px",
+            padding: "8px 16px",
+            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.3)",
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            minWidth: "320px",
+            maxWidth: "480px",
+            backdropFilter: "blur(8px)",
+            lineHeight: "1.2",
+          }}
+        >
+          {uploadProgress.stage === "uploading" && (
+            <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+          )}
+          {uploadProgress.stage === "complete" && (
+            <div style={{ color: "#fff", fontSize: "18px" }}>✓</div>
+          )}
+          {uploadProgress.stage === "error" && (
+            <div style={{ color: "#fff", fontSize: "18px" }}>✕</div>
+          )}
+          <div style={{ flex: 1 }}>
+            {uploadProgress.fileName && (
+              <div
+                style={{
+                  color: "rgba(255, 255, 255, 0.7)",
+                  fontSize: "12px",
+                  marginBottom: "2px",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {uploadProgress.fileName}
+              </div>
+            )}
+            <div
+              style={{
+                color: "#fff",
+                fontSize: "14px",
+                fontWeight: 500,
+              }}
+            >
+              {uploadProgress.message}
+            </div>
+            {uploadProgress.stage === "uploading" && (
+              <div
+                style={{
+                  marginTop: "8px",
+                  height: "4px",
+                  background: "rgba(255, 255, 255, 0.2)",
+                  borderRadius: "2px",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    height: "100%",
+                    width: `${uploadProgress.progress}%`,
+                    background: "rgba(59, 130, 246, 1)",
+                    borderRadius: "2px",
+                    transition: "width 0.3s ease",
+                  }}
+                />
+              </div>
+            )}
+          </div>
+          {uploadProgress.stage === "error" && (
+            <button
+              onClick={() =>
+                setUploadProgress({ stage: "idle", progress: 0, message: "" })
+              }
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "rgba(255, 255, 255, 0.7)",
+                cursor: "pointer",
+                padding: "4px",
+                fontSize: "16px",
+              }}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      )}
     </>
   )
 }
 
 /**
- * CitationBadge - Inline citation marker
+ * CitationBadge - Inline citation marker with tooltip portal
+ * Ported from Holy Grail Chat with dark theme styling
  */
 function CitationBadge({
   index,
@@ -589,6 +942,48 @@ function CitationBadge({
   citation?: Citation
   onCitationClick?: (citation?: Citation) => void
 }) {
+  const [showTooltip, setShowTooltip] = useState(false)
+  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0, showBelow: false })
+  const buttonRef = useRef<HTMLButtonElement>(null)
+
+  // Calculate tooltip position dynamically
+  useEffect(() => {
+    if (!showTooltip || !buttonRef.current) return
+
+    const updatePosition = () => {
+      if (!buttonRef.current) return
+      const rect = buttonRef.current.getBoundingClientRect()
+      const tooltipWidth = 280
+      const tooltipHeight = 120 // Approximate
+
+      // Smart positioning: above or below based on available space
+      const spaceAbove = rect.top
+      const showBelow = spaceAbove < tooltipHeight + 16
+
+      // Center tooltip horizontally over the badge
+      const left = Math.max(
+        8, // Min margin from left edge
+        Math.min(
+          rect.left + rect.width / 2 - tooltipWidth / 2,
+          window.innerWidth - tooltipWidth - 8 // Max margin from right edge
+        )
+      )
+
+      const top = showBelow ? rect.bottom + 8 : rect.top - 8
+
+      setTooltipPos({ top, left, showBelow })
+    }
+
+    updatePosition()
+    window.addEventListener("scroll", updatePosition, true)
+    window.addEventListener("resize", updatePosition)
+
+    return () => {
+      window.removeEventListener("scroll", updatePosition, true)
+      window.removeEventListener("resize", updatePosition)
+    }
+  }, [showTooltip])
+
   const handleClick = () => {
     if (onCitationClick) {
       onCitationClick(citation)
@@ -599,21 +994,97 @@ function CitationBadge({
 
   const hasValidUrl = !!citation?.url
 
+  // Render tooltip via portal (only in browser)
+  const tooltip =
+    showTooltip && typeof document !== "undefined" && citation
+      ? ReactDOM.createPortal(
+          <div
+            id={`citation-tooltip-${index}`}
+            role="tooltip"
+            className="fixed z-[9999999] p-3 rounded-lg text-left shadow-2xl"
+            style={{
+              top: tooltipPos.showBelow ? `${tooltipPos.top}px` : "auto",
+              bottom: tooltipPos.showBelow ? "auto" : `${window.innerHeight - tooltipPos.top}px`,
+              left: `${tooltipPos.left}px`,
+              width: "280px",
+              background: "rgba(17, 24, 39, 0.95)", // Dark theme
+              backdropFilter: "blur(12px)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)",
+            }}
+          >
+            {/* Arrow */}
+            <div
+              className="absolute left-1/2 -translate-x-1/2 w-3 h-3 rotate-45"
+              style={{
+                [tooltipPos.showBelow ? "top" : "bottom"]: "-6px",
+                background: "rgba(17, 24, 39, 0.95)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRight: tooltipPos.showBelow ? "none" : "1px solid rgba(255, 255, 255, 0.1)",
+                borderBottom: tooltipPos.showBelow ? "none" : "1px solid rgba(255, 255, 255, 0.1)",
+                borderTop: tooltipPos.showBelow ? "1px solid rgba(255, 255, 255, 0.1)" : "none",
+                borderLeft: tooltipPos.showBelow ? "1px solid rgba(255, 255, 255, 0.1)" : "none",
+              }}
+            />
+
+            {/* Content */}
+            <div className="relative z-10">
+              <div className="flex items-start gap-2 mb-2">
+                <span className="text-blue-400 font-bold text-sm">[{index}]</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-white text-sm font-medium leading-tight mb-1 line-clamp-2">
+                    {citation.title}
+                  </div>
+                  {citation.url && (
+                    <div className="text-gray-400 text-xs truncate" title={citation.url}>
+                      {citation.url}
+                    </div>
+                  )}
+                </div>
+              </div>
+              {citation.snippet && (
+                <div className="text-gray-300 text-xs leading-relaxed line-clamp-3 mt-2">
+                  {citation.snippet}
+                </div>
+              )}
+              {hasValidUrl && (
+                <button
+                  onClick={handleClick}
+                  className="mt-2 text-blue-400 hover:text-blue-300 text-xs font-medium flex items-center gap-1 transition-colors"
+                >
+                  Open source
+                  <ExternalLink className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          </div>,
+          document.body
+        )
+      : null
+
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      title={citation?.title || `Source ${index}`}
-      className={cn(
-        "inline-flex items-center justify-center w-4 h-4 text-[9px] font-bold rounded-sm mx-0.5 align-middle transition-colors",
-        hasValidUrl
-          ? "bg-green-500/30 text-green-400 border border-green-500/30 hover:bg-green-500/50 cursor-pointer"
-          : "bg-gray-500/30 text-gray-400 border border-gray-500/30 cursor-default"
-      )}
-      style={{ position: "relative", top: "-1px" }}
-    >
-      {index}
-    </button>
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={handleClick}
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+        onFocus={() => setShowTooltip(true)}
+        onBlur={() => setShowTooltip(false)}
+        title={citation?.title || `Source ${index}`}
+        className={cn(
+          "inline-flex items-center justify-center w-4 h-4 text-[9px] font-bold rounded-sm mx-0.5 align-middle transition-colors",
+          hasValidUrl
+            ? "bg-green-500/30 text-green-400 border border-green-500/30 hover:bg-green-500/50 cursor-pointer"
+            : "bg-gray-500/30 text-gray-400 border border-gray-500/30 cursor-default"
+        )}
+        style={{ position: "relative", top: "-1px" }}
+      >
+        {index}
+      </button>
+      {tooltip}
+    </>
   )
 }
 
