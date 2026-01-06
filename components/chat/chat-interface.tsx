@@ -180,6 +180,27 @@ export function ChatInterface({
     }
   }, [messages, agencyId, userId])
 
+  // Expose global method to open chat with pre-filled message
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      (window as any).openChatWithMessage = (message: string) => {
+        setInputValue(message)
+        setIsPanelOpen(true)
+        setIsClosing(false)
+        setIsInputFocused(true)
+        // Focus textarea after state updates
+        setTimeout(() => {
+          textareaRef.current?.focus()
+        }, 100)
+      }
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        delete (window as any).openChatWithMessage
+      }
+    }
+  }, [])
+
   // Handle input focus - opens panel
   const handleInputFocus = () => {
     setIsInputFocused(true)

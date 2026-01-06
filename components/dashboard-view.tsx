@@ -14,7 +14,7 @@ import {
 import { type MinimalClient, getOwnerData } from "@/types/client"
 import { useDashboardStore } from "@/stores/dashboard-store"
 import { cn } from "@/lib/utils"
-import { Clock, AlertCircle, ExternalLink, X, CheckCircle2, CheckSquare, AlertTriangle, TrendingUp } from "lucide-react"
+import { Clock, AlertCircle, ExternalLink, X, CheckCircle2, CheckSquare, AlertTriangle, TrendingUp, Sparkles } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button"
 interface DashboardViewProps {
   clients: MinimalClient[]
   onClientClick: (client: MinimalClient) => void
+  onSendToAI?: (prompt: string) => void
 }
 
 // Mock firehose data - will be replaced with real data
@@ -496,11 +497,13 @@ function LoadByStatusWidget({ clients }: { clients: MinimalClient[] }) {
 function TaskDetailDrawer({
   item,
   onClose,
-  onMarkComplete
+  onMarkComplete,
+  onSendToAI
 }: {
   item: FirehoseItemData
   onClose: () => void
   onMarkComplete?: (itemId: string) => void
+  onSendToAI?: (prompt: string) => void
 }) {
   const formatTimestamp = (date: Date) => {
     const now = new Date()
@@ -573,7 +576,20 @@ function TaskDetailDrawer({
         </div>
       </div>
 
-      <div className="p-4 border-t border-border">
+      <div className="p-4 border-t border-border space-y-2">
+        <Button
+          variant="outline"
+          className="w-full bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-600 hover:text-amber-700"
+          size="sm"
+          onClick={() => {
+            const prompt = `Help me with task: "${item.title || 'Untitled'}" for ${item.clientName || 'client'}. ${item.description || 'No description provided'}`
+            onSendToAI?.(prompt)
+            onClose() // Close drawer after sending to AI
+          }}
+        >
+          <Sparkles className="w-4 h-4 mr-2" />
+          Send to AI
+        </Button>
         <Button
           className="w-full"
           size="sm"
@@ -591,11 +607,13 @@ function TaskDetailDrawer({
 function ClientDetailDrawer({
   client,
   onClose,
-  onClientClick
+  onClientClick,
+  onSendToAI
 }: {
   client: MinimalClient
   onClose: () => void
   onClientClick?: (client: MinimalClient) => void
+  onSendToAI?: (prompt: string) => void
 }) {
   const ownerData = getOwnerData(client.owner)
 
@@ -689,7 +707,21 @@ function ClientDetailDrawer({
         )}
       </div>
 
-      <div className="p-4 border-t border-border">
+      <div className="p-4 border-t border-border space-y-2">
+        <Button
+          variant="outline"
+          className="w-full bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-600 hover:text-amber-700"
+          size="sm"
+          onClick={() => {
+            const healthStatus = client.health === "Green" ? "healthy" : client.health === "Yellow" ? "needs attention" : client.health === "Red" ? "at risk" : "blocked"
+            const prompt = `Tell me about ${client.name || 'this client'} - currently in ${client.stage || 'unknown'} stage, ${healthStatus}. ${client.statusNote ? `Notes: ${client.statusNote}` : ''} ${client.blocker ? `Blocker: ${client.blocker}` : ''}`
+            onSendToAI?.(prompt)
+            onClose() // Close drawer after sending to AI
+          }}
+        >
+          <Sparkles className="w-4 h-4 mr-2" />
+          Send to AI
+        </Button>
         <Button
           variant="outline"
           className="w-full"
@@ -711,11 +743,13 @@ function ClientDetailDrawer({
 function AlertDetailDrawer({
   item,
   onClose,
-  onMarkComplete
+  onMarkComplete,
+  onSendToAI
 }: {
   item: FirehoseItemData
   onClose: () => void
   onMarkComplete?: (itemId: string) => void
+  onSendToAI?: (prompt: string) => void
 }) {
   const formatTimestamp = (date: Date) => {
     const now = new Date()
@@ -770,6 +804,19 @@ function AlertDetailDrawer({
 
       <div className="p-4 border-t border-border space-y-2">
         <Button
+          variant="outline"
+          className="w-full bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-600 hover:text-amber-700"
+          size="sm"
+          onClick={() => {
+            const prompt = `Analyze this critical alert: "${item.title || 'Untitled Alert'}" affecting ${item.clientName || 'a client'}. ${item.description || 'No details provided'}`
+            onSendToAI?.(prompt)
+            onClose() // Close drawer after sending to AI
+          }}
+        >
+          <Sparkles className="w-4 h-4 mr-2" />
+          Send to AI
+        </Button>
+        <Button
           className="w-full"
           size="sm"
           variant="destructive"
@@ -795,11 +842,13 @@ function AlertDetailDrawer({
 function PerformanceDetailDrawer({
   item,
   onClose,
-  onMarkComplete
+  onMarkComplete,
+  onSendToAI
 }: {
   item: FirehoseItemData
   onClose: () => void
   onMarkComplete?: (itemId: string) => void
+  onSendToAI?: (prompt: string) => void
 }) {
   const formatTimestamp = (date: Date) => {
     const now = new Date()
@@ -860,7 +909,21 @@ function PerformanceDetailDrawer({
         </div>
       </div>
 
-      <div className="p-4 border-t border-border">
+      <div className="p-4 border-t border-border space-y-2">
+        <Button
+          variant="outline"
+          className="w-full bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-600 hover:text-amber-700"
+          size="sm"
+          onClick={() => {
+            const severityText = item.severity === "critical" ? "Critical issue" : item.severity === "warning" ? "Warning" : "Performance update"
+            const prompt = `${severityText}: "${item.title || 'Performance Issue'}" for ${item.clientName || 'client'}. ${item.description || 'No details provided'}. What should I do?`
+            onSendToAI?.(prompt)
+            onClose() // Close drawer after sending to AI
+          }}
+        >
+          <Sparkles className="w-4 h-4 mr-2" />
+          Send to AI
+        </Button>
         <Button
           variant="outline"
           className="w-full"
@@ -879,7 +942,7 @@ function PerformanceDetailDrawer({
   )
 }
 
-export function DashboardView({ clients, onClientClick }: DashboardViewProps) {
+export function DashboardView({ clients, onClientClick, onSendToAI }: DashboardViewProps) {
   const [activeTab, setActiveTab] = useState<DashboardTab>("overview")
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
@@ -1151,6 +1214,7 @@ export function DashboardView({ clients, onClientClick }: DashboardViewProps) {
                     item={selectedTask}
                     onClose={() => setSelectedTaskId(null)}
                     onMarkComplete={handleMarkComplete}
+                    onSendToAI={onSendToAI}
                   />
                 </motion.div>
               )}
@@ -1213,6 +1277,7 @@ export function DashboardView({ clients, onClientClick }: DashboardViewProps) {
                     client={selectedClient}
                     onClose={() => setSelectedClientId(null)}
                     onClientClick={onClientClick}
+                    onSendToAI={onSendToAI}
                   />
                 </motion.div>
               )}
@@ -1266,6 +1331,7 @@ export function DashboardView({ clients, onClientClick }: DashboardViewProps) {
                     item={selectedAlert}
                     onClose={() => setSelectedAlertId(null)}
                     onMarkComplete={handleMarkComplete}
+                    onSendToAI={onSendToAI}
                   />
                 </motion.div>
               )}
@@ -1323,6 +1389,7 @@ export function DashboardView({ clients, onClientClick }: DashboardViewProps) {
                     item={selectedPerf}
                     onClose={() => setSelectedPerfId(null)}
                     onMarkComplete={handleMarkComplete}
+                    onSendToAI={onSendToAI}
                   />
                 </motion.div>
               )}
