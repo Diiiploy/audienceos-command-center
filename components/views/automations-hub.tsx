@@ -224,6 +224,38 @@ export function AutomationsHub() {
 
   const slideTransition = useSlideTransition()
 
+  // Handler functions
+  const handleToggleStatus = (automation: AutomationTemplate) => {
+    const newStatus = automation.status === "active" ? "inactive" : "active"
+    // TODO: Update automation status via API
+    console.log("Toggle automation status:", automation.id, newStatus)
+  }
+
+  const handleDuplicate = () => {
+    if (!selectedAutomation) return
+    // TODO: Duplicate automation via API
+    console.log("Duplicate automation:", selectedAutomation.id)
+  }
+
+  const handleDelete = () => {
+    if (!selectedAutomation) return
+    // TODO: Show confirmation dialog, then delete via API
+    console.log("Delete automation:", selectedAutomation.id)
+    setSelectedAutomation(null)
+  }
+
+  const handleTestStep = () => {
+    if (!selectedStep) return
+    // TODO: Execute test for this step
+    console.log("Test step:", selectedStep.id)
+  }
+
+  const handleSaveStep = () => {
+    if (!selectedStep) return
+    // TODO: Save step configuration via API
+    console.log("Save step:", selectedStep.id)
+  }
+
   // Calculate counts
   const counts = useMemo(() => {
     return {
@@ -361,7 +393,11 @@ export function AutomationsHub() {
               </div>
             </div>
             <div className="flex items-center gap-1">
-              <Switch checked={selectedAutomation.status === "active"} className="scale-90" />
+              <Switch
+                checked={selectedAutomation.status === "active"}
+                onCheckedChange={() => handleToggleStatus(selectedAutomation)}
+                className="scale-90"
+              />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-7 w-7">
@@ -369,12 +405,12 @@ export function AutomationsHub() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleDuplicate}>
                     <Copy className="h-4 w-4 mr-2" />
                     Duplicate
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-destructive">
+                  <DropdownMenuItem onClick={handleDelete} className="text-destructive">
                     <Trash2 className="h-4 w-4 mr-2" />
                     Delete
                   </DropdownMenuItem>
@@ -505,11 +541,20 @@ export function AutomationsHub() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="h-7 text-xs">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={handleTestStep}
+              >
                 <Play className="h-3 w-3 mr-1.5" />
                 Test Step
               </Button>
-              <Button size="sm" className="h-7 text-xs">
+              <Button
+                size="sm"
+                className="h-7 text-xs"
+                onClick={handleSaveStep}
+              >
                 Save
               </Button>
             </div>
