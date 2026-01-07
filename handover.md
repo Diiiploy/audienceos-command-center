@@ -1,6 +1,96 @@
 # Session Handover
 
 ---
+## Session 2026-01-07 (Citation Format Debugging - Network Verification Required)
+
+### Completed This Session
+
+**1. Remote Debugging of Citation Format Bug** ✅
+- **Problem:** Chat displays decimal markers `[1.1, 1.7]` instead of integer `[1]`, `[2]`, `[3]`
+- **Context:** Previous session added citation insertion logic (4 commits: f631fce, f3d1fbf, 8f28058, 58aab1f)
+- **Issue Persistence:** Despite fixes deployed, decimals still appear in production
+- **Root Cause:** Unknown - requires network-level verification
+
+**2. Browser Automation Verification** ✅
+- Navigated to https://audienceos-agro-bros.vercel.app
+- Authenticated as E2E Tester
+- Sent test query: "What is Google Ads in 2026?"
+- **Visual Evidence Captured:** Decimal markers visible in chat UI
+
+**3. Evidence Gathering** ✅
+- ✅ Confirmed bug exists in production
+- ✅ Citation footer works correctly (shows `[1]`, `[2]`, `[3]`)
+- ✅ Identified that client-side debug log never fires
+- ❌ Could NOT inspect network response (browser DevTools not accessible from Claude Code CLI)
+
+### Critical Finding
+
+**Server Is Likely Sending Decimal Markers**
+
+Evidence:
+1. Decimal markers visible in UI (`[1.1, 1.7]`, `[1.3, 1.5]`, `[1.1, 1.8]`)
+2. Client-side console log `[Citation Debug - Client]` never appears
+3. Server-side code in route.ts should strip decimals BEFORE sending
+4. Conclusion: Stripping code NOT executing OR Vercel cached old version
+
+### What's Incomplete / Blocked
+
+**CRITICAL BLOCKER:** Network response verification
+- Cannot view actual SSE stream content from CLI
+- Cannot read Vercel server logs from CLI
+- Cannot inspect DevTools Network tab from CLI
+- **Requires:** Claude.ai session with Chrome extension for full browser automation
+
+### Files Requiring Investigation
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `/app/api/v1/chat/route.ts` | 308-347 | Server-side stripping + insertion |
+| `/components/chat/chat-interface.tsx` | 364-391 | Client SSE handler + logging |
+| Vercel Logs | - | Server execution trace |
+
+### Next Steps (For Next Session with Chrome Access)
+
+**IMMEDIATE (10 minutes):**
+1. Open DevTools Network tab
+2. Send test query
+3. Inspect POST `/api/v1/chat` response body
+4. Search for `[1.1` (decimal) or `[1]` (integer) in message.content
+5. Screenshot and report exact format
+
+**THEN (Based on findings):**
+- If decimal: Add server logging to trace execution
+- If integer: Investigate client-side content processing
+
+### Created Comprehensive Handoff
+
+**File:** SITREP document above (300+ lines)
+- Full context for next session
+- All code locations and line numbers
+- Testing procedures
+- Expected outcomes
+- Verification checklist
+
+### Production Status
+
+- **URL:** https://audienceos-agro-bros.vercel.app
+- **Last Deploy:** Commit 8f28058 (2026-01-06 19:09)
+- **Bug:** Visible and reproducible
+- **User Frustration:** HIGH - multiple fixes deployed, issue persists
+- **Blocker:** Need browser DevTools to definitively diagnose
+
+### Context for Next Session
+
+This session hit the limits of CLI-based debugging. Full browser automation with DevTools access is required to:
+1. See actual network response format
+2. Check Vercel server logs
+3. Inspect browser console output
+4. Verify if deployed code is running
+
+**Handoff Approach:** Provided full SITREP document above (copy-paste friendly for next session to use immediately with Claude in Chrome)
+
+---
+
 ## Session 2026-01-06
 
 ### Completed This Session
