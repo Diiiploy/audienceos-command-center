@@ -55,6 +55,78 @@ cp .env.example .env.local
 npm run dev
 ```
 
+---
+
+## 🔧 Claude in Chrome: Active Debugging Workflow
+
+**DIRECTIVE:** Use Claude in Chrome every time you can. You have the tools to do it. Make it happen. Make it work. Find the problems. Fix the problems.
+
+**When debugging ANY issue:**
+
+### ✅ DO THIS (Active Investigation)
+1. **Open the app in Claude in Chrome**
+   - Navigate to https://audienceos-agro-bros.vercel.app
+   - Authenticate as test user (E2E Tester)
+
+2. **Reproduce the problem directly**
+   - Click through the UI to trigger the issue
+   - Watch Network tab for failed requests
+   - Check Console for errors and warnings
+   - Take screenshots of broken state
+
+3. **Inspect what's actually happening**
+   - **Network tab:** See the actual API responses
+   - **Console tab:** Read actual error messages (not guesses)
+   - **Sources tab:** Pause execution and inspect state
+   - **Accessibility tree:** Understand DOM structure
+
+4. **Capture evidence before claiming anything works**
+   - "The feature works" → Show network response proving it
+   - "The error is fixed" → Show console output proving success
+   - "The data loaded" → Show network timing + response body
+   - **File existence ≠ functionality. Runtime execution is truth.**
+
+### ❌ DON'T DO THIS (Guessing)
+- ❌ "I added the code, so it should work" → Verify it actually runs
+- ❌ "The error is probably..." → Check the actual console output
+- ❌ "The API returns X" → Inspect Network tab to see what it actually returns
+- ❌ "This should be fixed" → Run a test to prove it's fixed
+- ❌ Assume anything without seeing the evidence
+
+### 🎯 Citation Bug Example (Jan 7, 2026)
+**Wrong approach:**
+- "I added stripping logic" → commit, push, wait
+- Issue not fixed → no idea why
+
+**Right approach:**
+- Add deployment verification logging → commit, push
+- Open app in Claude in Chrome
+- Send test query → check Console for logs
+- See logs → code is deployed ✅
+- See no logs → code not deployed ❌
+- See logs but wrong output → fix based on actual data
+
+**Result:** Can see EXACTLY what's happening on production, not guessing.
+
+### 📋 Tools You Have
+- **Navigate:** Go to pages, click buttons, type in forms
+- **Console:** Read actual errors and custom logs
+- **Network:** Capture API requests and responses
+- **DOM:** Inspect elements, understand structure
+- **Screenshots:** Visual proof of state
+- **GIF Recording:** Capture multi-step interactions
+
+### 🔑 Key Principle
+**Verification requires execution. File existence does not imply functionality.**
+
+Before saying "this is fixed" or "this should work":
+1. Open the app
+2. Trigger the feature/bug
+3. Show the actual result (console, network, UI)
+4. Only then claim success/failure with evidence
+
+---
+
 ## Important Notes
 
 > **Development Workflow:** We develop via **push-to-Vercel**, NOT localhost. Make changes, commit, push to `main`, and verify on Vercel preview URLs. The "Failed to load clients" error on Vercel is expected - the app uses mock data locally but Supabase isn't fully configured for production data yet.
