@@ -324,49 +324,53 @@ export function withOwnerOnly() {
       req: NextRequest,
       ...args: any[]
     ): Promise<NextResponse> {
-      const supabase = await createRouteHandlerClient(cookies);
-      const { user, agencyId, error: authError } = await getAuthenticatedUser(supabase);
+      try {
+        const authResult = await authenticateUser();
+        if (!authResult.success) {
+          return authResult.response;
+        }
 
-      if (!user || !agencyId) {
-        return NextResponse.json(
-          { error: 'Unauthorized', code: 'AUTH_REQUIRED' },
-          { status: 401 }
-        );
-      }
+        const { user, agencyId, appUser } = authResult;
 
-      const { data: appUser } = await supabase
-        .from('user')
-        .select('id, email, role_id, is_owner')
-        .eq('id', user.id)
-        .single();
+        if (!appUser.is_owner) {
+          console.warn('[withOwnerOnly] Access denied - not owner:', {
+            userId: user.id,
+            email: user.email,
+            isOwner: appUser.is_owner,
+          });
 
-      if (!appUser || !appUser.is_owner) {
-        console.warn('[withOwnerOnly] Access denied - not owner:', {
-          userId: user.id,
-          email: user.email,
-          isOwner: appUser?.is_owner || false,
-        });
+          return NextResponse.json(
+            {
+              error: 'Forbidden',
+              code: 'OWNER_ONLY',
+              message: 'This action can only be performed by the agency owner',
+            },
+            { status: 403 }
+          );
+        }
+
+        const authenticatedReq = req as AuthenticatedRequest;
+        authenticatedReq.user = {
+          id: user.id,
+          email: user.email || appUser.email,
+          agencyId,
+          roleId: appUser.role_id,
+          isOwner: appUser.is_owner,
+        };
+
+        return await handler(authenticatedReq, ...args);
+      } catch (error) {
+        console.error('[withOwnerOnly] Middleware error:', error);
 
         return NextResponse.json(
           {
-            error: 'Forbidden',
-            code: 'OWNER_ONLY',
-            message: 'This action can only be performed by the agency owner',
+            error: 'Internal Server Error',
+            code: 'OWNER_CHECK_FAILED',
+            message: 'An error occurred while checking owner status',
           },
-          { status: 403 }
+          { status: 500 }
         );
       }
-
-      const authenticatedReq = req as AuthenticatedRequest;
-      authenticatedReq.user = {
-        id: user.id,
-        email: user.email || appUser.email,
-        agencyId,
-        roleId: appUser.role_id,
-        isOwner: appUser.is_owner,
-      };
-
-      return await handler(authenticatedReq, ...args);
     };
   };
 }
