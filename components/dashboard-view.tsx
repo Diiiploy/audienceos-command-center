@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { motion, AnimatePresence, useReducedMotion } from "motion/react"
 import {
   LinearKPICard,
@@ -615,6 +616,7 @@ function ClientDetailDrawer({
   onClientClick?: (client: MinimalClient) => void
   onSendToAI?: (prompt: string) => void
 }) {
+  const router = useRouter()
   const ownerData = getOwnerData(client.owner)
 
   return (
@@ -726,10 +728,7 @@ function ClientDetailDrawer({
           variant="outline"
           className="w-full"
           size="sm"
-          onClick={() => {
-            onClientClick?.(client)
-            onClose()
-          }}
+          onClick={() => router.push(`/client/${client.id}`)}
         >
           <ExternalLink className="w-4 h-4 mr-2" />
           View Full Details
