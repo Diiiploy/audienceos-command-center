@@ -5,8 +5,10 @@ import { Inter } from "next/font/google"
 import { createPortal } from "react-dom"
 import { useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
+import { ThemeProvider } from "next-themes"
 import "./globals.css"
 import { ChatInterface } from "@/components/chat/chat-interface"
+import { ThemeSync } from "@/components/theme-sync"
 import { useAuth } from "@/hooks/use-auth"
 
 const inter = Inter({
@@ -71,22 +73,30 @@ export default function RootLayout({
   }, [chatPortalHost, shouldShowChat, pathname]) // Removed isLoading from dependencies
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={`font-sans antialiased ${inter.variable}`} suppressHydrationWarning>
-        {children}
-        {shouldShowChat && (
-          <>
-            {console.log('[CHAT-PORTAL] Rendering ChatInterface into portal')}
-            {createPortal(
-              <ChatInterface
-                agencyId={agencyId || 'demo-agency'}
-                userId={profile?.id || 'anonymous'}
-                context={chatContext}
-              />,
-              chatPortalHost
-            )}
-          </>
-        )}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem={false}
+          disableTransitionOnChange
+        >
+          <ThemeSync />
+          {children}
+          {shouldShowChat && (
+            <>
+              {console.log('[CHAT-PORTAL] Rendering ChatInterface into portal')}
+              {createPortal(
+                <ChatInterface
+                  agencyId={agencyId || 'demo-agency'}
+                  userId={profile?.id || 'anonymous'}
+                  context={chatContext}
+                />,
+                chatPortalHost
+              )}
+            </>
+          )}
+        </ThemeProvider>
       </body>
     </html>
   )

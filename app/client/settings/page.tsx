@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { SettingsSidebar } from '@/components/linear/settings-sidebar'
-import { ChevronRight, Settings, Users, Lock, Bell, Zap } from 'lucide-react'
+import { ChevronRight, Settings, Users, Lock, Bell, Zap, Sun, Moon } from 'lucide-react'
+import { useTheme } from 'next-themes'
 
 interface SettingsGroup {
   id: string
@@ -107,12 +108,13 @@ export default function SettingsPage() {
           <div className="max-w-4xl">
             {activeSection === 'profile' && <AgencyProfileSection loading={loading} />}
             {activeSection === 'members' && <TeamMembersSection loading={loading} />}
+            {activeSection === 'display' && <DisplaySection />}
             {activeSection === 'notifications' && (
               <div className="py-8 text-center text-muted-foreground">
                 Notification preferences coming soon
               </div>
             )}
-            {!['profile', 'members', 'notifications'].includes(activeSection) && (
+            {!['profile', 'members', 'notifications', 'display'].includes(activeSection) && (
               <div className="py-8 text-center text-muted-foreground">
                 This section is under development
               </div>
@@ -216,6 +218,100 @@ function AgencyProfileSection({ loading }: { loading: boolean }) {
           {loading ? 'Saving...' : 'Save Changes'}
         </button>
       </form>
+    </div>
+  )
+}
+
+// Display Section Component - Theme Toggle
+function DisplaySection() {
+  const { theme, setTheme } = useTheme()
+  const { profile } = useAuth()
+  const [mounted, setMounted] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Save theme preference to database
+  const handleThemeChange = async (newTheme: 'light' | 'dark') => {
+    setTheme(newTheme)
+    setSaving(true)
+
+    try {
+      await fetch('/api/v1/settings/preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          category: 'display',
+          preferences: { theme: newTheme },
+        }),
+      })
+    } catch (error) {
+      console.error('Failed to save theme preference:', error)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!mounted) {
+    return null
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Display Settings</h2>
+        <p className="text-sm text-muted-foreground mb-6">
+          Customize the appearance of your workspace
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        {/* Theme Toggle */}
+        <div>
+          <label className="block text-sm font-medium mb-3">Theme</label>
+          <div className="flex gap-3">
+            <button
+              onClick={() => handleThemeChange('light')}
+              disabled={saving}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg border-2 transition-all ${
+                theme === 'light'
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover:border-border/80'
+              } ${saving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              <Sun className="w-5 h-5" />
+              <div className="text-left">
+                <div className="font-medium">Light</div>
+                <div className="text-xs text-muted-foreground">Clean, bright interface</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => handleThemeChange('dark')}
+              disabled={saving}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg border-2 transition-all ${
+                theme === 'dark'
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover:border-border/80'
+              } ${saving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              <Moon className="w-5 h-5" />
+              <div className="text-left">
+                <div className="font-medium">Dark</div>
+                <div className="text-xs text-muted-foreground">Easy on the eyes</div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {saving && (
+          <p className="text-sm text-muted-foreground">Saving preference...</p>
+        )}
+      </div>
     </div>
   )
 }
