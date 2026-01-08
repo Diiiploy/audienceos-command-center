@@ -126,6 +126,7 @@ import { KnowledgeBase } from "@/components/views/knowledge-base"
 import { AutomationsHub } from "@/components/views/automations-hub"
 import { DashboardView } from "@/components/dashboard-view"
 import { SettingsView } from "@/components/settings-view"
+import { ClientDetailView } from "@/components/views/client-detail-view"
 
 // Valid filter keys for URL params
 const FILTER_KEYS = ["stage", "health", "owner", "tier"] as const
@@ -135,7 +136,15 @@ function CommandCenterContent() {
   const router = useRouter()
   const pathname = usePathname()
 
-  const [activeView, setActiveView] = useState<LinearView>("dashboard")
+  // Initialize activeView from URL param or default to dashboard
+  const [activeView, setActiveView] = useState<LinearView>(() => {
+    const viewParam = searchParams.get("view")
+    const validViews: LinearView[] = ["dashboard", "pipeline", "clients", "onboarding", "support", "intelligence", "knowledge-base", "automations", "integrations", "settings"]
+    if (viewParam && validViews.includes(viewParam as LinearView)) {
+      return viewParam as LinearView
+    }
+    return "dashboard"
+  })
   const [selectedClient, setSelectedClient] = useState<MinimalClient | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   // Separate view modes: Pipeline defaults to board (Kanban), Clients defaults to list
@@ -158,6 +167,9 @@ function CommandCenterContent() {
   // Intelligence Center state for deep linking
   const [intelligenceInitialSection, setIntelligenceInitialSection] = useState<string | undefined>()
   const [intelligenceInitialCartridgeTab, setIntelligenceInitialCartridgeTab] = useState<"voice" | "style" | "preferences" | "instructions" | "brand" | undefined>()
+
+  // Full client detail view state - stores the client ID to show in full view
+  const [fullViewClientId, setFullViewClientId] = useState<string | null>(null)
 
   // Pipeline store - fetches from Supabase API
   const { clients: storeClients, fetchClients, isLoading, error: apiError, updateClientStage } = usePipelineStore()
@@ -194,6 +206,16 @@ function CommandCenterContent() {
       console.error('[Pipeline] Failed to move client to stage:', toStage)
     }
   }, [updateClientStage])
+
+  /**
+   * Open full client detail view (within shell)
+   * This keeps the sidebar navigation visible
+   */
+  const handleOpenClientDetail = useCallback((clientId: string) => {
+    setFullViewClientId(clientId)
+    setActiveView("client")
+    setSelectedClient(null) // Close the drawer
+  }, [])
 
 
   // Convert store clients to UI format
@@ -400,6 +422,7 @@ function CommandCenterContent() {
             <DashboardView
               clients={filteredClients}
               onClientClick={(client) => setSelectedClient(client)}
+              onOpenClientDetail={handleOpenClientDetail}
               onSendToAI={(prompt) => {
                 // Retry logic to handle race condition where chat might not be mounted yet
                 if (typeof window !== "undefined") {
@@ -460,6 +483,25 @@ function CommandCenterContent() {
               setIntelligenceInitialSection("cartridges")
               setIntelligenceInitialCartridgeTab("brand")
               setActiveView("intelligence")
+            }}
+          />
+        )
+
+      case "client":
+        // Full client detail view - renders within shell with sidebar visible
+        if (!fullViewClientId) {
+          return (
+            <div className="flex-1 flex items-center justify-center">
+              <p className="text-muted-foreground">No client selected</p>
+            </div>
+          )
+        }
+        return (
+          <ClientDetailView
+            clientId={fullViewClientId}
+            onBack={() => {
+              setActiveView("clients")
+              setFullViewClientId(null)
             }}
           />
         )
