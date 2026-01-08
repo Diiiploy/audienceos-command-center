@@ -56,7 +56,9 @@ class PermissionCache {
     if (this.permissionCache.size >= PERMISSION_CACHE_MAX_SIZE) {
       // Simple eviction: remove first entry
       const firstKey = this.permissionCache.keys().next().value;
-      this.permissionCache.delete(firstKey);
+      if (firstKey) {
+        this.permissionCache.delete(firstKey);
+      }
     }
     this.permissionCache.set(key, {
       data: permissions,

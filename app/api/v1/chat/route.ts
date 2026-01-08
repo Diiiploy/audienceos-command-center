@@ -124,7 +124,7 @@ export const POST = withPermission({ resource: 'ai-features', action: 'write' })
         },
       });
 
-      return new Response(readable, {
+      return new NextResponse(readable, {
         headers: {
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',
