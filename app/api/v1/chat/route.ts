@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { getSmartRouter } from '@/lib/chat/router';
 import { executeFunction, hgcFunctions } from '@/lib/chat/functions';
+import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission';
 import type { Citation } from '@/lib/chat/types';
 
 // CRITICAL: Gemini 3 ONLY per project requirements
@@ -12,8 +13,11 @@ const GEMINI_MODEL = 'gemini-3-flash-preview';
  *
  * Ported from Holy Grail Chat (HGC) with adaptations for AudienceOS.
  * Uses SmartRouter for intent classification and Gemini for responses.
+ *
+ * RBAC: Requires ai-features:write permission
  */
-export async function POST(request: NextRequest) {
+export const POST = withPermission({ resource: 'ai-features', action: 'write' })(
+  async (request: AuthenticatedRequest) => {
   try {
     // 1. Parse request body
     const body = await request.json();
@@ -120,7 +124,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      return new Response(readable, {
+      return new NextResponse(readable, {
         headers: {
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',
@@ -151,7 +155,8 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+  }
+);
 
 /**
  * Handle dashboard route with function calling
@@ -463,8 +468,10 @@ function insertInlineCitations(
 
 /**
  * Health check endpoint
+ * RBAC: Requires analytics:read permission
  */
-export async function GET() {
+export const GET = withPermission({ resource: 'analytics', action: 'read' })(
+  async () => {
   const hasApiKey = !!process.env.GOOGLE_AI_API_KEY;
 
   return NextResponse.json({
@@ -472,4 +479,5 @@ export async function GET() {
     hasApiKey,
     timestamp: new Date().toISOString(),
   });
-}
+  }
+);
