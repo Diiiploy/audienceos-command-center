@@ -12,7 +12,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { PermissionGate } from './permission-gate';
-import type { Resource, PermissionAction, Role } from '@/types/rbac';
+import { Resource, PermissionAction } from '@/types/rbac';
+import type { Role } from '@/types/rbac';
 
 interface PermissionMatrixProps {
   editable?: boolean;
@@ -57,25 +58,26 @@ export function PermissionMatrix({ editable = false, onPermissionChange }: Permi
     return <div className="p-4 text-red-600">Error: {error}</div>;
   }
 
+  // Use enum values from types/rbac.ts
   const resources: Resource[] = [
-    'clients',
-    'communications',
-    'tickets',
-    'knowledge-base',
-    'automations',
-    'settings',
-    'users',
-    'roles',
-    'integrations',
-    'analytics',
-    'ai-features',
-    'billing',
+    Resource.CLIENTS,
+    Resource.SETTINGS,
+    Resource.USERS,
+    Resource.ROLES,
+    Resource.TEAM_MEMBERS,
+    Resource.DOCUMENTS,
+    Resource.WORKFLOWS,
+    Resource.TICKETS,
   ];
 
-  const actions: PermissionAction[] = ['read', 'write', 'manage'];
+  const actions: PermissionAction[] = [
+    PermissionAction.READ,
+    PermissionAction.WRITE,
+    PermissionAction.MANAGE,
+  ];
 
   return (
-    <PermissionGate resource="roles" action="read" fallback={<div>Not authorized</div>}>
+    <PermissionGate resource={Resource.ROLES} action={PermissionAction.READ} fallback={<div>Not authorized</div>}>
       <Card>
         <CardHeader>
           <CardTitle>Permission Matrix</CardTitle>
