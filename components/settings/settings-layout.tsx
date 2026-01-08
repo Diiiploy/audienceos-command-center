@@ -70,12 +70,12 @@ export function SettingsLayout({ children, onBack, onBrandClick }: SettingsLayou
   return (
     <div className="flex h-full">
       {/* Settings Sidebar - Linear Style */}
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
+      <aside className="w-64 bg-white dark:bg-slate-950 border-r border-gray-200 dark:border-slate-800 flex flex-col">
         {/* Header with back button */}
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-4 border-b border-gray-200 dark:border-slate-800">
           <button
             onClick={onBack}
-            className="flex items-center text-gray-600 text-sm hover:text-gray-900 transition-colors cursor-pointer"
+            className="flex items-center text-gray-600 dark:text-slate-400 text-sm hover:text-gray-900 dark:hover:text-slate-200 transition-colors cursor-pointer"
           >
             <ChevronLeft className="w-4 h-4 mr-2" />
             Settings
@@ -87,8 +87,8 @@ export function SettingsLayout({ children, onBack, onBrandClick }: SettingsLayou
           {/* Workspace Section */}
           <div className="p-4">
             <div className="flex items-center mb-4">
-              <Building2 className="w-4 h-4 mr-2 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">Workspace</span>
+              <Building2 className="w-4 h-4 mr-2 text-gray-500 dark:text-slate-500" />
+              <span className="text-sm font-medium text-gray-700 dark:text-slate-300">Workspace</span>
             </div>
 
             <nav className="space-y-1">
@@ -99,8 +99,8 @@ export function SettingsLayout({ children, onBack, onBrandClick }: SettingsLayou
                   className={cn(
                     "block w-full text-left px-3 py-2 text-sm rounded-md transition-colors cursor-pointer",
                       activeSection === item.id
-                        ? "bg-gray-100 text-gray-900 font-medium"
-                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        ? "bg-gray-100 dark:bg-slate-800 text-gray-900 dark:text-slate-100 font-medium"
+                        : "text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-200"
                   )}
                 >
                   {item.label}
@@ -109,7 +109,7 @@ export function SettingsLayout({ children, onBack, onBrandClick }: SettingsLayou
               {onBrandClick && (
                 <button
                   onClick={onBrandClick}
-                  className="block w-full text-left px-3 py-2 text-sm rounded-md transition-colors cursor-pointer text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  className="block w-full text-left px-3 py-2 text-sm rounded-md transition-colors cursor-pointer text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-200"
                 >
                   Brand
                 </button>
@@ -119,10 +119,10 @@ export function SettingsLayout({ children, onBack, onBrandClick }: SettingsLayou
 
           {/* My Account Section */}
           {visibleAccountItems.length > 0 && (
-            <div className="p-4 border-t border-gray-200">
+            <div className="p-4 border-t border-gray-200 dark:border-slate-800">
               <div className="flex items-center mb-4">
-                <User className="w-4 h-4 mr-2 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">My Account</span>
+                <User className="w-4 h-4 mr-2 text-gray-500 dark:text-slate-500" />
+                <span className="text-sm font-medium text-gray-700 dark:text-slate-300">My Account</span>
               </div>
 
               <nav className="space-y-1">
@@ -133,8 +133,8 @@ export function SettingsLayout({ children, onBack, onBrandClick }: SettingsLayou
                     className={cn(
                       "block w-full text-left px-3 py-2 text-sm rounded-md transition-colors cursor-pointer",
                       activeSection === item.id
-                        ? "bg-gray-100 text-gray-900 font-medium"
-                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        ? "bg-gray-100 dark:bg-slate-800 text-gray-900 dark:text-slate-100 font-medium"
+                        : "text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-200"
                     )}
                   >
                     {item.label}
@@ -145,10 +145,10 @@ export function SettingsLayout({ children, onBack, onBrandClick }: SettingsLayou
           )}
 
           {/* Teams Section (placeholder for future) */}
-          <div className="p-4 border-t border-gray-200">
+          <div className="p-4 border-t border-gray-200 dark:border-slate-800">
             <div className="flex items-center mb-4">
-              <Users className="w-4 h-4 mr-2 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">Teams</span>
+              <Users className="w-4 h-4 mr-2 text-gray-500 dark:text-slate-500" />
+              <span className="text-sm font-medium text-gray-700 dark:text-slate-300">Teams</span>
             </div>
 
             <button
@@ -156,8 +156,8 @@ export function SettingsLayout({ children, onBack, onBrandClick }: SettingsLayou
               className={cn(
                 "w-full flex items-center px-3 py-2 text-sm rounded-md transition-colors cursor-pointer",
                 activeSection === "team_members"
-                  ? "bg-blue-50 text-blue-600"
-                  : "text-gray-600 hover:bg-gray-100"
+                  ? "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400"
+                  : "text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800"
               )}
             >
               <div className="w-6 h-6 bg-blue-500 rounded mr-3 flex items-center justify-center">
@@ -170,9 +170,9 @@ export function SettingsLayout({ children, onBack, onBrandClick }: SettingsLayou
 
         {/* Unsaved changes indicator */}
         {hasUnsavedChanges && (
-          <div className="p-4 border-t border-gray-200">
-            <div className="flex items-center text-xs text-amber-600">
-              <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse mr-2" />
+          <div className="p-4 border-t border-gray-200 dark:border-slate-800">
+            <div className="flex items-center text-xs text-amber-600 dark:text-amber-500">
+              <div className="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-600 animate-pulse mr-2" />
               Unsaved changes
             </div>
           </div>

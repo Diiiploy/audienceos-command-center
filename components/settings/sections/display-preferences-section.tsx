@@ -65,13 +65,13 @@ export function DisplayPreferencesSection() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-semibold mb-2">Display Settings</h2>
-        <p className="text-gray-600">Customize the appearance of your workspace</p>
+        <p className="text-gray-600 dark:text-slate-400">Customize the appearance of your workspace</p>
       </div>
 
       {/* Theme Section */}
-      <div className="border border-gray-200 rounded-lg p-6">
+      <div className="border border-gray-200 dark:border-slate-700 rounded-lg p-6">
         <h3 className="text-lg font-semibold mb-4">Theme</h3>
-        <p className="text-sm text-gray-600 mb-6">Choose your preferred color theme</p>
+        <p className="text-sm text-gray-600 dark:text-slate-400 mb-6">Choose your preferred color theme</p>
 
         <div className="grid grid-cols-2 gap-4 max-w-md">
           {/* Light Theme Button */}
