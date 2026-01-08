@@ -368,11 +368,13 @@ gemini-3-flash-preview
 
 ## Multi-Org Roles & Permissions System (New Feature)
 
-**Status:** B-2 Scope approved (2026-01-08) | Phase: B-2 → B-3 Risks
+**Status:** D-1 SpecKit Complete (2026-01-08) | Phase: Ready for Implementation
 **Drive Links:**
 - [VISION Document](https://docs.google.com/document/d/1Ty7MvP1f_GFIoejJOhYsysI5qq6GkFopysIXUqSldwo/edit?usp=sharing)
 - [SCOPE Document](https://docs.google.com/document/d/1K4R5AkjvnIwlrXxB3UnViRK5VlP7G-Nw1bcHCUl26fM/edit)
-**Local Docs:** `docs/01-product/VISION.md`, `docs/01-product/SCOPE.md`
+- [DATA-MODEL-RBAC](https://docs.google.com/document/d/1XIA9Joih6jvcZesXyMHmepEiezNQSnJw31WsE10DhNA/edit)
+- [API-CONTRACTS-RBAC](https://docs.google.com/document/d/1rKrrUVuAqMH7ReiRMRna-XQX4fbOCgQZPePlkcJ11kA/edit)
+**Local Docs:** `docs/01-product/`, `docs/04-technical/`
 
 ### Overview
 Fine-grained role-based access control system for marketing agencies managing multiple clients and team members.
@@ -389,11 +391,18 @@ Fine-grained role-based access control system for marketing agencies managing mu
 - **Defense in depth**: Middleware + RLS working together
 - **100% API enforcement**: All 34 endpoints protected
 
-### Next Steps
+### Technical Specifications Complete
 1. ✅ **B-1 Vision** - Approved (2026-01-08)
-2. ✅ **B-2 Scope** - Approved (2026-01-08) - 28 DUs MVP, 8 resources × 3 actions
-3. 🔄 **B-3 Risks** - Identify blockers, dependencies, mitigations
-4. **D-1 SpecKit** - Technical specifications and API contracts
+2. ✅ **B-2 Scope** - 28 DU MVP, boundaries defined (2026-01-08)
+3. ✅ **B-3 Risks** - Risk register, no blockers (2026-01-08)
+4. ✅ **D-1 SpecKit** - Complete technical specs (2026-01-08)
+   - PRD with 18 user stories across 7 epics
+   - Data Model with 5 new tables (role, permission, user_role, member_client_access, audit_log)
+   - API Contracts with 15 RBAC endpoints
+   - Tech Stack integration documented
+
+### Next Steps
+Ready for implementation. Use `/D-2 speckit-feature multi-org-roles` to begin development.
 
 ---
 
