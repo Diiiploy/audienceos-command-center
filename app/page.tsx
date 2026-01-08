@@ -16,7 +16,7 @@ import {
   type SortOption,
 } from "@/components/linear"
 import { usePipelineStore, type Client as StoreClient } from "@/stores/pipeline-store"
-import { getOwnerData, type MinimalClient } from "@/types/client"
+import { getOwnerData, type MinimalClient, type Stage } from "@/types/client"
 import { sortClients, type SortMode } from "@/lib/client-priority"
 import { useAuth } from "@/hooks/use-auth"
 
@@ -160,7 +160,7 @@ function CommandCenterContent() {
   const [intelligenceInitialCartridgeTab, setIntelligenceInitialCartridgeTab] = useState<"voice" | "style" | "preferences" | "instructions" | "brand" | undefined>()
 
   // Pipeline store - fetches from Supabase API
-  const { clients: storeClients, fetchClients, isLoading, error: apiError } = usePipelineStore()
+  const { clients: storeClients, fetchClients, isLoading, error: apiError, updateClientStage } = usePipelineStore()
 
   // Auth hook - provides real user data
   const { profile, displayName, isAuthenticated } = useAuth()
@@ -183,6 +183,17 @@ function CommandCenterContent() {
   useEffect(() => {
     fetchClients()
   }, [fetchClients])
+
+  /**
+   * Handle client stage change via drag-and-drop
+   * Uses optimistic update with rollback on failure
+   */
+  const handleClientMove = useCallback(async (clientId: string, toStage: Stage) => {
+    const success = await updateClientStage(clientId, toStage)
+    if (!success) {
+      console.error('[Pipeline] Failed to move client to stage:', toStage)
+    }
+  }, [updateClientStage])
 
 
   // Convert store clients to UI format
@@ -346,6 +357,7 @@ function CommandCenterContent() {
                   <KanbanBoard
                     clients={filteredClients}
                     onClientClick={(client) => setSelectedClient(client)}
+                    onClientMove={handleClientMove}
                   />
                 ) : (
                   <div className="flex-1 overflow-y-auto">

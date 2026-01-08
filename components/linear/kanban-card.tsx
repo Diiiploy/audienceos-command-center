@@ -1,6 +1,21 @@
 "use client"
 
-import React from "react"
+/**
+ * KanbanCard - Draggable client card for the pipeline board
+ *
+ * Uses @dnd-kit useDraggable hook for drag operations.
+ * The clientId (UUID) is used as the draggable ID for backend API calls.
+ *
+ * Dual rendering modes:
+ * - Normal: Renders as draggable card in column
+ * - Overlay: Renders in DragOverlay with elevated styling (isDragOverlay=true)
+ *
+ * PointerSensor activation: 8px distance prevents accidental drags on click.
+ */
+
+import React, { forwardRef } from "react"
+import { useDraggable } from "@dnd-kit/core"
+import { CSS } from "@dnd-kit/utilities"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Calendar, MoreVertical, ExternalLink, Edit, UserPlus, Trash2, ArrowRight } from "lucide-react"
@@ -17,18 +32,30 @@ import {
 import { Button } from "@/components/ui/button"
 
 interface KanbanCardProps {
+  /** Display ID (e.g., "AB" for Agro Bros) - shown on card */
   id: string
+  /** Client UUID - used as draggable ID for API operations */
+  clientId: string
+  /** Client name */
   name: string
+  /** Health status indicator */
   health: "Green" | "Yellow" | "Red" | "Blocked"
+  /** Owner info with avatar */
   owner: {
     name: string
     initials: string
     color: string
   }
+  /** Days in current stage (highlights >4 days in red) */
   daysInStage: number
+  /** Optional blocker tag */
   blocker?: string | null
+  /** Client tier (Enterprise/Core/Starter) */
   tier?: string
+  /** Click handler (opens detail panel) */
   onClick?: () => void
+  /** When true, renders as overlay during drag (elevated styling) */
+  isDragOverlay?: boolean
 }
 
 function getHealthDotColor(health: string) {
@@ -68,6 +95,7 @@ function getHealthCheckbox(health: string) {
 
 export function KanbanCard({
   id,
+  clientId,
   name,
   health,
   owner,
@@ -75,12 +103,20 @@ export function KanbanCard({
   blocker,
   tier,
   onClick,
+  isDragOverlay = false,
 }: KanbanCardProps) {
-  return (
-    <div
-      onClick={onClick}
-      className="bg-card border border-border rounded-lg p-3 hover:border-primary/50 transition-colors cursor-pointer group"
-    >
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: clientId,
+    data: { clientId, name, health, owner },
+  })
+
+  const style = transform
+    ? { transform: CSS.Translate.toString(transform) }
+    : undefined
+
+  // Render card content (shared between draggable and overlay)
+  const cardContent = (
+    <>
       {/* Header row: checkbox, ID, avatar */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
@@ -182,6 +218,34 @@ export function KanbanCard({
           </span>
         </div>
       )}
+    </>
+  )
+
+  // For DragOverlay - render without drag handlers
+  if (isDragOverlay) {
+    return (
+      <div className="bg-card border border-primary/50 rounded-lg p-3 shadow-lg cursor-grabbing">
+        {cardContent}
+      </div>
+    )
+  }
+
+  // Normal draggable card
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      onClick={(e) => {
+        if (!isDragging) onClick?.()
+      }}
+      className={cn(
+        "bg-card border border-border rounded-lg p-3 hover:border-primary/50 transition-colors cursor-grab group touch-none",
+        isDragging && "opacity-30"
+      )}
+      {...attributes}
+      {...listeners}
+    >
+      {cardContent}
     </div>
   )
 }
