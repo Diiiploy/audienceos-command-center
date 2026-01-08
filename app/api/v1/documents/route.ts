@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createRouteHandlerClient, getAuthenticatedUser } from '@/lib/supabase'
 import { withRateLimit, withCsrfProtection, createErrorResponse } from '@/lib/security'
+import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission'
 import { mockDocuments } from '@/lib/mock-knowledge-base'
 import type { DocumentCategory, IndexStatus } from '@/types/database'
 
@@ -52,7 +53,9 @@ function extractDocumentMetadata(buffer: Buffer, mimeType: string): Partial<Docu
 }
 
 // GET /api/v1/documents - List documents for the agency
-export async function GET(request: NextRequest) {
+// RBAC: Requires knowledge-base:read permission
+export const GET = withPermission({ resource: 'knowledge-base', action: 'read' })(
+  async (request: AuthenticatedRequest) => {
   const rateLimitResponse = withRateLimit(request)
   if (rateLimitResponse) return rateLimitResponse
 
@@ -97,10 +100,13 @@ export async function GET(request: NextRequest) {
   } catch {
     return createErrorResponse(500, 'Internal server error')
   }
-}
+  }
+);
 
 // POST /api/v1/documents - Upload a new document
-export async function POST(request: NextRequest) {
+// RBAC: Requires knowledge-base:write permission
+export const POST = withPermission({ resource: 'knowledge-base', action: 'write' })(
+  async (request: AuthenticatedRequest) => {
   const rateLimitResponse = withRateLimit(request, { maxRequests: 30, windowMs: 60000 })
   if (rateLimitResponse) return rateLimitResponse
 
@@ -201,4 +207,5 @@ export async function POST(request: NextRequest) {
     const message = error instanceof Error ? error.message : 'Internal server error'
     return createErrorResponse(500, message)
   }
-}
+  }
+);

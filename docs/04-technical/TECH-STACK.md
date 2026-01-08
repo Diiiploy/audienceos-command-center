@@ -156,6 +156,109 @@ CREATE POLICY "tenant_isolation" ON clients
 
 ---
 
+## Multi-Org Roles & Permissions System (RBAC)
+
+**Added:** 2026-01-08 | **Status:** D-1 SpecKit Complete
+
+### Security Architecture
+
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| **Permission Middleware** | Custom withPermission() wrapper | API endpoint protection |
+| **Role-Based Access** | Custom permission service | 8 resources × 3 actions matrix |
+| **Client Scoping** | Custom enforceClientAccess() | Member-only client restrictions |
+| **Audit Trail** | PostgreSQL + JSONB | Complete permission attempt logging |
+| **Cache Layer** | In-memory + Redis (future) | 5-minute permission cache |
+
+### Database Extensions
+
+| Table | Purpose | Key Features |
+|-------|---------|--------------|
+| **role** | Role definitions | 4 built-in roles, hierarchy levels |
+| **permission** | Permission matrix | 96 permissions (8×3×4) |
+| **user_role** | User role assignments | Agency-scoped, audit trail |
+| **member_client_access** | Client assignments | Member-only client restrictions |
+| **audit_log** | Security logging | All permission attempts + changes |
+
+### Authentication Flow
+
+```
+1. User login → Supabase Auth JWT
+2. JWT includes: user_id, agency_id, role_id
+3. API middleware: withPermission() validates requests
+4. Permission service: checks role + resource + action
+5. Client scoping: validates Member client access
+6. Audit log: records all attempts (allow/deny)
+7. Response: 200 (success) or 403 (denied)
+```
+
+### Permission Patterns
+
+| Pattern | Use Case | Implementation |
+|---------|----------|----------------|
+| **withPermission()** | Standard API protection | `{ resource: 'clients', action: 'read' }` |
+| **withOwnerOnly()** | Owner-exclusive endpoints | Hard-coded Owner check |
+| **withAnyPermission()** | Multiple permission options | OR logic for permission array |
+| **Client-scoped** | Member client validation | Auto-extract client ID from URL |
+
+### Role Hierarchy
+
+```
+Owner (Level 1)
+├── All permissions granted
+├── Cannot be deleted/modified
+├── Billing access exclusive
+└── Role management control
+
+Admin (Level 2)
+├── All permissions except billing
+├── User management capabilities
+├── Client assignment control
+└── Audit log access
+
+Manager (Level 3)
+├── Client management (RWD)
+├── Read-only workflows/integrations
+├── Team oversight capabilities
+└── No user role changes
+
+Member (Level 4)
+├── Assigned clients only (RW)
+├── Read-only assigned client documents
+├── No admin capabilities
+└── Profile self-service only
+```
+
+### Performance Optimizations
+
+| Optimization | Implementation | Impact |
+|--------------|----------------|--------|
+| **Permission Cache** | 5-minute TTL, 1000 entries | <50ms permission checks |
+| **Role Level Cache** | Cached in user table | Fast hierarchy validation |
+| **Batch Checks** | Multiple permissions per request | Reduced API calls |
+| **Client Preload** | Member assignments cached | Fast client filtering |
+
+### Security Features
+
+| Feature | Implementation | Security Benefit |
+|---------|----------------|------------------|
+| **Dual-layer** | Middleware + RLS policies | Defense in depth |
+| **Owner Protection** | Database triggers + middleware | Prevent privilege escalation |
+| **Audit Logging** | All access attempts logged | Compliance + forensics |
+| **JWT Validation** | Supabase Auth integration | Secure authentication |
+| **Rate Limiting** | Per-endpoint limits | DoS protection |
+
+### Integration Points
+
+| Integration | Purpose | Notes |
+|-------------|---------|-------|
+| **Supabase Auth** | JWT claims extension | Add role_id to JWT |
+| **Linear UI** | Permission-aware components | Hide/show based on role |
+| **API Middleware** | Blanket protection | All 34 endpoints protected |
+| **RLS Policies** | Database-level backup | Automatic agency isolation |
+
+---
+
 ## Import from Existing Projects
 
 ### From War Room
