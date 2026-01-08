@@ -27,6 +27,7 @@ const accountItems: Array<{
   label: string
 }> = [
   { id: "notifications", label: "Notifications" },
+  { id: "display_preferences", label: "Display" },
 ]
 
 interface SettingsLayoutProps {

@@ -120,6 +120,7 @@ export type SettingsSection =
   | 'ai_configuration'
   | 'personal_preferences'
   | 'notifications'
+  | 'display_preferences'
   | 'pipeline'
   | 'integrations'
   | 'security'
@@ -142,6 +143,8 @@ export const SETTINGS_PERMISSIONS: SettingsPermission[] = [
   { section: 'personal_preferences', action: 'write', roles: ['admin', 'user'] },
   { section: 'notifications', action: 'read', roles: ['admin', 'user'] },
   { section: 'notifications', action: 'write', roles: ['admin', 'user'] },
+  { section: 'display_preferences', action: 'read', roles: ['admin', 'user'] },
+  { section: 'display_preferences', action: 'write', roles: ['admin', 'user'] },
   { section: 'pipeline', action: 'read', roles: ['admin', 'user'] },
   { section: 'pipeline', action: 'write', roles: ['admin'] },
   { section: 'integrations', action: 'read', roles: ['admin', 'user'] },
