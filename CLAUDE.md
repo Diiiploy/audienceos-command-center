@@ -355,7 +355,7 @@ gemini-3-flash-preview
    - Commit: 467828a
 
 ### 🚧 In Progress
-- Multi-Org Roles (specification stage - needs feature spec)
+- Multi-Org Roles (vision approved 2026-01-08, moving to B-2 scope phase)
 - UI Polish Pass (completion verification)
 
 ### 📋 Pending
@@ -363,6 +363,35 @@ gemini-3-flash-preview
 - Pipeline view (should work with auth fix)
 - Dashboard KPIs (should work with auth fix)
 - Full end-to-end testing of all modules
+
+---
+
+## Multi-Org Roles & Permissions System (New Feature)
+
+**Status:** Vision approved (2026-01-08) | Phase: B-1 → B-2
+**Drive Link:** [VISION Document](https://docs.google.com/document/d/1Ty7MvP1f_GFIoejJOhYsysI5qq6GkFopysIXUqSldwo/edit?usp=sharing)
+**Local Docs:** `docs/01-product/VISION.md`
+
+### Overview
+Fine-grained role-based access control system for marketing agencies managing multiple clients and team members.
+
+### Problem Solved
+- **Data Exposure Risk**: Junior team members accessing sensitive client data they shouldn't see
+- **Manual Access Control**: Owners spending 2+ hours/week managing permissions
+- **Team Structure Mismatch**: Generic admin/user roles don't match agency hierarchies
+
+### Solution Architecture
+- **4-level role hierarchy**: Owner (1) → Admin (2) → Manager (3) → Member (4)
+- **Granular permissions**: 8 resources × 3 actions per role
+- **Client-scoped access**: Members assigned to specific clients only
+- **Defense in depth**: Middleware + RLS working together
+- **100% API enforcement**: All 34 endpoints protected
+
+### Next Steps
+1. ✅ **B-1 Vision** - Approved (2026-01-08)
+2. 🔄 **B-2 Scope** - Define IN/OUT scope and constraints
+3. **C-1 Design** - Design specification (design phase)
+4. **D-1 SpecKit** - Technical specifications and API contracts
 
 ---
 
