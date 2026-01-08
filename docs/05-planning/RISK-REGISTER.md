@@ -228,13 +228,160 @@
 
 ---
 
+### R-011: Permission Logic Bugs (Multi-Org Roles)
+| Attribute | Value |
+|-----------|-------|
+| **Category** | Security |
+| **Probability** | Medium |
+| **Impact** | Critical |
+| **Rating** | 🔴 Mitigate |
+| **Owner** | Engineering |
+
+**Description:** Permission checking logic bugs could accidentally grant access to unauthorized resources.
+
+**Mitigation:**
+- [ ] Comprehensive permission matrix test suite (8 resources × 3 actions × 4 roles)
+- [ ] Unit tests for withPermission middleware edge cases
+- [ ] Code review of permission service logic before Phase 1
+- [ ] Permission denial logging + manual audit of access patterns
+
+**Contingency:** Revert to simpler all-or-nothing permissions, extend RBAC in v1.1.
+
+---
+
+### R-012: Performance at Scale (Multi-Org Roles)
+| Attribute | Value |
+|-----------|-------|
+| **Category** | Performance |
+| **Probability** | Low |
+| **Impact** | High |
+| **Rating** | 🟡 Monitor |
+| **Owner** | Engineering |
+
+**Description:** Permission checks on 34 API endpoints could add latency if permission service is slow.
+
+**Mitigation:**
+- [ ] Cache user permissions for 5 minutes
+- [ ] Use role hierarchy for early denials
+- [ ] Measure P50/P95 latency on permission checks
+- [ ] Load test with 1000+ concurrent requests
+
+**Contingency:** Reduce permission check complexity, implement request batching.
+
+---
+
+### R-013: RLS Policy Gaps (Multi-Org Roles)
+| Attribute | Value |
+|-----------|-------|
+| **Category** | Security |
+| **Probability** | Low |
+| **Impact** | Critical |
+| **Rating** | 🟡 Monitor |
+| **Owner** | Engineering |
+
+**Description:** RLS policies may not correctly enforce client-scoped access for Members.
+
+**Mitigation:**
+- [ ] RLS test suite for each new permission tier
+- [ ] Test Member accessing unassigned clients (should fail)
+- [ ] Test Manager vs Admin access patterns
+- [ ] Code review all RLS policy changes
+
+**Contingency:** Rely on middleware checks as primary defense, RLS as backup.
+
+---
+
+### R-014: Owner Protection Logic
+| Attribute | Value |
+|-----------|-------|
+| **Category** | Security |
+| **Probability** | Low |
+| **Impact** | High |
+| **Rating** | 🟡 Monitor |
+| **Owner** | Engineering |
+
+**Description:** Owner role could be accidentally modified/deleted, breaking agency management.
+
+**Mitigation:**
+- [ ] Hard-code Owner role cannot be deleted
+- [ ] withOwnerOnly middleware for all owner-only endpoints
+- [ ] Test suite: verify non-owners cannot modify Owner role
+- [ ] Audit log captures all Owner role change attempts
+
+**Contingency:** Manual database recovery if Owner accidentally modified.
+
+---
+
+### R-015: Member Client Assignment Scope Creep
+| Attribute | Value |
+|-----------|-------|
+| **Category** | Technical |
+| **Probability** | Medium |
+| **Impact** | Medium |
+| **Rating** | 🟡 Monitor |
+| **Owner** | Engineering |
+
+**Description:** Client assignment UI may become complex with many clients (100+ per agency).
+
+**Mitigation:**
+- [ ] Pagination or search for client selection
+- [ ] Batch assignment for multiple Members
+- [ ] Clear UI indication of current assignments
+- [ ] Performance tested with 100 clients
+
+**Contingency:** Simple list view with search, no bulk operations in v1.
+
+---
+
+### R-016: Audit Trail Completeness
+| Attribute | Value |
+|-----------|-------|
+| **Category** | Compliance |
+| **Probability** | Low |
+| **Impact** | Medium |
+| **Rating** | 🟢 Accept |
+| **Owner** | Engineering |
+
+**Description:** Audit logging might miss some permission access attempts due to error handling.
+
+**Mitigation:**
+- [ ] Log permission checks before allowing/denying
+- [ ] Test logging with intentional failures
+- [ ] Separate audit table prevents data loss on main queries
+- [ ] Periodic audit log consistency checks
+
+**Contingency:** Admin can manually review API logs if audit trail incomplete.
+
+---
+
+### R-017: Integration with Existing Auth System
+| Attribute | Value |
+|-----------|-------|
+| **Category** | Integration |
+| **Probability** | Medium |
+| **Impact** | Medium |
+| **Rating** | 🟡 Monitor |
+| **Owner** | Engineering |
+
+**Description:** Multi-Org Roles must coordinate with existing Supabase auth, potential for conflicts.
+
+**Mitigation:**
+- [ ] Test all auth flows (login, logout, session) with new role system
+- [ ] Verify JWT claims include role_id + agency_id
+- [ ] Ensure existing users get default role assignment
+- [ ] Database migration strategy for backward compatibility
+
+**Contingency:** Ship with Owner role for all existing users, migrate gradually.
+
+---
+
 ## Risk Summary
 
 | Rating | Count | Action |
 |--------|-------|--------|
-| 🔴 Block/Mitigate | 1 | Active mitigation required |
-| 🟡 Monitor | 5 | Track during development |
-| 🟢 Accept | 4 | Acknowledged, contingency ready |
+| 🔴 Block/Mitigate | 2 | Active mitigation required |
+| 🟡 Monitor | 10 | Track during development |
+| 🟢 Accept | 5 | Acknowledged, contingency ready |
 
 ---
 
@@ -248,6 +395,7 @@
 
 | Date | Change |
 |------|--------|
+| 2026-01-08 | Added Multi-Org Roles specific risks (R-011 to R-017): 7 new risks for RBAC system |
 | 2025-12-31 | Initial risk register with 10 identified risks |
 
 ---
