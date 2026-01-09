@@ -347,10 +347,11 @@ gemini-3-flash-preview
 ```
 mcp__chi-gateway__sheets_append({
   spreadsheetId: "15wGY-DlE1BV5VBLpU_Jghi3nGiPviaNZXXl9Wth68GI",
-  range: "Log!A:E",
+  range: "Sheet2!A:E",
   values: [["YYYY-MM-DD", "Task description", "DUs", "Category", "✅ Done"]]
 })
 ```
+**Note:** Sheet2 has headers: Date | Task Description | DUs | Category | Status
 
 ---
 
