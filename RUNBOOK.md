@@ -490,6 +490,11 @@ npx tsc --noEmit
   - Global chat opener method
   - Contextual prompts from dashboard
   - Task and client integration
+- [x] Settings UX improvements (2026-01-09)
+  - Direct red Sign Out button in slide-over settings
+  - Removed unnecessary Security wrapper section
+  - Team members list cleanup (8 test accounts deleted)
+  - Database integrity verified (FK constraints handled)
 
 ### ⏳ In Progress (Trevor)
 - [ ] Signup page implementation
@@ -512,6 +517,6 @@ npx tsc --noEmit
 
 ---
 
-*Last updated: 2026-01-06*
+*Last updated: 2026-01-09*
 *Project Phase: Production (Vercel) | Active Development*
 *Current Focus: Authentication (Trevor) + Core Features (Roderic)*
