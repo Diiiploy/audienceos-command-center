@@ -1,12 +1,14 @@
 "use client"
 
-import React from "react"
+import React, { useState } from "react"
+import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { useSettingsStore } from "@/stores/settings-store"
 import { useAuthStore } from "@/lib/store"
 import type { SettingsSection } from "@/types/settings"
 import { SETTINGS_PERMISSIONS } from "@/types/settings"
-import { ChevronLeft, Building2, User, Users } from "lucide-react"
+import { ChevronLeft, Building2, User, Users, LogOut, Loader2 } from "lucide-react"
+import { createClient } from "@/lib/supabase"
 
 // Workspace settings items (admin/agency-level)
 const workspaceItems: Array<{
@@ -21,14 +23,13 @@ const workspaceItems: Array<{
   { id: "audit_log", label: "Audit Log", adminOnly: true },
 ]
 
-// My Account settings items (user-level)
+// My Account settings items (user-level) - Security removed, Sign Out is now a direct button
 const accountItems: Array<{
   id: SettingsSection
   label: string
 }> = [
   { id: "notifications", label: "Notifications" },
   { id: "display_preferences", label: "Display" },
-  { id: "security", label: "Security" },
 ]
 
 interface SettingsLayoutProps {
@@ -39,9 +40,24 @@ interface SettingsLayoutProps {
 
 export function SettingsLayout({ children, onBack, onBrandClick }: SettingsLayoutProps) {
   const { activeSection, setActiveSection, hasUnsavedChanges } = useSettingsStore()
-  const { user } = useAuthStore()
+  const { user, clear: clearAuth } = useAuthStore()
+  const router = useRouter()
+  const [isSigningOut, setIsSigningOut] = useState(false)
 
   const isAdmin = user?.role === "admin"
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true)
+    try {
+      const supabase = createClient()
+      await supabase.auth.signOut()
+      clearAuth()
+      router.push("/login")
+    } catch (error) {
+      console.error("Error signing out:", error)
+      setIsSigningOut(false)
+    }
+  }
 
   // Check if user can access a section
   const canAccessSection = (section: SettingsSection): boolean => {
@@ -141,6 +157,20 @@ export function SettingsLayout({ children, onBack, onBrandClick }: SettingsLayou
                     {item.label}
                   </button>
                 ))}
+
+                {/* Direct Sign Out button */}
+                <button
+                  onClick={handleSignOut}
+                  disabled={isSigningOut}
+                  className="flex items-center w-full text-left px-3 py-2 text-sm rounded-md transition-colors cursor-pointer text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                >
+                  {isSigningOut ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <LogOut className="w-4 h-4 mr-2" />
+                  )}
+                  {isSigningOut ? "Signing out..." : "Sign Out"}
+                </button>
               </nav>
             </div>
           )}
