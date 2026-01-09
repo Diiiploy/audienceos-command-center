@@ -70,6 +70,33 @@ setUser: (user) => set({
 
 **Key Learning:** Before creating a stub for "Phase N" features, extend the existing store instead. Stubs can silently break features when components import from the wrong path.
 
+### Browser Testing: Role-Based Access Verification - COMPLETE ✅
+
+**Test Users:**
+1. **Admin Role (E2E Tester):** Full dashboard and settings access verified
+2. **User Role (RBAC Test User):** Created via `scripts/create-user-role-test.ts`
+   - Email: `rodericandrews+usertest@gmail.com`
+   - Password: `TestPassword123!`
+   - Role: `user` (hierarchy level 4 = Member)
+
+**Test Results:**
+
+| Section | Admin Access | User Access | Status |
+|---------|-------------|-------------|--------|
+| Dashboard | ✅ Full | ✅ Full | PASS |
+| Settings > General | ✅ Full | ✅ Full | PASS |
+| Settings > Security | ✅ Full | ✅ Limited (own) | PASS |
+| Settings > Teams | ✅ Full | ❌ **Forbidden** | PASS ✓ |
+
+**Key Findings:**
+1. ✅ Auth store unification fixed `userRole: null` bug
+2. ✅ Legacy role mapping works: `'user'` → hierarchy level 4
+3. ✅ Backend returns 403 for unauthorized team access (defense in depth)
+4. ✅ No RBAC errors in console - clean auth flow
+5. ✅ "Forbidden" message displays correctly for restricted sections
+
+**RBAC Verification Complete:** Role-based access control is working correctly in production.
+
 ---
 
 ## 📊 Session Summary (2026-01-08)
