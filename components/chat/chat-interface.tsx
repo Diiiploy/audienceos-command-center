@@ -912,10 +912,10 @@ export function ChatInterface({
             onBlur={handleInputBlur}
             disabled={isLoading}
             className={cn(
-              "w-full min-h-[48px] max-h-[120px] p-3 bg-white/20 border rounded-xl text-gray-900 text-[14px] leading-[1.5] resize-none outline-none transition-colors placeholder:text-gray-600 backdrop-blur-sm",
+              "w-full min-h-[48px] max-h-[120px] p-3 bg-white/20 dark:bg-slate-800/40 border rounded-xl text-gray-900 dark:text-gray-100 text-[14px] leading-[1.5] resize-none outline-none transition-colors placeholder:text-gray-600 dark:placeholder:text-gray-400 backdrop-blur-sm",
               isDragOver
                 ? "border-blue-500 border-2 bg-blue-500/10"
-                : "border-white/30 focus:border-white/40 hover:border-white/35"
+                : "border-white/30 dark:border-slate-600/50 focus:border-white/40 dark:focus:border-slate-500 hover:border-white/35 dark:hover:border-slate-500/70"
             )}
           />
           {isDragOver && (
