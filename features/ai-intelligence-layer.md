@@ -967,6 +967,7 @@ response_time_degradation:
 
 | Date | Change |
 |------|--------|
+| 2026-01-09 | **Chat System Fixes** - Fixed broken chat API (granted Members ai-features:write RBAC permission), improved UI layout (hidden scrollbar, timestamps only on user messages, route labels flush left with spacing). All changes deployed to production. Commits: 559e455 (RBAC fix), 98379f1 (UI improvements) |
 | 2026-01-05 | **Validation Complete** - Fixed mock mode detection for development testing, verified all 6 dashboard functions work (get_clients, get_alerts, get_stats, get_communications, navigate_to), achieved 9.5/10 confidence score. Commits: 58aaeda (mock mode fixes) |
 | 2025-12-31 | Enhanced spec with complete implementation details, corrected user story numbers (US-017 to US-024), added comprehensive technical architecture |
 | 2025-12-31 | Created initial spec from MVP-PRD and War Room migration plan |
