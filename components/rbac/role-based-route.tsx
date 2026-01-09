@@ -88,18 +88,19 @@ export function RoleBasedRoute({
     }
   }, [user, userRole, minimumRole, authLoading, onDenied]);
 
+  // Redirect effect - called unconditionally (Rules of Hooks compliant)
+  // Only performs redirect when hasAccess is false and redirectTo is provided
+  useEffect(() => {
+    if (!loading && !authLoading && !hasAccess && redirectTo) {
+      router.push(redirectTo);
+    }
+  }, [router, redirectTo, hasAccess, loading, authLoading]);
+
   if (loading || authLoading) {
     return null; // Or a loading skeleton
   }
 
   if (!hasAccess) {
-    // Redirect if redirectTo is provided
-    if (redirectTo) {
-      useEffect(() => {
-        router.push(redirectTo);
-      }, [router, redirectTo]);
-    }
-
     // Show fallback while redirecting
     return fallback;
   }

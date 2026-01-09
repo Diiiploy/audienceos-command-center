@@ -53,25 +53,27 @@ export function PermissionGate({
       return;
     }
 
-    // Owner/Admin/Manager always have all permissions (except client-scoped Members)
+    // Owner/Admin/Manager (levels 1-3) always have full permissions
     if (userRole.hierarchy_level <= 3) {
-      // For non-Members, grant access (Members checked separately below)
-      if (userRole.hierarchy_level === 4) {
-        // Member role - check client-scoped access
-        if (clientId) {
-          checkMemberClientAccess();
-        } else {
-          // Member accessing without client scope - check general permissions
-          checkPermissions();
-        }
-      } else {
-        setHasPermission(true);
-      }
+      setHasPermission(true);
       setLoading(false);
       return;
     }
 
-    // For Members or unknown roles, check specific permissions
+    // Member role (level 4) - check client-scoped access or general permissions
+    if (userRole.hierarchy_level === 4) {
+      if (clientId) {
+        // Check if Member has access to this specific client
+        checkMemberClientAccess();
+      } else {
+        // Member accessing without client scope - check general permissions
+        checkPermissions();
+        setLoading(false);
+      }
+      return;
+    }
+
+    // Unknown role levels - check specific permissions
     checkPermissions();
     setLoading(false);
   }, [user, userRole, userPermissions, resource, action, clientId]);
