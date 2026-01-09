@@ -719,8 +719,12 @@ export function ChatInterface({
             <div
               ref={scrollContainerRef}
               onScroll={handleScroll}
-              className="flex-1 overflow-y-auto px-4 py-3 space-y-3"
-              style={{ minHeight: 0 }}
+              className="flex-1 overflow-y-auto px-4 py-3 space-y-3 scrollbar-hide"
+              style={{
+                minHeight: 0,
+                scrollbarWidth: 'none', /* Firefox */
+                msOverflowStyle: 'none', /* IE/Edge */
+              }}
             >
               {messages.length === 0 && !isLoading && (
                 <div className="text-gray-500 dark:text-gray-400 text-center py-8">
@@ -741,18 +745,23 @@ export function ChatInterface({
                   key={msg.id}
                   className={`flex flex-col w-full ${msg.role === "user" ? "items-end" : "items-start"}`}
                 >
-                  {/* Timestamp and Route Indicator */}
-                  <div className="flex items-center gap-2 mb-1 px-1 w-full">
-                    <span className="text-[10px] text-gray-500">
-                      {new Date(msg.timestamp).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                    {msg.role === "assistant" && msg.route && (
-                      <RouteIndicator route={msg.route} />
-                    )}
-                  </div>
+                  {/* Timestamp (user messages only) or Route Indicator (AI messages only) */}
+                  {msg.role === "user" ? (
+                    <div className="flex justify-end mb-1 px-1 w-full">
+                      <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                        {new Date(msg.timestamp).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                  ) : (
+                    msg.route && (
+                      <div className="flex justify-start mb-1 px-1 w-full" style={{ marginTop: '0.375em' }}>
+                        <RouteIndicator route={msg.route} />
+                      </div>
+                    )
+                  )}
 
                   {/* Message bubble */}
                   <div
