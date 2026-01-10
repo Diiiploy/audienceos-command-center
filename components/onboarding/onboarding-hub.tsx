@@ -66,7 +66,7 @@ export function OnboardingHub({ onClientClick }: OnboardingHubProps) {
       <Tabs
         value={activeTab}
         onValueChange={(value) => setActiveTab(value as "active" | "journey" | "form-builder")}
-        className="flex-1 flex flex-col"
+        className="flex-1 flex flex-col min-h-0"
       >
         <TabsList className="w-fit">
           <TabsTrigger value="active" className="gap-2">
@@ -83,15 +83,15 @@ export function OnboardingHub({ onClientClick }: OnboardingHubProps) {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="active" className="flex-1 mt-6 overflow-y-auto pb-[150px]">
+        <TabsContent value="active" className="flex-1 min-h-0 mt-6 overflow-y-auto pb-[150px]">
           <ActiveOnboardings />
         </TabsContent>
 
-        <TabsContent value="journey" className="flex-1 mt-6 overflow-y-auto pb-[150px]">
+        <TabsContent value="journey" className="flex-1 min-h-0 mt-6 overflow-y-auto pb-[150px]">
           <ClientJourneyConfig />
         </TabsContent>
 
-        <TabsContent value="form-builder" className="flex-1 mt-6 overflow-y-auto pb-[150px]">
+        <TabsContent value="form-builder" className="flex-1 min-h-0 mt-6 overflow-y-auto pb-[150px]">
           <FormBuilder />
         </TabsContent>
       </Tabs>
