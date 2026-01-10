@@ -180,15 +180,13 @@ export const POST = withPermission({ resource: 'clients', action: 'write' })(
         }
       } else {
         // Create new client
-        const validTier = ['Core', 'Enterprise'].includes(client_tier as string) ? client_tier : 'Core'
-
+        // Note: client_tier is stored in tags or notes as the table doesn't have a tier column
         const { data: newClient, error: clientError } = await supabase
           .from('client')
           .insert({
             agency_id: agencyId,
             name: sanitizedName,
             contact_email: sanitizedEmail,
-            tier: validTier as 'Core' | 'Enterprise',
             stage: 'Onboarding',
             health_status: 'green',
             is_active: true,
