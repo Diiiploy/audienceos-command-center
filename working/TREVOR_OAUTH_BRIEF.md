@@ -72,10 +72,10 @@ Implement complete user authentication flow:
 1. Go to Supabase Dashboard: https://supabase.com/dashboard/project/ebxshdqfaqupnvpghodi
 2. Navigate to Authentication → Providers
 3. Enable "Google" provider
-4. Use these credentials:
+4. Use credentials from `.env.local`:
    ```
-   Client ID: 956161516382-vgo6cbv9ldp6nnh88n1tb3g5gog17kb.apps.googleusercontent.com
-   Client Secret: G0CSPX-13Zc9w9ULj6rtlD5qPdd6xaYmsw
+   Client ID: <from GOOGLE_CLIENT_ID in .env.local>
+   Client Secret: <from GOOGLE_CLIENT_SECRET in .env.local - NEVER COMMIT>
    ```
 5. Set redirect URL: `https://audienceos-agro-bros.vercel.app/auth/callback`
 
@@ -165,17 +165,21 @@ Add below login form:
 
 ### Supabase Credentials (Already Configured)
 
+> ⚠️ **SECURITY:** Credentials stored in `.env.local` only. See Supabase Dashboard → Settings → API for values.
+
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=https://ebxshdqfaqupnvpghodi.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVieHNoZHFmYXF1cG52cGdob2RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMzIwMjcsImV4cCI6MjA4MjkwODAyN30.qROryzcotUvU9G3-fK4yuEwI2UAzz_xt44WVIY4i4BU
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVieHNoZHFmYXF1cG52cGdob2RpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NzMzMjAyNywiZXhwIjoyMDgyOTA4MDI3fQ.q-E_mnavGgrMqOIqI7V3bS9FOObr23KQzCRMHIR0440
+NEXT_PUBLIC_SUPABASE_URL=<from .env.local>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<from .env.local>
+SUPABASE_SERVICE_ROLE_KEY=<from .env.local - NEVER COMMIT>
 ```
 
 ### Google OAuth Credentials (Already in .env.local)
 
+> ⚠️ **SECURITY:** Credentials stored in `.env.local` only. See Google Cloud Console for values.
+
 ```bash
-GOOGLE_CLIENT_ID=956161516382-vgo6cbv9ldp6nnh88n1tb3g5gog17kb.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=G0CSPX-13Zc9w9ULj6rtlD5qPdd6xaYmsw
+GOOGLE_CLIENT_ID=<from .env.local>
+GOOGLE_CLIENT_SECRET=<from .env.local - NEVER COMMIT>
 ```
 
 ### Key Files to Modify
