@@ -1,13 +1,14 @@
 /**
  * SEO Enrichment Service
  *
- * Calls DataForSEO API directly for client enrichment during onboarding.
- * Server-side only - credentials never exposed to client.
+ * Routes through diiiploy-gateway for SEO data (DataForSEO).
+ * Product infrastructure - does NOT use chi-gateway (personal PAI).
  *
+ * Gateway handles credentials, rate limiting, and audit logging.
  * Cost: ~$0.02 per enrichment (domain metrics + competitors call)
  */
 
-const DATAFORSEO_API = 'https://api.dataforseo.com/v3'
+const DIIIPLOY_GATEWAY = process.env.DIIIPLOY_GATEWAY_URL || 'https://diiiploy-gateway.roderic-andrews.workers.dev'
 
 export interface SEOSummary {
   total_keywords: number
@@ -56,19 +57,41 @@ export function validateDomain(url: string): { valid: boolean; domain: string | 
 }
 
 /**
- * Fetch from DataForSEO with retry logic
+ * Get gateway API key from environment
  */
-async function fetchWithRetry(
-  url: string,
-  options: RequestInit,
+function getGatewayApiKey(): string | null {
+  return process.env.DIIIPLOY_GATEWAY_API_KEY || null
+}
+
+/**
+ * Fetch from diiiploy-gateway with retry logic
+ */
+async function fetchFromGateway(
+  endpoint: string,
+  body: Record<string, unknown>,
   retries = 3
 ): Promise<Response> {
+  const apiKey = getGatewayApiKey()
+
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  }
+
+  if (apiKey) {
+    headers['Authorization'] = `Bearer ${apiKey}`
+  }
+
   for (let i = 0; i < retries; i++) {
     try {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 15000) // 15s timeout
 
-      const response = await fetch(url, { ...options, signal: controller.signal })
+      const response = await fetch(`${DIIIPLOY_GATEWAY}${endpoint}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      })
       clearTimeout(timeoutId)
 
       if (response.status === 429 && i < retries - 1) {
@@ -88,65 +111,19 @@ async function fetchWithRetry(
 }
 
 /**
- * Get credentials from environment
- */
-function getCredentials(): { auth: string } | null {
-  const login = process.env.DATAFORSEO_LOGIN
-  const password = process.env.DATAFORSEO_PASSWORD
-
-  if (!login || !password) {
-    return null
-  }
-
-  // DataForSEO uses HTTP Basic Auth
-  const auth = Buffer.from(`${login}:${password}`).toString('base64')
-  return { auth }
-}
-
-/**
- * Fetches domain SEO metrics from DataForSEO
+ * Fetches domain SEO metrics via diiiploy-gateway
  */
 export async function enrichDomainSEO(domain: string): Promise<SEOEnrichmentResult> {
-  const credentials = getCredentials()
-
-  if (!credentials) {
-    console.error('DataForSEO credentials not configured')
-    return {
-      success: false,
-      domain,
-      summary: null,
-      competitors: [],
-      fetched_at: new Date().toISOString(),
-      error: 'SEO enrichment not configured',
-    }
-  }
-
-  const headers = {
-    'Authorization': `Basic ${credentials.auth}`,
-    'Content-Type': 'application/json',
-  }
-
   try {
-    // Parallel fetch: domain metrics (backlinks summary) + competitors
+    // Parallel fetch: domain metrics + competitors via gateway
     const [domainRes, competitorsRes] = await Promise.all([
-      // Backlinks summary gives us domain rank and backlink count
-      fetchWithRetry(`${DATAFORSEO_API}/backlinks/summary/live`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify([{
-          target: domain,
-        }]),
-      }),
-      // Competitors domain gives us competitive landscape
-      fetchWithRetry(`${DATAFORSEO_API}/dataforseo_labs/google/competitors_domain/live`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify([{
-          target: domain,
-          location_code: 2840, // USA
-          language_code: 'en',
-          limit: 5,
-        }]),
+      // Domain metrics (backlinks summary)
+      fetchFromGateway('/dataforseo/domain', { target: domain }),
+      // Competitors
+      fetchFromGateway('/dataforseo/competitors', {
+        target: domain,
+        limit: 5,
+        location: 2840, // USA
       }),
     ])
 
@@ -155,7 +132,7 @@ export async function enrichDomainSEO(domain: string): Promise<SEOEnrichmentResu
       competitorsRes.json(),
     ])
 
-    // Parse domain metrics response
+    // Parse domain metrics response (DataForSEO format)
     const domainMetrics = domainData.tasks?.[0]?.result?.[0] || {}
 
     // Parse competitors response
@@ -186,7 +163,7 @@ export async function enrichDomainSEO(domain: string): Promise<SEOEnrichmentResu
       fetched_at: new Date().toISOString(),
     }
   } catch (error) {
-    console.error('DataForSEO API error:', error)
+    console.error('SEO enrichment error via diiiploy-gateway:', error)
     return {
       success: false,
       domain,
