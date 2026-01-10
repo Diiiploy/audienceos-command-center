@@ -44,6 +44,37 @@
 
 ---
 
+## 🔧 Infrastructure Dependencies (Updated 2026-01-10)
+
+### Diiiploy-Gateway Integration
+
+**AudienceOS uses diiiploy-gateway for third-party API access:**
+
+| Service | Route | Purpose |
+|---------|-------|---------|
+| **DataForSEO** | `/dataforseo/*` | SEO enrichment during onboarding |
+
+**Gateway URL:** `https://diiiploy-gateway.roderic-andrews.workers.dev`
+**Required Env Var:** `DIIIPLOY_GATEWAY_API_KEY` (optional - gateway allows unauthenticated calls)
+
+**Why Gateway Pattern:**
+- **Credential isolation** - AudienceOS doesn't need DataForSEO keys
+- **Rate limiting** - Gateway enforces limits across tenants
+- **Audit logging** - All API calls logged centrally
+- **Multi-tenant** - Same gateway serves multiple products
+
+**Architecture:**
+- ✅ **diiiploy-gateway** - Multi-tenant product infrastructure (AudienceOS, RevOS, etc.)
+- ❌ **chi-gateway** - Personal PAI infrastructure (NOT for products)
+
+**Verification:**
+```bash
+curl -s https://diiiploy-gateway.roderic-andrews.workers.dev/health | jq .tools
+# Should return 64 (includes 7 DataForSEO tools)
+```
+
+---
+
 ## Quick Start
 
 ```bash
