@@ -30,7 +30,7 @@ export const GET = withPermission({ resource: 'clients', action: 'read' })(
             name,
             contact_email,
             contact_name,
-            tier,
+            stage,
             tags,
             website_url,
             seo_data
