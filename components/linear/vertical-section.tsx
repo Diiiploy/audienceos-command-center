@@ -87,7 +87,7 @@ export function VerticalPageLayout({
 }: VerticalPageLayoutProps) {
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className={cn("mx-auto p-8", maxWidthClasses[maxWidth])}>
+      <div className={cn("mx-auto p-8 pb-[150px]", maxWidthClasses[maxWidth])}>
         <header className="mb-8">
           <h1 className="text-2xl font-semibold text-foreground mb-2">{title}</h1>
           {description && (

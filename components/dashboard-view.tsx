@@ -1118,7 +1118,7 @@ export function DashboardView({ clients, onClientClick, onOpenClientDetail, onSe
   const selectedPerf = perfItems.find(p => p.id === selectedPerfId)
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full pb-[150px]">
       {/* KPI Cards */}
       <div className="grid grid-cols-4 gap-3 mb-3">
         {kpis.map((kpi, i) => (

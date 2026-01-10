@@ -351,7 +351,7 @@ export function AutomationsHub() {
         )}
 
         {/* Automations list */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto pb-[150px]">
           {filteredAutomations.length > 0 ? (
             filteredAutomations.map((automation) => (
               <AutomationItem
