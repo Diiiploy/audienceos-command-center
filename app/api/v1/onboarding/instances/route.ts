@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { createRouteHandlerClient } from '@/lib/supabase'
 import { withRateLimit, withCsrfProtection, sanitizeString, sanitizeEmail, createErrorResponse } from '@/lib/security'
 import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission'
+import { sendOnboardingEmail } from '@/lib/email/onboarding'
 import { randomBytes } from 'crypto'
 import type { Database, Json } from '@/types/database'
 
@@ -262,10 +263,39 @@ export const POST = withPermission({ resource: 'clients', action: 'write' })(
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://audienceos-agro-bros.vercel.app'
       const portalUrl = `${baseUrl}/onboarding/start?token=${linkToken}`
 
+      // Get agency name for the email
+      const { data: agency } = await supabase
+        .from('agency')
+        .select('name')
+        .eq('id', agencyId)
+        .single()
+
+      const agencyName = agency?.name || 'Your Marketing Agency'
+
+      // Extract SEO summary for email if available
+      const seoSummary = seo_data && typeof seo_data === 'object' && 'summary' in seo_data
+        ? (seo_data as { summary?: { total_keywords?: number; traffic_value?: number; competitors_count?: number } }).summary
+        : null
+
+      // Send welcome email (non-blocking - don't fail onboarding if email fails)
+      const emailResult = await sendOnboardingEmail({
+        to: sanitizedEmail,
+        clientName: sanitizedName,
+        agencyName,
+        portalUrl,
+        seoSummary,
+      })
+
+      if (!emailResult.success) {
+        console.warn(`Onboarding email failed for ${sanitizedEmail}:`, emailResult.error)
+      }
+
       return NextResponse.json({
         data: {
           ...instance,
           portal_url: portalUrl,
+          email_sent: emailResult.success,
+          email_message_id: emailResult.messageId,
         }
       }, { status: 201 })
     } catch {
