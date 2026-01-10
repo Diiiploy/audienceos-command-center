@@ -37,9 +37,9 @@ export function OnboardingHub({ onClientClick }: OnboardingHubProps) {
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col p-6">
       {/* Header */}
-      <div className="flex items-center justify-between pb-6">
+      <div className="flex items-center justify-between pb-4">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Onboarding & Intake Hub</h1>
           <p className="text-muted-foreground mt-1">
