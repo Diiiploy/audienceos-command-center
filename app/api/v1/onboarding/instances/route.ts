@@ -199,7 +199,7 @@ export const POST = withPermission({ resource: 'clients', action: 'write' })(
 
         if (clientError || !newClient) {
           console.error('Failed to create client:', clientError)
-          return createErrorResponse(500, 'Failed to create client')
+          return createErrorResponse(500, `Failed to create client: ${clientError?.message || 'Unknown error'}`)
         }
 
         clientId = newClient.id
