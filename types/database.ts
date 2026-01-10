@@ -11,6 +11,11 @@ export type PreferenceCategory = string
 export type UserRole = 'admin' | 'user'
 export type WorkflowStatus = 'active' | 'paused' | 'disabled'
 
+// Onboarding types (from database enums)
+export type FieldType = 'text' | 'email' | 'url' | 'number' | 'textarea' | 'select'
+export type OnboardingStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled'
+export type StageStatus = 'pending' | 'in_progress' | 'completed' | 'blocked'
+
 export type Json =
   | string
   | number
@@ -327,10 +332,13 @@ export type Database = {
           lifetime_value: number | null
           name: string
           notes: string | null
+          seo_data: Json | null
+          seo_last_refreshed: string | null
           stage: string
           tags: string[] | null
           total_spend: number | null
           updated_at: string
+          website_url: string | null
         }
         Insert: {
           agency_id: string
@@ -345,10 +353,13 @@ export type Database = {
           lifetime_value?: number | null
           name: string
           notes?: string | null
+          seo_data?: Json | null
+          seo_last_refreshed?: string | null
           stage?: string
           tags?: string[] | null
           total_spend?: number | null
           updated_at?: string
+          website_url?: string | null
         }
         Update: {
           agency_id?: string
@@ -363,10 +374,13 @@ export type Database = {
           lifetime_value?: number | null
           name?: string
           notes?: string | null
+          seo_data?: Json | null
+          seo_last_refreshed?: string | null
           stage?: string
           tags?: string[] | null
           total_spend?: number | null
           updated_at?: string
+          website_url?: string | null
         }
         Relationships: [
           {
@@ -600,6 +614,118 @@ export type Database = {
           },
         ]
       }
+      intake_form_field: {
+        Row: {
+          agency_id: string
+          created_at: string
+          field_label: string
+          field_type: Database["public"]["Enums"]["field_type"]
+          id: string
+          is_active: boolean
+          is_required: boolean
+          journey_id: string | null
+          options: Json | null
+          placeholder: string | null
+          sort_order: number
+          updated_at: string
+          validation_regex: string | null
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          field_label: string
+          field_type?: Database["public"]["Enums"]["field_type"]
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          journey_id?: string | null
+          options?: Json | null
+          placeholder?: string | null
+          sort_order?: number
+          updated_at?: string
+          validation_regex?: string | null
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          field_label?: string
+          field_type?: Database["public"]["Enums"]["field_type"]
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          journey_id?: string | null
+          options?: Json | null
+          placeholder?: string | null
+          sort_order?: number
+          updated_at?: string
+          validation_regex?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_form_field_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agency"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_form_field_journey_id_fkey"
+            columns: ["journey_id"]
+            isOneToOne: false
+            referencedRelation: "onboarding_journey"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intake_response: {
+        Row: {
+          agency_id: string
+          field_id: string
+          id: string
+          instance_id: string
+          submitted_at: string
+          value: string | null
+        }
+        Insert: {
+          agency_id: string
+          field_id: string
+          id?: string
+          instance_id: string
+          submitted_at?: string
+          value?: string | null
+        }
+        Update: {
+          agency_id?: string
+          field_id?: string
+          id?: string
+          instance_id?: string
+          submitted_at?: string
+          value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_response_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agency"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_response_field_id_fkey"
+            columns: ["field_id"]
+            isOneToOne: false
+            referencedRelation: "intake_form_field"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_response_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "onboarding_instance"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       integration: {
         Row: {
           access_token: string | null
@@ -746,6 +872,203 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      onboarding_instance: {
+        Row: {
+          agency_id: string
+          ai_analysis: string | null
+          ai_analysis_generated_at: string | null
+          client_id: string
+          completed_at: string | null
+          created_at: string
+          current_stage_id: string | null
+          id: string
+          journey_id: string
+          link_token: string
+          seo_data: Json | null
+          status: Database["public"]["Enums"]["onboarding_status"]
+          triggered_at: string
+          triggered_by: string
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          ai_analysis?: string | null
+          ai_analysis_generated_at?: string | null
+          client_id: string
+          completed_at?: string | null
+          created_at?: string
+          current_stage_id?: string | null
+          id?: string
+          journey_id: string
+          link_token: string
+          seo_data?: Json | null
+          status?: Database["public"]["Enums"]["onboarding_status"]
+          triggered_at?: string
+          triggered_by: string
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          ai_analysis?: string | null
+          ai_analysis_generated_at?: string | null
+          client_id?: string
+          completed_at?: string | null
+          created_at?: string
+          current_stage_id?: string | null
+          id?: string
+          journey_id?: string
+          link_token?: string
+          seo_data?: Json | null
+          status?: Database["public"]["Enums"]["onboarding_status"]
+          triggered_at?: string
+          triggered_by?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_instance_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agency"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "onboarding_instance_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "onboarding_instance_journey_id_fkey"
+            columns: ["journey_id"]
+            isOneToOne: false
+            referencedRelation: "onboarding_journey"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "onboarding_instance_triggered_by_fkey"
+            columns: ["triggered_by"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      onboarding_journey: {
+        Row: {
+          agency_id: string
+          ai_analysis_prompt: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          stages: Json
+          updated_at: string
+          welcome_video_url: string | null
+        }
+        Insert: {
+          agency_id: string
+          ai_analysis_prompt?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          stages?: Json
+          updated_at?: string
+          welcome_video_url?: string | null
+        }
+        Update: {
+          agency_id?: string
+          ai_analysis_prompt?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          stages?: Json
+          updated_at?: string
+          welcome_video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_journey_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agency"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      onboarding_stage_status: {
+        Row: {
+          agency_id: string
+          blocked_reason: string | null
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          id: string
+          instance_id: string
+          platform_statuses: Json | null
+          stage_id: string
+          status: Database["public"]["Enums"]["stage_status"]
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          blocked_reason?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          id?: string
+          instance_id: string
+          platform_statuses?: Json | null
+          stage_id: string
+          status?: Database["public"]["Enums"]["stage_status"]
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          blocked_reason?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          id?: string
+          instance_id?: string
+          platform_statuses?: Json | null
+          stage_id?: string
+          status?: Database["public"]["Enums"]["stage_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_stage_status_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agency"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "onboarding_stage_status_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "onboarding_stage_status_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "onboarding_instance"
             referencedColumns: ["id"]
           },
         ]
@@ -1498,9 +1821,11 @@ export type Database = {
         | "support"
         | "process"
         | "client_specific"
+      field_type: "text" | "email" | "url" | "number" | "textarea" | "select"
       health_status: "green" | "yellow" | "red"
       index_status: "pending" | "indexing" | "indexed" | "failed"
       integration_provider: "slack" | "gmail" | "google_ads" | "meta_ads"
+      onboarding_status: "pending" | "in_progress" | "completed" | "cancelled"
       permission_action: "read" | "write" | "delete" | "manage"
       preference_category: "notifications" | "ai" | "display"
       resource_type:
@@ -1516,6 +1841,7 @@ export type Database = {
         | "integrations"
         | "analytics"
         | "ai-features"
+      stage_status: "pending" | "in_progress" | "completed" | "blocked"
       ticket_category:
         | "technical"
         | "billing"
@@ -1669,9 +1995,11 @@ export const Constants = {
         "process",
         "client_specific",
       ],
+      field_type: ["text", "email", "url", "number", "textarea", "select"],
       health_status: ["green", "yellow", "red"],
       index_status: ["pending", "indexing", "indexed", "failed"],
       integration_provider: ["slack", "gmail", "google_ads", "meta_ads"],
+      onboarding_status: ["pending", "in_progress", "completed", "cancelled"],
       permission_action: ["read", "write", "delete", "manage"],
       preference_category: ["notifications", "ai", "display"],
       resource_type: [
@@ -1688,6 +2016,7 @@ export const Constants = {
         "analytics",
         "ai-features",
       ],
+      stage_status: ["pending", "in_progress", "completed", "blocked"],
       ticket_category: [
         "technical",
         "billing",

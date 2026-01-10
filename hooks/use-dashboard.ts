@@ -43,6 +43,9 @@ function adaptMockClients(): Client[] {
     is_active: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    seo_data: null,
+    seo_last_refreshed: null,
+    website_url: null,
   }))
 }
 

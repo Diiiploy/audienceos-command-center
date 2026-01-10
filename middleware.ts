@@ -61,7 +61,9 @@ const PUBLIC_ROUTES = [
   '/auth/callback',
   '/api/v1/oauth/callback', // OAuth callback needs to work without auth
   '/api/v1/settings/invitations/', // Invitation validation/accept API (public for invite flow)
+  '/api/public/', // Public endpoints (onboarding portal) - uses service role key internally
   '/invite', // Invitation acceptance pages
+  '/onboarding/start', // Client onboarding portal page
 ]
 
 // Page routes that allow demo mode (show demo data without auth)

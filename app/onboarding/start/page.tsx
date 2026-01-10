@@ -1,20 +1,50 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Check, Play, Sparkles, Loader2, Copy, ExternalLink } from "lucide-react"
+import { Check, Play, Sparkles, Loader2, Copy, ExternalLink, AlertCircle } from "lucide-react"
 import confetti from "canvas-confetti"
 import { useToast } from "@/hooks/use-toast"
 
 type Step = 1 | 2 | 3 | 4
 
+interface OnboardingData {
+  instance: {
+    id: string
+    status: string
+    client_name: string
+  }
+  journey: {
+    id: string
+    name: string
+    welcome_video_url?: string | null
+    stages: unknown
+  } | null
+  fields: Array<{
+    id: string
+    field_label: string
+    field_type: string
+    placeholder: string | null
+    is_required: boolean
+  }>
+}
+
 export default function OnboardingPage() {
+  const searchParams = useSearchParams()
+  const token = searchParams.get('token')
   const { toast } = useToast()
   const [currentStep, setCurrentStep] = useState<Step>(1)
+
+  // Database integration
+  const [onboardingData, setOnboardingData] = useState<OnboardingData | null>(null)
+  const [isLoadingOnboarding, setIsLoadingOnboarding] = useState(true)
+  const [onboardingError, setOnboardingError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Step 1: Fake initialization states
   const [initSteps, setInitSteps] = useState({
@@ -61,6 +91,40 @@ export default function OnboardingPage() {
     accessChecks.meta && accessChecks.google && accessChecks.shopify && (platformType === "shopify" || accessChecks.dns)
   const allTestsPassed = testResults.store && testResults.gtm && testResults.meta && testResults.klaviyo
 
+  // Fetch onboarding data from API on mount
+  useEffect(() => {
+    async function fetchOnboarding() {
+      if (!token) {
+        setIsLoadingOnboarding(false)
+        setOnboardingError("No onboarding token provided. Please use the link sent to your email.")
+        return
+      }
+
+      try {
+        const response = await fetch(`/api/public/onboarding/${token}`)
+        const result = await response.json()
+
+        if (!response.ok) {
+          if (result.completed) {
+            setOnboardingError("This onboarding has already been completed.")
+          } else {
+            setOnboardingError(result.error || "Failed to load onboarding")
+          }
+          setIsLoadingOnboarding(false)
+          return
+        }
+
+        setOnboardingData(result.data)
+        setIsLoadingOnboarding(false)
+      } catch {
+        setOnboardingError("Failed to connect to server. Please try again.")
+        setIsLoadingOnboarding(false)
+      }
+    }
+
+    fetchOnboarding()
+  }, [token])
+
   // Auto-run initialization sequence on mount
   useEffect(() => {
     if (currentStep === 1 && !isInitializingRef.current) {
@@ -93,27 +157,127 @@ export default function OnboardingPage() {
     })
   }
 
-  const handleFinish = () => {
-    const onboardingData = {
-      platform,
-      storeUrl,
-      gtmId,
-      metaPixelId,
-      klaviyoKey,
-      platformType,
-      accessChecks,
-      submittedAt: new Date().toISOString(),
+  const handleFinish = async () => {
+    if (!token) return
+
+    setIsSubmitting(true)
+
+    try {
+      // Build responses array - mapping form fields to their values
+      // In a full dynamic implementation, this would iterate over onboardingData.fields
+      const responses = [
+        { field_id: "platform", value: platform },
+        { field_id: "store_url", value: storeUrl },
+        { field_id: "gtm_id", value: gtmId },
+        { field_id: "meta_pixel_id", value: metaPixelId },
+        { field_id: "klaviyo_key", value: klaviyoKey },
+        { field_id: "platform_type", value: platformType },
+        { field_id: "access_checks", value: JSON.stringify(accessChecks) },
+      ]
+
+      // If we have dynamic fields from the database, use those IDs
+      if (onboardingData?.fields && onboardingData.fields.length > 0) {
+        // Map the fixed form values to the database field IDs
+        const fieldMapping: Record<string, string> = {
+          "Shopify Store URL": storeUrl,
+          "GTM Container ID": gtmId,
+          "Meta Pixel ID": metaPixelId,
+          "Klaviyo API Key": klaviyoKey,
+        }
+
+        const dynamicResponses = onboardingData.fields.map((field) => ({
+          field_id: field.id,
+          value: fieldMapping[field.field_label] || "",
+        })).filter(r => r.value)
+
+        if (dynamicResponses.length > 0) {
+          responses.push(...dynamicResponses)
+        }
+      }
+
+      const response = await fetch(`/api/public/onboarding/${token}/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ responses }),
+      })
+
+      if (!response.ok) {
+        const result = await response.json()
+        toast({
+          title: "Submission Failed",
+          description: result.error || "Failed to submit onboarding",
+          variant: "destructive",
+        })
+        setIsSubmitting(false)
+        return
+      }
+
+      // Also save to localStorage for backwards compatibility
+      const localData = {
+        platform,
+        storeUrl,
+        gtmId,
+        metaPixelId,
+        klaviyoKey,
+        platformType,
+        accessChecks,
+        submittedAt: new Date().toISOString(),
+      }
+      localStorage.setItem("latestOnboardingSubmission", JSON.stringify(localData))
+
+      confetti({
+        particleCount: 150,
+        spread: 90,
+        origin: { y: 0.6 },
+        colors: ["#10b981", "#34d399", "#6ee7b7"],
+      })
+      setCurrentStep(4)
+    } catch {
+      toast({
+        title: "Connection Error",
+        description: "Failed to connect to server. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
     }
+  }
 
-    localStorage.setItem("latestOnboardingSubmission", JSON.stringify(onboardingData))
+  // Show loading state
+  if (isLoadingOnboarding) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4">
+        <Card className="bg-slate-900/50 border-slate-800 backdrop-blur p-8 max-w-md">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-10 w-10 text-emerald-500 animate-spin" />
+            <p className="text-slate-300">Loading your onboarding...</p>
+          </div>
+        </Card>
+      </div>
+    )
+  }
 
-    confetti({
-      particleCount: 150,
-      spread: 90,
-      origin: { y: 0.6 },
-      colors: ["#10b981", "#34d399", "#6ee7b7"],
-    })
-    setCurrentStep(4)
+  // Show error state
+  if (onboardingError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4">
+        <Card className="bg-slate-900/50 border-slate-800 backdrop-blur p-8 max-w-md">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center">
+              <AlertCircle className="h-8 w-8 text-red-500" />
+            </div>
+            <h2 className="text-xl font-semibold text-slate-100">Onboarding Unavailable</h2>
+            <p className="text-slate-400 text-center">{onboardingError}</p>
+            <Button
+              onClick={() => window.location.href = "/"}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              Go to Dashboard
+            </Button>
+          </div>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -540,10 +704,17 @@ export default function OnboardingPage() {
                 </Button>
                 <Button
                   onClick={handleFinish}
-                  disabled={!allAccessGranted}
+                  disabled={!allAccessGranted || isSubmitting}
                   className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
                 >
-                  Submit Onboarding
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    "Submit Onboarding"
+                  )}
                 </Button>
               </div>
             </CardContent>
