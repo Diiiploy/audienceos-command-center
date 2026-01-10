@@ -83,15 +83,15 @@ export function OnboardingHub({ onClientClick }: OnboardingHubProps) {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="active" className="flex-1 mt-6">
+        <TabsContent value="active" className="flex-1 mt-6 overflow-y-auto pb-[150px]">
           <ActiveOnboardings />
         </TabsContent>
 
-        <TabsContent value="journey" className="flex-1 mt-6">
+        <TabsContent value="journey" className="flex-1 mt-6 overflow-y-auto pb-[150px]">
           <ClientJourneyConfig />
         </TabsContent>
 
-        <TabsContent value="form-builder" className="flex-1 mt-6">
+        <TabsContent value="form-builder" className="flex-1 mt-6 overflow-y-auto pb-[150px]">
           <FormBuilder />
         </TabsContent>
       </Tabs>
