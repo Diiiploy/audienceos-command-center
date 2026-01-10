@@ -4,7 +4,7 @@ import { createRouteHandlerClient } from '@/lib/supabase'
 import { withRateLimit, withCsrfProtection, sanitizeString, sanitizeEmail, createErrorResponse } from '@/lib/security'
 import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission'
 import { randomBytes } from 'crypto'
-import type { Database } from '@/types/database'
+import type { Database, Json } from '@/types/database'
 
 type OnboardingStatusType = Database['public']['Enums']['onboarding_status']
 const VALID_STATUSES: OnboardingStatusType[] = ['pending', 'in_progress', 'completed', 'cancelled']
@@ -73,7 +73,8 @@ export const GET = withPermission({ resource: 'clients', action: 'read' })(
 
       if (error) {
         console.error('Failed to fetch onboarding instances:', error)
-        return createErrorResponse(500, 'Failed to fetch onboarding instances')
+        // Include error details for debugging
+        return createErrorResponse(500, `Failed to fetch onboarding instances: ${error.message}`)
       }
 
       return NextResponse.json({ data: instances })
@@ -104,7 +105,7 @@ export const POST = withPermission({ resource: 'clients', action: 'write' })(
         return createErrorResponse(400, 'Invalid JSON body')
       }
 
-      const { client_name, client_email, client_tier, journey_id } = body
+      const { client_name, client_email, client_tier, journey_id, website_url, seo_data } = body
 
       // Validate required fields
       if (!client_name || typeof client_name !== 'string') {
@@ -154,8 +155,29 @@ export const POST = withPermission({ resource: 'clients', action: 'write' })(
         .eq('contact_email', sanitizedEmail)
         .single()
 
+      // Sanitize optional website URL
+      const sanitizedWebsiteUrl = typeof website_url === 'string' && website_url.trim()
+        ? sanitizeString(website_url).slice(0, 255)
+        : null
+
       if (existingClient) {
         clientId = existingClient.id
+
+        // Update existing client with website and SEO data if provided
+        if (sanitizedWebsiteUrl || seo_data) {
+          const updateData: Record<string, unknown> = {}
+          if (sanitizedWebsiteUrl) {
+            updateData.website_url = sanitizedWebsiteUrl
+          }
+          if (seo_data && typeof seo_data === 'object') {
+            updateData.seo_data = seo_data
+            updateData.seo_last_refreshed = new Date().toISOString()
+          }
+          await supabase
+            .from('client')
+            .update(updateData)
+            .eq('id', existingClient.id)
+        }
       } else {
         // Create new client
         const validTier = ['Core', 'Enterprise'].includes(client_tier as string) ? client_tier : 'Core'
@@ -170,6 +192,9 @@ export const POST = withPermission({ resource: 'clients', action: 'write' })(
             stage: 'Onboarding',
             health_status: 'green',
             is_active: true,
+            website_url: sanitizedWebsiteUrl || undefined,
+            seo_data: seo_data && typeof seo_data === 'object' ? (seo_data as Json) : undefined,
+            seo_last_refreshed: seo_data && typeof seo_data === 'object' ? new Date().toISOString() : undefined,
           })
           .select('id')
           .single()
@@ -198,6 +223,7 @@ export const POST = withPermission({ resource: 'clients', action: 'write' })(
           current_stage_id: Array.isArray(journey.stages) && journey.stages.length > 0
             ? (journey.stages[0] as { id?: string })?.id || null
             : null,
+          seo_data: seo_data && typeof seo_data === 'object' ? (seo_data as Json) : undefined,
         })
         .select(`
           *,

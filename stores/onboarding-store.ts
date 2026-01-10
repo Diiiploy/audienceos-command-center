@@ -97,7 +97,17 @@ interface OnboardingState {
   // Actions - Instances
   fetchInstances: (status?: string) => Promise<void>
   fetchInstance: (id: string) => Promise<void>
-  triggerOnboarding: (data: { client_name: string; client_email: string; client_tier?: string }) => Promise<OnboardingInstanceWithRelations | null>
+  triggerOnboarding: (data: {
+    client_name: string
+    client_email: string
+    client_tier?: string
+    website_url?: string
+    seo_data?: {
+      summary: unknown
+      competitors: unknown[]
+      fetched_at: string
+    }
+  }) => Promise<OnboardingInstanceWithRelations | null>
   updateStageStatus: (instanceId: string, stageId: string, status: string, platformStatuses?: Record<string, string>) => Promise<void>
   setSelectedInstanceId: (id: string | null) => void
 
