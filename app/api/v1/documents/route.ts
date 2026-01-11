@@ -5,20 +5,12 @@ import { cookies } from 'next/headers'
 import { createRouteHandlerClient, getAuthenticatedUser } from '@/lib/supabase'
 import { withRateLimit, withCsrfProtection, createErrorResponse } from '@/lib/security'
 import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission'
-import { mockDocuments } from '@/lib/mock-knowledge-base'
 import type { DocumentCategory, IndexStatus } from '@/types/database'
 
 // Valid file types and size limit (50MB)
 const VALID_MIME_TYPES = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain']
 const MAX_FILE_SIZE = 50 * 1024 * 1024
 const VALID_CATEGORIES: DocumentCategory[] = ['installation', 'tech', 'support', 'process', 'client_specific']
-
-// Mock mode detection
-const isMockMode = () => {
-  if (process.env.NEXT_PUBLIC_MOCK_MODE === 'true') return true
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-  return url.includes('placeholder') || url === ''
-}
 
 interface DocumentMetadata {
   file_size: number
@@ -59,11 +51,6 @@ export const GET = withPermission({ resource: 'knowledge-base', action: 'read' }
   async (request: AuthenticatedRequest) => {
   const rateLimitResponse = withRateLimit(request)
   if (rateLimitResponse) return rateLimitResponse
-
-  // Mock mode - return demo data without auth
-  if (isMockMode()) {
-    return NextResponse.json({ data: mockDocuments })
-  }
 
   try {
     const supabase = await createRouteHandlerClient(cookies)

@@ -11,33 +11,6 @@ import { cookies } from 'next/headers'
 import { createRouteHandlerClient, getAuthenticatedUser } from '@/lib/supabase'
 import { withRateLimit, withCsrfProtection, sanitizeString, createErrorResponse } from '@/lib/security'
 
-// Mock mode detection
-const isMockMode = () => {
-  if (process.env.NEXT_PUBLIC_MOCK_MODE === 'true') return true
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-  return url.includes('placeholder') || url === ''
-}
-
-// Mock agency data for demo
-const MOCK_AGENCY = {
-  id: 'demo-agency',
-  name: 'Chase Digital Agency',
-  logo_url: null,
-  timezone: 'America/Los_Angeles',
-  business_hours: { start: '09:00', end: '17:00' },
-  pipeline_stages: ['Lead', 'Discovery', 'Proposal', 'Onboarding', 'Implementation', 'Live', 'Churned'],
-  health_thresholds: { yellow: 7, red: 14 },
-  ai_config: {
-    assistant_name: 'Chase AI',
-    response_tone: 'professional',
-    response_length: 'detailed',
-    enabled_features: ['chat_assistant', 'draft_replies', 'alert_analysis', 'document_rag'],
-    token_limit: 100000,
-  },
-  created_at: '2024-01-15T00:00:00Z',
-  updated_at: new Date().toISOString(),
-}
-
 // ============================================================================
 // GET /api/v1/settings/agency
 // ============================================================================
@@ -46,11 +19,6 @@ export async function GET(request: NextRequest) {
   // Rate limit: 100 requests per minute
   const rateLimitResponse = withRateLimit(request)
   if (rateLimitResponse) return rateLimitResponse
-
-  // Mock mode - return demo data without auth
-  if (isMockMode()) {
-    return NextResponse.json({ data: MOCK_AGENCY })
-  }
 
   try {
     const supabase = await createRouteHandlerClient(cookies)

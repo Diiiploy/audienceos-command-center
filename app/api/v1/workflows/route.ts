@@ -17,7 +17,6 @@ import {
   validateTriggerConfig,
   validateActionConfig,
 } from '@/lib/workflows'
-import { getMockWorkflowsWithRuns } from '@/lib/mock-data'
 import type { WorkflowTrigger, WorkflowAction } from '@/types/workflow'
 
 // ============================================================================

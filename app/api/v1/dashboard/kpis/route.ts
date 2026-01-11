@@ -12,72 +12,6 @@ import { withRateLimit, createErrorResponse } from '@/lib/security'
 import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission'
 import type { DashboardKPIs, TrendDirection } from '@/types/dashboard'
 
-// Mock mode detection
-const isMockMode = () => {
-  if (process.env.NEXT_PUBLIC_MOCK_MODE === 'true') return true
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-  return url.includes('placeholder') || url === ''
-}
-
-// Mock KPI data for demo
-const MOCK_KPIS: DashboardKPIs = {
-  activeOnboardings: {
-    id: 'active_onboardings',
-    label: 'Active Onboardings',
-    value: 4,
-    displayValue: '4',
-    trend: 'up',
-    changePercent: 33,
-    previousValue: 3,
-    drillDownUrl: '/?stage=onboarding',
-    lastUpdated: new Date().toISOString(),
-  },
-  atRiskClients: {
-    id: 'at_risk_clients',
-    label: 'At-Risk Clients',
-    value: 7,
-    displayValue: '7',
-    trend: 'down',
-    changePercent: 12,
-    previousValue: 8,
-    drillDownUrl: '/?health=at_risk',
-    lastUpdated: new Date().toISOString(),
-  },
-  supportHoursWeek: {
-    id: 'support_hours',
-    label: 'Support Hours (Week)',
-    value: 8.8,
-    displayValue: '8.8h',
-    trend: 'stable',
-    changePercent: 2,
-    previousValue: 8.6,
-    drillDownUrl: '/tickets',
-    lastUpdated: new Date().toISOString(),
-  },
-  avgInstallTime: {
-    id: 'avg_install_time',
-    label: 'Avg Install Time',
-    value: 5.2,
-    displayValue: '5.2 Days',
-    trend: 'down',
-    changePercent: 15,
-    previousValue: 6.1,
-    drillDownUrl: null,
-    lastUpdated: new Date().toISOString(),
-  },
-  clientsNeedingAttention: {
-    id: 'clients_needing_attention',
-    label: 'Needs Attention',
-    value: 3,
-    displayValue: '3',
-    trend: 'stable',
-    changePercent: 0,
-    previousValue: 3,
-    drillDownUrl: '/communications?filter=needs_reply',
-    lastUpdated: new Date().toISOString(),
-  },
-}
-
 /**
  * GET /api/v1/dashboard/kpis
  * Get dashboard KPIs with aggregated metrics
@@ -86,11 +20,6 @@ export async function GET(request: NextRequest) {
   // Rate limit: 60 requests per minute
   const rateLimitResponse = withRateLimit(request, { maxRequests: 60, windowMs: 60000 })
   if (rateLimitResponse) return rateLimitResponse
-
-  // Mock mode - return demo data without auth
-  if (isMockMode()) {
-    return NextResponse.json({ data: MOCK_KPIS })
-  }
 
   try {
     const supabase = await createRouteHandlerClient(cookies)

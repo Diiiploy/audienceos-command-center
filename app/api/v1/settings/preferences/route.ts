@@ -9,13 +9,6 @@ import type { NotificationPreferences } from '@/types/settings'
 
 const VALID_CATEGORIES: PreferenceCategory[] = ['notifications', 'ai', 'display']
 
-// Mock mode detection
-const isMockMode = () => {
-  if (process.env.NEXT_PUBLIC_MOCK_MODE === 'true') return true
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-  return url.includes('placeholder') || url === ''
-}
-
 // Default notification preferences
 const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   email_alerts: true,
@@ -84,33 +77,6 @@ export async function GET(request: NextRequest) {
 
 // PATCH /api/v1/settings/preferences - Update user preferences
 export async function PATCH(request: NextRequest) {
-  // Mock mode check FIRST - before any security middleware
-  if (isMockMode()) {
-    try {
-      const body = await request.json()
-      const { category, preferences } = body as {
-        category: PreferenceCategory
-        preferences: Record<string, unknown>
-      }
-
-      if (!category || !VALID_CATEGORIES.includes(category)) {
-        return createErrorResponse(400, 'Invalid category')
-      }
-
-      if (!preferences || typeof preferences !== 'object') {
-        return createErrorResponse(400, 'Invalid preferences')
-      }
-
-      // In mock mode, just accept the update and return success
-      return NextResponse.json({
-        success: true,
-        message: 'Preferences updated successfully (mock)'
-      })
-    } catch {
-      return createErrorResponse(500, 'Internal server error')
-    }
-  }
-
   const rateLimitResponse = withRateLimit(request)
   if (rateLimitResponse) return rateLimitResponse
 

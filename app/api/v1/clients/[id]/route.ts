@@ -3,7 +3,6 @@ import { cookies } from 'next/headers'
 import { createRouteHandlerClient } from '@/lib/supabase'
 import { withRateLimit, withCsrfProtection, isValidUUID, sanitizeString, sanitizeEmail, createErrorResponse } from '@/lib/security'
 import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission'
-import { getMockClientDetail } from '@/lib/mock-data'
 import type { HealthStatus } from '@/types/database'
 
 interface RouteParams {
