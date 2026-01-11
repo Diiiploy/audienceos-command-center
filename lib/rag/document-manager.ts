@@ -198,11 +198,12 @@ export class DocumentManager {
         case 'sizeBytes':
           comparison = a.sizeBytes - b.sizeBytes;
           break;
-        case 'indexedAt':
+        case 'indexedAt': {
           const aTime = a.indexedAt?.getTime() || 0;
           const bTime = b.indexedAt?.getTime() || 0;
           comparison = aTime - bTime;
           break;
+        }
       }
 
       return sort.direction === 'desc' ? -comparison : comparison;

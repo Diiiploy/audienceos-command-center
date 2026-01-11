@@ -297,6 +297,7 @@ export class GeminiRAGService {
   private async _doLoadFiles(): Promise<void> {
     const isDev = process.env.NODE_ENV === 'development';
 
+    // eslint-disable-next-line no-useless-catch
     try {
       // files.list() returns a Pager that we need to iterate
       const filesPager = await this.genai.files.list();

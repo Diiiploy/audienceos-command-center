@@ -144,7 +144,7 @@ export function withPermission(requirement: PermissionRequirement) {
         let clientId = requirement.clientId;
         if (!clientId && requirement.resource === 'clients') {
           // Try to extract from URL path: /api/v1/clients/[id]
-          const match = req.nextUrl.pathname.match(/\/clients\/([^\/]+)/);
+          const match = req.nextUrl.pathname.match(/\/clients\/([^/]+)/);
           if (match) {
             clientId = match[1];
           }

@@ -47,7 +47,7 @@ vi.mock('@/lib/supabase', () => ({
 
 // Mock RBAC middleware
 vi.mock('@/lib/rbac/with-permission', () => ({
-  withPermission: vi.fn(() => (handler: Function) => handler),
+  withPermission: vi.fn(() => (handler: (...args: unknown[]) => unknown) => handler),
 }))
 
 // Mock security utilities

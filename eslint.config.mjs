@@ -59,6 +59,12 @@ export default [
       "infrastructure/**",
       "*.config.js",
       "*.config.mjs",
+      // Node.js utility scripts (not part of Next.js app)
+      "check-alerts.mjs",
+      "deploy-alerts.mjs",
+      "test-*.mjs",
+      "verify-*.mjs",
+      "scripts/**",
     ],
   },
 ];

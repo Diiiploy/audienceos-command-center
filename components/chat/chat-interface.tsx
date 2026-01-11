@@ -361,7 +361,7 @@ export function ChatInterface({
                 streaming.processChunk({ type: 'content', content: parsed.content })
                 break
 
-              case 'complete':
+              case 'complete': {
                 // Final message with citations
                 const messageData = parsed.message
 
@@ -389,6 +389,7 @@ export function ChatInterface({
 
                 setMessages((prev) => [...prev, assistantMessage])
                 break
+              }
 
               case 'error':
                 throw new Error(parsed.error || 'Streaming error')

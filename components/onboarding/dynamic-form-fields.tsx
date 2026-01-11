@@ -66,7 +66,7 @@ export function DynamicFormFields({
             className={baseInputClass}
           />
         )
-      case "select":
+      case "select": {
         const options = Array.isArray(field.options) ? field.options : []
         return (
           <Select
@@ -90,6 +90,7 @@ export function DynamicFormFields({
             </SelectContent>
           </Select>
         )
+      }
       case "email":
         return (
           <Input
