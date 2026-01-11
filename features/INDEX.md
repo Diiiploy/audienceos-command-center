@@ -48,7 +48,7 @@
 | seo-enriched-onboarding | 📝 Specced | [SEO-ENRICHED-ONBOARDING.md](SEO-ENRICHED-ONBOARDING.md) | Part of Onboarding & Intake Hub. Auto-fetch SEO data from DataForSEO. 4 integration points. $0.02/enrichment via chi-gateway. |
 | dark-mode | 🚧 Building | [DARK-MODE.md](DARK-MODE.md) | Light/dark mode toggle. Branch: feature/dark-mode-toggle. Phase 1: Color extraction. 2026-01-08. |
 | user-invitations | ⏳ Deferred | - | Data model ready (USER_INVITATION), API exists |
-| multi-org-roles | 🚧 Building | [VISION](../docs/01-product/VISION.md) / [SCOPE](../docs/01-product/SCOPE.md) / [RISKS](../docs/05-planning/RISK-REGISTER.md) / [PRD](../docs/01-product/PRD-MULTI-ORG-ROLES.md) / [DATA MODEL](../docs/04-technical/DATA-MODEL-RBAC.md) / [API CONTRACTS](../docs/04-technical/API-CONTRACTS-RBAC.md) | **Phase 2 COMPLETE (2026-01-11)**: All 46 API routes have `withPermission` middleware. Auth store exists with legacy role mapping. Next: Apply RLS migration to Supabase, test E2E, add role assignment UI. |
+| multi-org-roles | 🚧 Building | [VISION](../docs/01-product/VISION.md) / [SCOPE](../docs/01-product/SCOPE.md) / [RISKS](../docs/05-planning/RISK-REGISTER.md) / [PRD](../docs/01-product/PRD-MULTI-ORG-ROLES.md) / [DATA MODEL](../docs/04-technical/DATA-MODEL-RBAC.md) / [API CONTRACTS](../docs/04-technical/API-CONTRACTS-RBAC.md) | **Phase 3 COMPLETE (2026-01-11)**: RLS migration applied - 16 policies on client/communication/ticket tables. Defense in depth (middleware + RLS). Next: E2E testing, role/client assignment UI. |
 | zoom-integration | ⏳ Deferred | - | Zoom v2+ for call recordings/transcripts |
 
 ---

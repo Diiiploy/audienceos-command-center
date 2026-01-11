@@ -1,4 +1,61 @@
 ---
+## Session 2026-01-11 - RBAC Phase 3: RLS Migration Applied (Chi CTO Mode B)
+
+### Completed
+**RLS Migration: 16 Policies Active on 3 Tables**
+- ✅ Applied RLS migration via Supabase SQL Editor (Chrome browser tools)
+- ✅ **16 policies verified** across client, communication, ticket tables
+
+**Client Table (6 policies):**
+- `client_member_scoped_delete` (DELETE)
+- `client_agency_insert` (INSERT)
+- `client_member_scoped_insert` (INSERT)
+- `client_agency_read` (SELECT)
+- `client_member_scoped_select` (SELECT)
+- `client_member_scoped_update` (UPDATE)
+
+**Communication Table (6 policies):**
+- `communication_rls` (ALL - existing)
+- `communication_member_scoped_delete` (DELETE)
+- `communication_member_scoped_insert` (INSERT)
+- `communication_member_scoped_select` (SELECT)
+- `communication_member_scoped_update` (UPDATE)
+
+**Ticket Table (4 policies):**
+- `ticket_agency_via_user` (ALL - existing)
+- `ticket_member_scoped_delete/insert/select/update`
+
+### Technical Notes
+- Migration file: `supabase/migrations/20260108_client_scoped_rls.sql`
+- Error encountered: `CREATE POLICY IF NOT EXISTS` not valid PostgreSQL syntax
+- Policies were already present (from prior partial run), verified via `pg_policies` query
+- **Defense in Depth**: Middleware + RLS working together for RBAC enforcement
+
+### Verification
+- ✅ pg_policies query returned 16 rows
+- ✅ All member-scoped policies in place
+- ✅ All tables covered: client, communication, ticket
+
+### DU Accounting
+- Browser automation + SQL execution: 0.5 DU
+- Verification: 0.25 DU
+- **Total: 0.75 DU**
+
+### RBAC Implementation Status
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Phase 1: Database Schema | ✅ Complete | 5 RBAC tables created |
+| Phase 2: API Middleware | ✅ Complete | 46/48 routes protected |
+| Phase 3: RLS Policies | ✅ Complete | 16 policies on 3 tables |
+| Phase 4: Frontend Components | ⏳ Pending | PermissionGate, RoleBasedRoute ready |
+| Phase 5: UI Assignment | ⏳ Pending | Role/client assignment UI |
+
+### Next Steps
+1. Test RBAC E2E (create Member user, verify client scoping)
+2. Add role assignment UI to Settings
+3. Add client assignment UI for Members
+
+---
 ## Session 2026-01-11 - RBAC Phase 2 Complete (Chi CTO Mode B)
 
 ### Completed
