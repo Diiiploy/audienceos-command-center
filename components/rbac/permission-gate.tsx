@@ -47,6 +47,47 @@ export function PermissionGate({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Helper: Check permissions from user's permission list
+    const checkPermissions = () => {
+      if (!userPermissions) {
+        setHasPermission(false);
+        return;
+      }
+
+      const permission = userPermissions.find(
+        (p) => p.resource === resource && p.action === action
+      );
+      setHasPermission(!!permission);
+    };
+
+    // Helper: Check member's client-scoped access via API
+    const checkMemberClientAccess = async () => {
+      if (!clientId || !user) {
+        setHasPermission(false);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/api/v1/rbac/member-access?client_id=${clientId}`,
+          { credentials: 'include' }
+        );
+
+        if (!response.ok) {
+          setHasPermission(false);
+        } else {
+          const { has_access } = await response.json();
+          setHasPermission(has_access);
+        }
+      } catch {
+        setHasPermission(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Main permission check logic
     if (!user || !userRole) {
       setHasPermission(false);
       setLoading(false);
@@ -77,43 +118,6 @@ export function PermissionGate({
     checkPermissions();
     setLoading(false);
   }, [user, userRole, userPermissions, resource, action, clientId]);
-
-  const checkPermissions = () => {
-    if (!userPermissions) {
-      setHasPermission(false);
-      return;
-    }
-
-    const permission = userPermissions.find(
-      (p) => p.resource === resource && p.action === action
-    );
-    setHasPermission(!!permission);
-  };
-
-  const checkMemberClientAccess = async () => {
-    if (!clientId || !user) {
-      setHasPermission(false);
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `/api/v1/rbac/member-access?client_id=${clientId}`,
-        { credentials: 'include' }
-      );
-
-      if (!response.ok) {
-        setHasPermission(false);
-        return;
-      }
-
-      const { has_access } = await response.json();
-      setHasPermission(has_access);
-    } catch (error) {
-      console.error('Failed to check member client access:', error);
-      setHasPermission(false);
-    }
-  };
 
   if (loading) {
     return null; // Or a loading skeleton

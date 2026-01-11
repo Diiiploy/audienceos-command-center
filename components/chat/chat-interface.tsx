@@ -60,16 +60,6 @@ export function ChatInterface({
   context,
   onSendMessage,
 }: ChatInterfaceProps) {
-  // DIAGNOSTIC: Log component mount and auth state
-  useEffect(() => {
-    console.log('[CHAT-COMPONENT] ChatInterface mounted', {
-      agencyId,
-      userId,
-      isAnonymous: userId === 'anonymous',
-      isDemoAgency: agencyId === 'demo-agency',
-    })
-  }, [agencyId, userId])
-
   // Panel state
   const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
@@ -365,18 +355,6 @@ export function ChatInterface({
                 // Final message with citations
                 const messageData = parsed.message
 
-                // DEBUG: Log what server returned to diagnose citation format issue
-                console.log('[Citation Debug - Client] Server returned:', {
-                  contentSample: messageData.content?.substring(0, 300),
-                  hasDecimalMarkers: /\[\d+\.\d+(?:,\s*\d+\.\d+)*\]/.test(messageData.content || ''),
-                  hasIntegerMarkers: /\[\d+\]/.test(messageData.content || ''),
-                  decimalMarkers: (messageData.content || '').match(/\[\d+\.\d+(?:,\s*\d+\.\d+)*\]/g),
-                  integerMarkers: (messageData.content || '').match(/\[\d+\](?!\d)/g),
-                  citationsCount: (messageData.citations || []).length,
-                  citations: messageData.citations,
-                  route: messageData.route
-                })
-
                 const assistantMessage: ChatMessageType = {
                   id: messageData.id || crypto.randomUUID(),
                   role: "assistant",
@@ -395,10 +373,11 @@ export function ChatInterface({
                 throw new Error(parsed.error || 'Streaming error')
 
               default:
-                console.warn('[SSE] Unknown event type:', parsed.type)
+                // Unknown event type - ignore silently
+                break
             }
-          } catch (parseError) {
-            console.error('[SSE] Failed to parse event:', data, parseError)
+          } catch {
+            // Failed to parse SSE event - skip malformed data
           }
         }
       }
@@ -1085,14 +1064,6 @@ function CitationBadge({
   const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0, showBelow: false })
   const buttonRef = useRef<HTMLButtonElement>(null)
 
-  // Debug: Log when citation is missing
-  useEffect(() => {
-    if (!citation) {
-      console.warn(`[CitationBadge] No citation data for index ${index}`)
-    } else {
-      console.log(`[CitationBadge] Rendering index ${index}:`, {title: citation.title, url: citation.url})
-    }
-  }, [index, citation])
 
   // Calculate tooltip position dynamically
   useEffect(() => {
@@ -1248,28 +1219,25 @@ function MessageContent({
   citations?: Citation[]
 }) {
   const getCitation = useCallback((displayIndex: number): Citation | undefined => {
-    console.log(`[getCitation] Looking for index ${displayIndex} in`, citations.map(c => ({index: c.index, title: c.title})))
-
-    let citation = citations.find((c) => c.index === displayIndex)
+    // Try to find citation by index property
+    const citation = citations.find((c) => c.index === displayIndex)
     if (citation?.url) {
-      console.log(`[getCitation] Found by index match:`, citation.title)
       return citation
     }
 
+    // Fallback: try array position (1-indexed)
     if (citations[displayIndex - 1]?.url) {
-      console.log(`[getCitation] Found by array index:`, citations[displayIndex - 1].title)
       return citations[displayIndex - 1]
     }
 
+    // Last resort: wrap-around for mismatched indices
     if (citations.length > 0) {
       const wrappedIndex = (displayIndex - 1) % citations.length
       if (citations[wrappedIndex]?.url) {
-        console.log(`[getCitation] Found by wrap-around:`, citations[wrappedIndex].title)
         return citations[wrappedIndex]
       }
     }
 
-    console.warn(`[getCitation] No citation found for index ${displayIndex}`)
     return undefined
   }, [citations])
 
@@ -1284,23 +1252,11 @@ function MessageContent({
   const processedContent = useMemo(() => {
     const citationRegex = /\[(\d+(?:\.\d+)?)\]/g
     let sequentialIndex = 0
-    let citationCount = 0
 
-    const result = content.replace(citationRegex, (match) => {
+    return content.replace(citationRegex, () => {
       sequentialIndex++
-      citationCount++
       return `<cite-marker data-index="${sequentialIndex}"></cite-marker>`
     })
-
-    console.log('[MessageContent] Preprocessing:', {
-      originalHadMarkers: citationRegex.test(content),
-      markersFound: content.match(citationRegex),
-      citationCount,
-      resultSample: result.substring(0, 200),
-      hasCiteMarkers: result.includes('<cite-marker')
-    })
-
-    return result
   }, [content])
 
   // Custom components for ReactMarkdown
@@ -1313,7 +1269,6 @@ function MessageContent({
       // Render cite-marker as CitationBadge
       "cite-marker": ({ "data-index": dataIndex }: { "data-index"?: string }) => {
         const index = parseInt(dataIndex || "1", 10)
-        console.log(`[cite-marker component] Rendering cite-marker with dataIndex=${dataIndex}, parsed index=${index}`)
         return (
           <CitationBadge
             index={index}
