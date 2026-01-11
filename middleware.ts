@@ -64,6 +64,7 @@ const PUBLIC_ROUTES = [
   '/api/public/', // Public endpoints (onboarding portal) - uses service role key internally
   '/invite', // Invitation acceptance pages
   '/onboarding/start', // Client onboarding portal page
+  '/test-oauth', // OAuth test page (temporary - remove after testing)
 ]
 
 // Page routes that allow demo mode (show demo data without auth)

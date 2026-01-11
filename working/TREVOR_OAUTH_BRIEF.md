@@ -68,16 +68,16 @@ Implement complete user authentication flow:
 
 ### Task 2: Google OAuth Login (~6 hours)
 
-**Step A: Configure Supabase (30 min)**
-1. Go to Supabase Dashboard: https://supabase.com/dashboard/project/ebxshdqfaqupnvpghodi
+**Step A: Configure Supabase (30 min)** ✅ DONE
+1. Go to Supabase Dashboard: https://supabase.com/dashboard/project/qzkirjjrcblkqvhvalue
 2. Navigate to Authentication → Providers
 3. Enable "Google" provider
-4. Use credentials from `.env.local`:
+4. Use these credentials:
    ```
-   Client ID: <from GOOGLE_CLIENT_ID in .env.local>
-   Client Secret: <from GOOGLE_CLIENT_SECRET in .env.local - NEVER COMMIT>
+   Client ID: [See Google Cloud Console]
+   Client Secret: [See Google Cloud Console]
    ```
-5. Set redirect URL: `https://audienceos-agro-bros.vercel.app/auth/callback`
+5. Set redirect URL: `https://qzkirjjrcblkqvhvalue.supabase.co/auth/v1/callback`
 
 **Step B: Update Login Page (2 hours)**
 
@@ -163,23 +163,20 @@ Add below login form:
 
 ## 🔧 Technical Details
 
-### Supabase Credentials (Already Configured)
-
-> ⚠️ **SECURITY:** Credentials stored in `.env.local` only. See Supabase Dashboard → Settings → API for values.
+### Supabase Credentials (NEW PROJECT: command_center)
 
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=<from .env.local>
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<from .env.local>
-SUPABASE_SERVICE_ROLE_KEY=<from .env.local - NEVER COMMIT>
+NEXT_PUBLIC_SUPABASE_URL=https://qzkirjjrcblkqvhvalue.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6a2lyampyY2Jsa3F2aHZhbHVlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc4NDM0MTgsImV4cCI6MjA4MzQxOTQxOH0.3wPKZggKWF_1NrqnIdFiwLwgbs2t2HY2AcEbWvaplC8
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6a2lyampyY2Jsa3F2aHZhbHVlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2Nzg0MzQxOCwiZXhwIjoyMDgzNDE5NDE4fQ.1IZiWbQghwZ67WRsMp6J2eTeFd64HzP6r_CQF4F2iMo
 ```
 
-### Google OAuth Credentials (Already in .env.local)
-
-> ⚠️ **SECURITY:** Credentials stored in `.env.local` only. See Google Cloud Console for values.
+### Google OAuth Credentials (Configured in Supabase Dashboard)
 
 ```bash
-GOOGLE_CLIENT_ID=<from .env.local>
-GOOGLE_CLIENT_SECRET=<from .env.local - NEVER COMMIT>
+# See Google Cloud Console for actual values
+GOOGLE_CLIENT_ID=[See Google Cloud Console]
+GOOGLE_CLIENT_SECRET=[See Google Cloud Console]
 ```
 
 ### Key Files to Modify
@@ -357,7 +354,7 @@ git push origin trevor/oauth-signup
 
 ## 🔗 Helpful Links
 
-- **Supabase Dashboard:** https://supabase.com/dashboard/project/ebxshdqfaqupnvpghodi
+- **Supabase Dashboard:** https://supabase.com/dashboard/project/qzkirjjrcblkqvhvalue
 - **Vercel Dashboard:** https://vercel.com/dashboard
 - **Production URL:** https://audienceos-agro-bros.vercel.app
 - **GitHub Repo:** https://github.com/growthpigs/audienceos-command-center

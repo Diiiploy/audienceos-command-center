@@ -23,7 +23,7 @@
 
 ### AudienceOS
 ```
-Supabase URL: https://ebxshdqfaqupnvpghodi.supabase.co
+Supabase URL: https://qzkirjjrcblkqvhvalue.supabase.co
 Location: .env.local
 ```
 
@@ -121,12 +121,13 @@ const { error } = await supabase.auth.signInWithPassword({
 **File:** `.env.local`
 
 ```bash
-# Google OAuth Credentials (for integrations)
-GOOGLE_CLIENT_ID=956161516382-vgo6cbv9ldp6nnh88n1tb3g5gog17kb.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=G0CSPX-13Zc9w9ULj6rtlD5qPdd6xaYmsw
+# Google OAuth Credentials (for integrations AND user auth)
+# Configured in Supabase Dashboard - see Google Cloud Console for values
+GOOGLE_CLIENT_ID=[See Google Cloud Console]
+GOOGLE_CLIENT_SECRET=[See Google Cloud Console]
 
-# Supabase (for auth + database)
-NEXT_PUBLIC_SUPABASE_URL=https://ebxshdqfaqupnvpghodi.supabase.co
+# Supabase (for auth + database) - NEW PROJECT: command_center
+NEXT_PUBLIC_SUPABASE_URL=https://qzkirjjrcblkqvhvalue.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=[present]
 SUPABASE_SERVICE_ROLE_KEY=[present]
 ```
@@ -165,7 +166,7 @@ SUPABASE_SERVICE_ROLE_KEY=[present]
 
 4. ❌ **Separate Databases**
    - RevOS: `trdoainmejxanrownbuz.supabase.co`
-   - AudienceOS: `ebxshdqfaqupnvpghodi.supabase.co`
+   - AudienceOS: `qzkirjjrcblkqvhvalue.supabase.co`
    - No cross-platform login possible
 
 ### Important (P1)
@@ -198,7 +199,7 @@ SUPABASE_SERVICE_ROLE_KEY=[present]
 
 **A:** ❌ NO - Databases are NOT consolidated:
 - RevOS: `https://trdoainmejxanrownbuz.supabase.co`
-- AudienceOS: `https://ebxshdqfaqupnvpghodi.supabase.co`
+- AudienceOS: `https://qzkirjjrcblkqvhvalue.supabase.co`
 
 ### Q: "We would need to have a logout button in settings"
 

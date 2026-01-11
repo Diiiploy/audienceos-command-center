@@ -37,3 +37,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .vercel
+
+# Claude Configs
+.claude/
+
+# Git Creds
+.git-credentials
