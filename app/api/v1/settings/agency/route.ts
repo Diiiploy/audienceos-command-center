@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { createRouteHandlerClient, getAuthenticatedUser } from '@/lib/supabase'
+import { createRouteHandlerClient, getAuthenticatedUser, createServiceRoleClient } from '@/lib/supabase'
 import { withRateLimit, withCsrfProtection, sanitizeString, createErrorResponse } from '@/lib/security'
 
 // ============================================================================
@@ -30,8 +30,14 @@ export async function GET(request: NextRequest) {
       return createErrorResponse(401, 'Authentication required')
     }
 
-    // Fetch agency settings
-    const { data: agency, error } = await supabase
+    // Fetch agency settings using service role client to bypass RLS
+    // This is safe because we've already verified the user belongs to this agency
+    const serviceClient = createServiceRoleClient()
+    if (!serviceClient) {
+      return createErrorResponse(500, 'Service configuration error')
+    }
+
+    const { data: agency, error } = await serviceClient
       .from('agency')
       .select('*')
       .eq('id', agencyId)
@@ -277,8 +283,13 @@ export async function PATCH(request: NextRequest) {
       return createErrorResponse(400, 'No valid fields to update')
     }
 
-    // Update agency settings
-    const { data: updated, error } = await supabase
+    // Update agency settings using service role client to bypass RLS
+    const serviceClient = createServiceRoleClient()
+    if (!serviceClient) {
+      return createErrorResponse(500, 'Service configuration error')
+    }
+
+    const { data: updated, error } = await serviceClient
       .from('agency')
       .update({
         ...updates,

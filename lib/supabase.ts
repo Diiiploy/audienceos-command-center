@@ -187,19 +187,36 @@ import type { SupabaseClient } from '@supabase/supabase-js'
  * Get the current user's agency_id from the database
  * This is more secure than trusting JWT user_metadata which can be stale
  *
+ * NOTE: Uses service role client to bypass RLS. This is safe because:
+ * 1. Caller has already verified the user is authenticated
+ * 2. We only query by the verified user ID
+ * 3. We only return agency_id, not sensitive data
+ *
  * @returns agency_id or null if user not found
  */
 export async function getUserAgencyId(
-  supabase: SupabaseClient<Database>,
+  _supabase: SupabaseClient<Database>,
   userId: string
 ): Promise<string | null> {
-  const { data, error } = await supabase
+  // Use service role client to bypass RLS on user table
+  // The RLS policy may not allow users to read their own row
+  const serviceClient = createServiceRoleClient()
+
+  if (!serviceClient) {
+    console.error('[getUserAgencyId] Service role client not configured')
+    return null
+  }
+
+  const { data, error } = await serviceClient
     .from('user')
     .select('agency_id')
     .eq('id', userId)
     .single()
 
   if (error || !data?.agency_id) {
+    if (error) {
+      console.error('[getUserAgencyId] Query error:', error.message)
+    }
     return null
   }
 

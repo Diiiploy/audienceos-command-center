@@ -26,12 +26,13 @@ interface DashboardViewProps {
   onSendToAI?: (prompt: string) => void
 }
 
-// Mock firehose data - will be replaced with real data
-function generateMockFirehoseItems(clients: MinimalClient[]): FirehoseItemData[] {
+// Generate firehose items from real client data
+// TODO: In future, this should fetch from /api/v1/dashboard/firehose for tasks, performance, etc.
+function generateFirehoseItems(clients: MinimalClient[]): FirehoseItemData[] {
   const items: FirehoseItemData[] = []
   const now = new Date()
 
-  // Add some critical items
+  // Generate alerts from clients with Red health
   clients.filter(c => c.health === "Red").forEach(client => {
     items.push({
       id: `alert-${client.id}`,
@@ -45,21 +46,7 @@ function generateMockFirehoseItems(clients: MinimalClient[]): FirehoseItemData[]
     })
   })
 
-  // Add stage move events
-  clients.slice(0, 3).forEach(client => {
-    items.push({
-      id: `stage-${client.id}`,
-      severity: "info",
-      title: "Stage Move",
-      description: `${client.name} moved to ${client.stage}`,
-      timestamp: new Date(now.getTime() - Math.random() * 24 * 60 * 60 * 1000),
-      clientName: client.name,
-      clientId: client.id,
-      targetTab: "clients",
-    })
-  })
-
-  // Add some warnings
+  // Generate warnings from clients with Yellow health
   clients.filter(c => c.health === "Yellow").forEach(client => {
     items.push({
       id: `warn-${client.id}`,
@@ -73,136 +60,18 @@ function generateMockFirehoseItems(clients: MinimalClient[]): FirehoseItemData[]
     })
   })
 
-  // Add task items for each team member
-  items.push({
-    id: "task-1",
-    severity: "warning",
-    title: "Review Weekly Report",
-    description: "RTA Outdoor Living weekly performance report ready for review",
-    timestamp: new Date(now.getTime() - 30 * 60 * 1000),
-    clientName: "RTA Outdoor Living",
-    assignee: "Trevor",
-    targetTab: "tasks",
-  })
-
-  items.push({
-    id: "task-2",
-    severity: "info",
-    title: "Approve Draft Reply",
-    description: "AI drafted response to Allbirds iOS tracking question",
-    timestamp: new Date(now.getTime() - 60 * 60 * 1000),
-    clientName: "Allbirds",
-    assignee: "Brent",
-    targetTab: "tasks",
-  })
-
-  items.push({
-    id: "task-3",
-    severity: "warning",
-    title: "Campaign Budget Review",
-    description: "Brooklinen Q1 budget allocation needs approval",
-    timestamp: new Date(now.getTime() - 90 * 60 * 1000),
-    clientName: "Brooklinen",
-    assignee: "Roderic",
-    targetTab: "tasks",
-  })
-
-  items.push({
-    id: "task-4",
-    severity: "info",
-    title: "Pixel Verification",
-    description: "Glow Recipe pixel installation needs verification",
-    timestamp: new Date(now.getTime() - 120 * 60 * 1000),
-    clientName: "Glow Recipe",
-    assignee: "Chase",
-    targetTab: "tasks",
-  })
-
-  items.push({
-    id: "task-5",
-    severity: "critical",
-    title: "Attribution Discrepancy",
-    description: "Beardbrand showing 15% attribution gap vs GA4",
-    timestamp: new Date(now.getTime() - 150 * 60 * 1000),
-    clientName: "Beardbrand",
-    assignee: "Brent",
-    targetTab: "tasks",
-  })
-
-  items.push({
-    id: "task-6",
-    severity: "info",
-    title: "Onboarding Call Prep",
-    description: "Prepare materials for Ruggable kickoff call",
-    timestamp: new Date(now.getTime() - 180 * 60 * 1000),
-    clientName: "Ruggable",
-    assignee: "Trevor",
-    targetTab: "tasks",
-  })
-
-  items.push({
-    id: "task-7",
-    severity: "warning",
-    title: "Monthly Report Due",
-    description: "MVMT Watches monthly performance report deadline tomorrow",
-    timestamp: new Date(now.getTime() - 210 * 60 * 1000),
-    clientName: "MVMT Watches",
-    assignee: "Roderic",
-    targetTab: "tasks",
-  })
-
-  items.push({
-    id: "task-8",
-    severity: "info",
-    title: "Data Layer Audit",
-    description: "Complete RTA Outdoor Living data layer documentation",
-    timestamp: new Date(now.getTime() - 240 * 60 * 1000),
-    clientName: "RTA Outdoor Living",
-    assignee: "Brent",
-    targetTab: "tasks",
-  })
-
-  items.push({
-    id: "task-9",
-    severity: "warning",
-    title: "Creative Review",
-    description: "Review Alo Yoga new campaign creative assets",
-    timestamp: new Date(now.getTime() - 270 * 60 * 1000),
-    clientName: "Alo Yoga",
-    assignee: "Chase",
-    targetTab: "tasks",
-  })
-
-  items.push({
-    id: "task-10",
-    severity: "info",
-    title: "GA4 Setup Verification",
-    description: "Terren GA4 enhanced ecommerce verification pending",
-    timestamp: new Date(now.getTime() - 300 * 60 * 1000),
-    clientName: "Terren",
-    assignee: "Trevor",
-    targetTab: "tasks",
-  })
-
-  // Add performance items
-  items.push({
-    id: "perf-1",
-    severity: "critical",
-    title: "Budget Cap Hit",
-    description: "Beardbrand hit daily budget cap at 2PM. Campaigns paused.",
-    timestamp: new Date(now.getTime() - 4 * 60 * 60 * 1000),
-    clientName: "Beardbrand",
-    targetTab: "performance",
-  })
-
-  items.push({
-    id: "perf-2",
-    severity: "warning",
-    title: "ROAS Dropped 10%",
-    description: "Brooklinen ROAS decreased from 3.2 to 2.9 this week",
-    timestamp: new Date(now.getTime() - 6 * 60 * 60 * 1000),
-    clientName: "Brooklinen",
-    targetTab: "performance",
+  // Generate info items for clients with long time in stage (> 7 days)
+  clients.filter(c => c.daysInStage > 7 && c.health !== "Red").forEach(client => {
+    items.push({
+      id: `stale-${client.id}`,
+      severity: "info",
+      title: "Long Time in Stage",
+      description: `${client.name} has been in ${client.stage} for ${client.daysInStage} days`,
+      timestamp: new Date(now.getTime() - Math.random() * 24 * 60 * 60 * 1000),
+      clientName: client.name,
+      clientId: client.id,
+      targetTab: "clients",
+    })
   })
 
   // Sort by timestamp (most recent first)
@@ -225,22 +94,15 @@ function TasksByAssigneeWidget({
     return acc
   }, {} as Record<string, number>)
 
-  // If no tasks from firehose, use mock data so the widget isn't empty
-  const hasRealData = Object.keys(tasksByOwner).length > 0
-  const displayData = hasRealData ? tasksByOwner : {
-    "Brent": 4,
-    "Trevor": 3,
-    "Roderic": 2,
-    "Chase": 2,
-  }
-
-  const totalTasks = Object.values(displayData).reduce((a, b) => a + b, 0)
+  const totalTasks = Object.values(tasksByOwner).reduce((a, b) => a + b, 0)
 
   return (
     <div className="bg-card border border-border rounded-lg p-4">
       <h3 className="text-sm font-medium text-foreground mb-3">Tasks by Assignee</h3>
       <div className="space-y-2">
-        {Object.entries(displayData).slice(0, 4).map(([owner, count]) => {
+        {totalTasks === 0 ? (
+          <p className="text-xs text-muted-foreground">No tasks assigned</p>
+        ) : Object.entries(tasksByOwner).slice(0, 4).map(([owner, count]) => {
           const ownerData = getOwnerData(owner)
           return (
             <button
@@ -976,7 +838,7 @@ export function DashboardView({ clients, onClientClick, onOpenClientDetail, onSe
     : { duration: 0.3, ease: [0.16, 1, 0.3, 1] as const }
 
   const firehoseItems = useMemo(
-    () => generateMockFirehoseItems(clients).filter(item => !completedItems.has(item.id)),
+    () => generateFirehoseItems(clients).filter(item => !completedItems.has(item.id)),
     [clients, completedItems]
   )
 
