@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, Suspense } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase"
@@ -37,6 +37,25 @@ function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
+
+  // Handle OAuth errors from callback redirect
+  useEffect(() => {
+    const errorParam = searchParams.get('error')
+    const messageParam = searchParams.get('message')
+    const errorDescription = searchParams.get('error_description')
+
+    if (errorParam) {
+      // Map error codes to user-friendly messages
+      const errorMessages: Record<string, string> = {
+        'no_code': 'Authentication failed. Please try again.',
+        'auth_callback_error': messageParam || 'Authentication failed. Please try again.',
+        'unexpected_error': 'An unexpected error occurred. Please try again.',
+        'access_denied': 'Access was denied. Please try again.',
+      }
+
+      setError(errorMessages[errorParam] || errorDescription || messageParam || 'Authentication failed')
+    }
+  }, [searchParams])
 
   // Handle Google OAuth sign-in
   const handleGoogleSignIn = async () => {
