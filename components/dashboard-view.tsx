@@ -1118,7 +1118,7 @@ export function DashboardView({ clients, onClientClick, onOpenClientDetail, onSe
   const selectedPerf = perfItems.find(p => p.id === selectedPerfId)
 
   return (
-    <div className="flex flex-col h-full pb-[150px]">
+    <div className="flex flex-col pb-[150px]">
       {/* KPI Cards */}
       <div className="grid grid-cols-4 gap-3 mb-3">
         {kpis.map((kpi, i) => (
@@ -1129,19 +1129,16 @@ export function DashboardView({ clients, onClientClick, onOpenClientDetail, onSe
       {/* Tabs */}
       <DashboardTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
-      {/* Main Content - scrollable to see all widgets */}
-      <div className="flex-1 overflow-hidden mt-3">
+      {/* Main Content - natural flow, no nested scrollers */}
+      <div className="mt-3">
         {activeTab === "overview" ? (
-          <div className="grid grid-cols-5 gap-3 h-full pb-5 overflow-y-auto scrollbar-hide">
-            {/* Left: Firehose Feed (40%) - absolute positioning prevents content from affecting grid row height */}
-            <div className="col-span-2 relative">
-              <div className="absolute inset-0 overflow-hidden">
-                <FirehoseFeed
-                  items={firehoseItems}
-                  onItemClick={handleFirehoseItemClick}
-                  className="h-full"
-                />
-              </div>
+          <div className="grid grid-cols-5 gap-3 pb-5">
+            {/* Left: Firehose Feed (40%) - natural flow, no nested scroll */}
+            <div className="col-span-2">
+              <FirehoseFeed
+                items={firehoseItems}
+                onItemClick={handleFirehoseItemClick}
+              />
             </div>
 
             {/* Right: Widgets (60%) - determines overall height */}
@@ -1163,9 +1160,9 @@ export function DashboardView({ clients, onClientClick, onOpenClientDetail, onSe
             </div>
           </div>
         ) : activeTab === "tasks" ? (
-          <div className="flex h-full">
-            {/* List */}
-            <div className="flex-1 overflow-y-auto scrollbar-hide pr-3 pb-5">
+          <div className="flex">
+            {/* List - natural flow */}
+            <div className="flex-1 pr-3 pb-5">
               <div className="space-y-2">
                 <h3 className="text-sm font-medium text-foreground mb-3">Tasks ({taskItems.length})</h3>
                 {taskItems.length === 0 ? (
@@ -1221,9 +1218,9 @@ export function DashboardView({ clients, onClientClick, onOpenClientDetail, onSe
             </AnimatePresence>
           </div>
         ) : activeTab === "clients" ? (
-          <div className="flex h-full">
-            {/* List */}
-            <div className="flex-1 overflow-y-auto scrollbar-hide pr-3 pb-5">
+          <div className="flex">
+            {/* List - natural flow */}
+            <div className="flex-1 pr-3 pb-5">
               <div className="space-y-2">
                 <h3 className="text-sm font-medium text-foreground mb-3">All Clients ({clients.length})</h3>
                 {clients.map(client => {
@@ -1285,9 +1282,9 @@ export function DashboardView({ clients, onClientClick, onOpenClientDetail, onSe
             </AnimatePresence>
           </div>
         ) : activeTab === "alerts" ? (
-          <div className="flex h-full">
-            {/* List */}
-            <div className="flex-1 overflow-y-auto scrollbar-hide pr-3 pb-5">
+          <div className="flex">
+            {/* List - natural flow */}
+            <div className="flex-1 pr-3 pb-5">
               <div className="space-y-2">
                 <h3 className="text-sm font-medium text-foreground mb-3">Alerts ({alertItems.length})</h3>
                 {alertItems.length === 0 ? (
@@ -1339,9 +1336,9 @@ export function DashboardView({ clients, onClientClick, onOpenClientDetail, onSe
             </AnimatePresence>
           </div>
         ) : activeTab === "performance" ? (
-          <div className="flex h-full">
-            {/* List */}
-            <div className="flex-1 overflow-y-auto scrollbar-hide pr-3 pb-5">
+          <div className="flex">
+            {/* List - natural flow */}
+            <div className="flex-1 pr-3 pb-5">
               <div className="space-y-2">
                 <h3 className="text-sm font-medium text-foreground mb-3">Performance ({perfItems.length})</h3>
                 {perfItems.length === 0 ? (
