@@ -19,25 +19,35 @@
 
 ---
 
-## 👥 Current Work Assignments (Updated 2026-01-06)
+## 👥 Current Work Assignments (Updated 2026-01-11)
 
 | Developer | Working On | Branch | Status |
 |-----------|------------|--------|--------|
 | **Roderic** | Main features, chat alignment, core functionality | `main` | Active |
-| **Trevor** | OAuth + Signup implementation | `trevor/oauth-signup` | In Progress |
+| **Trevor** | OAuth + Signup implementation | `trevor/oauth-backend` | ✅ OAuth Complete |
 
-### Trevor's Current Task
-**Task:** Implement user authentication (signup + Google OAuth)
-**Brief:** `working/TREVOR_OAUTH_BRIEF.md`
-**Estimated:** 10-12 hours
-**Deliverables:**
-- Signup page at `/signup`
-- "Sign in with Google" button on login page
-- OAuth callback handler at `/auth/callback`
-- Fix non-functional Google SSO toggle in settings
+### Trevor's OAuth Status (Verified 2026-01-11)
+**Branch:** `trevor/oauth-backend` (on remote)
+**OAuth Status:** ✅ **VERIFIED WORKING**
+
+**Completed:**
+- ✅ "Sign in with Google" button on login page
+- ✅ OAuth callback handler at `/auth/callback/route.ts`
+- ✅ Supabase Google provider configured
+- ✅ Vercel env vars updated (all 3 Supabase credentials)
+- ✅ End-to-end test: Button → Google account chooser → Correct Supabase callback URL
+
+**Verification Evidence (2026-01-11):**
+- Clicked "Sign in with Google" on production (`audienceos-agro-bros.vercel.app/login`)
+- Browser redirected to Google OAuth with `redirect_uri=https://qzkirjjrcblkqvhvalue.supabase.co/auth/v1/callback`
+- Google account chooser displayed correctly with "to continue to qzkirjjrcblkqvhvalue.supabase.co"
+
+**Remaining (Trevor):**
+- [ ] Signup page at `/signup`
+- [ ] Google SSO toggle in settings
 
 ### Coordination
-- **Trevor:** Creates PR from `trevor/oauth-signup` → `main` when ready
+- **Trevor:** Creates PR from `trevor/oauth-backend` → `main` when ready
 - **Roderic:** Reviews and merges Trevor's PR
 - **Communication:** Slack/Discord for questions and blockers
 - **Testing:** Always test on Vercel preview URLs (not localhost)
