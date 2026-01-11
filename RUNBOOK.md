@@ -619,13 +619,75 @@ npx tsc --noEmit
 - [ ] Core feature development
 - [ ] Integration with Holy Grail Chat (HGC)
 
+### ✅ Complete (Auth Improvements - 2026-01-11)
+- [x] Signup page with email/password and Google OAuth
+- [x] Forgot password page (`/forgot-password`)
+- [x] Password reset page (`/reset-password`) - with manual PKCE token handling
+- [x] Chat excluded from auth pages (login, signup, forgot-password, reset-password)
+
 ### 📋 Pending
-- [ ] Email verification flow (Phase 2)
-- [ ] Password reset functionality
+- [ ] Email infrastructure (waiting on DNS - see Email Setup section below)
+- [ ] OAuth app name "AudienceOS" (see OAuth Configuration below)
 - [ ] Two-factor authentication
 - [ ] Session management improvements
 - [ ] CI/CD pipeline enhancements
 - [ ] Monitoring and alerting setup
+
+---
+
+## 📧 Email Infrastructure Setup
+
+**Status:** ⏳ Waiting on DNS configuration
+
+### Current State
+- Supabase custom SMTP: **DISABLED** (using built-in with limits)
+- Resend account: **EXISTS** (org: rodericandrews, via GitHub)
+- Resend domains: **NONE VERIFIED**
+- Result: Signup confirmation emails don't send
+
+### Solution
+Use subdomain pattern: `audienceos.diiiploy.io`
+
+**Benefits:**
+- Reputation isolation (transactional email doesn't affect main domain)
+- Centralized DNS management under diiiploy.io
+- Scalable for future apps (revos.diiiploy.io, etc.)
+- Complies with Gmail/Yahoo 2024-25 requirements
+
+### Setup Steps (Requires DNS Access)
+1. **Resend:** Add domain `audienceos.diiiploy.io` at [resend.com/domains](https://resend.com/domains)
+2. **DNS:** Add the records Resend provides (MX, TXT for SPF, CNAME for DKIM)
+3. **Verify:** Wait for Resend to confirm verification (5-30 min)
+4. **Supabase:** Enable custom SMTP in Auth settings with Resend credentials:
+   - Host: `smtp.resend.com`
+   - Port: `465` (SSL) or `587` (TLS)
+   - Username: `resend`
+   - Password: Your Resend API key
+   - Sender: `noreply@audienceos.diiiploy.io`
+
+**Email sent to team:** 2026-01-11 (Chase, Brent, Trevor)
+
+---
+
+## 🔐 OAuth App Name Configuration
+
+**Status:** ⏳ Pending
+
+When users click "Sign in with Google," the consent screen shows the Supabase project name, not "AudienceOS."
+
+### To Fix (Google Cloud Console)
+1. Go to [Google Cloud Console](https://console.cloud.google.com)
+2. Select the project used for OAuth
+3. Navigate to **APIs & Services → OAuth consent screen**
+4. Update **App name** to "AudienceOS"
+5. Update **User support email** if needed
+6. Save changes
+
+### To Fix (Supabase - Optional Branding)
+1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
+2. Select project → **Authentication → Providers → Google**
+3. Review OAuth client settings
+4. Optionally configure email templates with AudienceOS branding under **Authentication → Email Templates**
 
 ---
 
