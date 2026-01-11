@@ -8,13 +8,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ArrowLeft, Mail } from "lucide-react"
 
-// AudienceOS Logo with gradient (matches website)
+// AudienceOS Logo with Poppins font (thick "audience", thin "OS" with gradient)
 function AudienceOSLogo({ className = "" }: { className?: string }) {
   return (
-    <div className={`flex items-center justify-center gap-0.5 ${className}`}>
-      <span className="text-3xl font-bold tracking-tight text-white">audience</span>
+    <div className={`flex items-center justify-center gap-0 ${className}`} style={{ fontFamily: 'var(--font-poppins), Poppins, sans-serif' }}>
+      <span className="text-3xl font-semibold tracking-tight text-white">audience</span>
       <span
-        className="text-3xl font-bold tracking-tight"
+        className="text-3xl font-light tracking-tight"
         style={{
           background: "linear-gradient(90deg, #a855f7 0%, #ec4899 50%, #06b6d4 100%)",
           WebkitBackgroundClip: "text",
@@ -60,7 +60,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-start justify-center bg-slate-950 pt-24">
+    <div className="min-h-screen flex items-center justify-center bg-slate-950">
       <div className="w-full max-w-sm space-y-6 p-8">
         <div className="space-y-1 text-center">
           <AudienceOSLogo />

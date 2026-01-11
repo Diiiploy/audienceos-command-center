@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { Inter } from "next/font/google"
+import { Inter, Poppins } from "next/font/google"
 import { createPortal } from "react-dom"
 import { useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
@@ -14,6 +14,12 @@ import { useAuth } from "@/hooks/use-auth"
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
+})
+
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-poppins",
 })
 
 // Pages where chat should NOT render
@@ -74,7 +80,7 @@ export default function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`font-sans antialiased ${inter.variable}`} suppressHydrationWarning>
+      <body className={`font-sans antialiased ${inter.variable} ${poppins.variable}`} suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
           defaultTheme="light"
