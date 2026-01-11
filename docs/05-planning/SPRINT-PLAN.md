@@ -1,653 +1,438 @@
 # Sprint Plan - AudienceOS Command Center
 
-**Version:** 1.0
-**Date:** 2025-01-01
-**Total Sprints:** 6
-**Sprint Length:** 5-7 days each
-**Total Scope:** 56 user stories → 96 development units (DUs)
+**Version:** 2.0
+**Date:** 2026-01-11
+**Total DUs:** 32 | **Total Sessions:** ~8 | **AI Calendar:** ~2 weeks
+**Traditional Timeline:** 8 weeks | **AI Reality:** ~2 weeks
+
+*See `skills/CORE/DUAL-TIMELINE.md` for conversion formulas*
 
 ---
 
-## Sprint Overview
+## Project Status
 
-| Sprint | Focus | DUs | Duration | Status |
-|--------|-------|-----|----------|--------|
-| 1 | Foundation & Auth | 12 | 5 days | Not Started |
-| 2 | Core Dashboard & Pipeline | 18 | 7 days | Not Started |
-| 3 | Integrations & Sync | 14 | 6 days | Not Started |
-| 4 | AI Intelligence Layer | 20 | 7 days | Not Started |
-| 5 | Advanced Features | 20 | 8 days | Not Started |
-| 6 | Polish & Launch | 12 | 5 days | Not Started |
+**Current Completion:** 95% MVP Complete
+- ✅ 12/12 core features implemented and tested
+- ✅ 690 tests passing across 38 test files
+- ✅ Full E2E audit passed (2026-01-09)
+- ✅ AI Chat operational with Gemini 3
+- ✅ Integration UI wired to real APIs
+- ✅ Multi-Org RBAC specs ready for implementation
 
-**Total Project Duration:** 38 days (~8 weeks)
+**Remaining Work:** Production readiness, RBAC enhancement, launch preparation
 
 ---
 
-## Sprint 1: Foundation & Authentication
+## Sprint Overview (Dual Timeline)
 
-**Duration:** Days 1-5
-**Goal:** Establish secure multi-tenant foundation with basic UI framework
-**DUs:** 12
+| Sprint | Focus | DUs | Trad. Weeks | AI Sessions | AI Calendar | Status |
+|--------|-------|-----|-------------|-------------|-------------|--------|
+| 1 | Production Polish & Testing | 12 | Wk 1-3 | 3 sessions | ~3 days | Not Started |
+| 2 | Multi-Org RBAC Implementation | 14 | Wk 4-6 | 3 sessions | ~5 days | Not Started |
+| 3 | Launch Preparation | 6 | Wk 7-8 | 2 sessions | ~2 days | Not Started |
+| **TOTAL** | | **32** | **8 weeks** | **~8 sessions** | **~2 weeks** | |
+
+---
+
+## Sprint 1: Production Polish & Testing
+
+**Traditional:** Week 1-2 | **AI Reality:** ~4 sessions (~4 days)
+**Goal:** Polish existing features, fix edge cases, ensure production readiness
+**DUs:** 12 | **Sessions:** 4 | **Compute:** ~$20
 
 ### Tasks
 
 | ID | Task | User Story | Priority | DUs | Depends On |
 |----|------|------------|----------|-----|------------|
-| T-001 | Setup Supabase project with multi-tenant schema | US-008 | P0 | 2 | - |
-| T-002 | Implement RLS policies for all core entities | US-008 | P0 | 2 | T-001 |
-| T-003 | Build agency-scoped authentication flow | US-008 | P0 | 2 | T-002 |
-| T-004 | Create reusable UI component library | - | P0 | 1 | - |
-| T-005 | Setup app shell with navigation sidebar | - | P0 | 1 | T-004 |
-| T-006 | Implement user state management (Zustand) | US-008 | P0 | 1 | T-003 |
-| T-007 | Setup environment configuration & deployment | - | P0 | 1 | - |
-| T-008 | Create basic responsive layouts | - | P1 | 1 | T-005 |
-| T-009 | Setup error boundaries and toast system | - | P1 | 1 | T-004 |
+| T-001 | UI Polish & Linear Design Consistency | US-002 | P0 | 3 | - |
+| T-002 | Authentication Edge Cases & Error Handling | US-003 | P0 | 2 | - |
+| T-003 | Integration Components Testing & Polish | US-033, US-034 | P0 | 2 | - |
+| T-004 | Dashboard KPIs & Charts Polish | US-015, US-016 | P0 | 3 | - |
+| T-005 | E2E Testing & Bug Fixes | - | P0 | 2 | T-001, T-002, T-003, T-004 |
 
 ### Task Details
 
-#### T-001: Setup Supabase Project with Multi-Tenant Schema
+#### T-001: UI Polish & Linear Design Consistency
 
-**User Story:** US-008
-**Category:** DEVELOPMENT
-**DUs:** 2
+**User Story:** US-002
+**Category:** DESIGN
+**DUs:** 3
 
 **Description:**
-Create Supabase project with complete multi-tenant database schema including all entities (AGENCY, USER, CLIENT, etc.) with proper RLS foundations.
+Ensure consistent Linear design system across all components, fix visual inconsistencies, add animations.
 
 **Acceptance Criteria:**
-- [ ] Supabase project created with production-ready configuration
-- [ ] All 18 core entities created with correct field types
-- [ ] Foreign key relationships established
-- [ ] Database indexes created for performance
-- [ ] Migration files versioned and documented
+- [ ] All components use Linear design tokens consistently
+- [ ] Glassmorphic status badges properly styled (completed ✅)
+- [ ] Loading states and skeletons for all data-dependent components
+- [ ] Smooth animations with Framer Motion
+- [ ] Mobile responsiveness verified
 
 **Technical Notes:**
-- Follow DATA-MODEL.md schema exactly
-- Set up staging and production environments
-- Configure automated backups
+- Status badges already updated with glassmorphic styling
+- Focus on loading states and micro-interactions
+- Preserve Active Onboardings accordion (protected component)
 
-**Dependencies:** None
+**Dependencies:**
+- None
 
 ---
 
-#### T-002: Implement RLS Policies for All Core Entities
+#### T-002: Authentication Edge Cases & Error Handling
 
-**User Story:** US-008
-**Category:** DEVELOPMENT
+**User Story:** US-003
+**Category:** BACKEND
 **DUs:** 2
 
 **Description:**
-Implement Row-Level Security policies ensuring perfect tenant isolation using agency_id from JWT claims.
+Handle authentication edge cases, session expiry, and improve error messaging.
 
 **Acceptance Criteria:**
-- [ ] RLS enabled on all tenant-scoped tables
-- [ ] Policies test agency_id from auth.jwt() claims
-- [ ] Cross-tenant data access impossible
-- [ ] Performance testing shows no query slowdown
-- [ ] RLS policies documented with examples
+- [ ] Session expiry handling with graceful refresh
+- [ ] Better error messages for auth failures
+- [ ] Loading states during authentication
+- [ ] Redirect handling after login
+- [ ] Rate limiting protection
 
 **Technical Notes:**
-```sql
--- Example policy pattern
-CREATE POLICY agency_isolation ON table_name
-FOR ALL USING (agency_id = (auth.jwt() ->> 'agency_id')::uuid);
-```
+- All fetch calls now include credentials: 'include' (completed ✅)
+- Focus on edge cases and error states
+- Implement token refresh logic
 
-**Dependencies:** T-001
+**Dependencies:**
+- None
 
 ---
 
-#### T-003: Build Agency-Scoped Authentication Flow
+#### T-003: Integration Components Testing & Polish
 
-**User Story:** US-008
-**Category:** DEVELOPMENT
+**User Story:** US-033, US-034
+**Category:** INTEGRATION
 **DUs:** 2
 
 **Description:**
-Create complete authentication system with agency_id in JWT claims and proper session management.
+Complete integration management UI polish and ensure robust testing coverage.
 
 **Acceptance Criteria:**
-- [ ] Login/signup forms with Supabase Auth
-- [ ] JWT includes agency_id claim
-- [ ] Session persistence across tabs
-- [ ] Automatic token refresh
-- [ ] Proper logout with state cleanup
+- [ ] Integration cards UI fully polished (status badges completed ✅)
+- [ ] OAuth connection flows tested end-to-end
+- [ ] Error handling for failed connections
+- [ ] Sync status real-time updates
+- [ ] Integration health monitoring
 
 **Technical Notes:**
-- Use Supabase Auth with custom claims
-- Implement auth middleware for all protected routes
-- Store agency context in Zustand
+- Integration tests already passing (42 tests ✅)
+- Focus on OAuth flows and real-time sync
+- Test with actual API connections
 
-**Dependencies:** T-002
+**Dependencies:**
+- None
+
+---
+
+#### T-004: Dashboard KPIs & Charts Polish
+
+**User Story:** US-015, US-016
+**Category:** ANALYTICS
+**DUs:** 3
+
+**Description:**
+Polish dashboard with real-time data updates, chart interactions, and loading states.
+
+**Acceptance Criteria:**
+- [ ] Real-time KPI updates via Supabase subscriptions
+- [ ] Interactive charts with proper hover states
+- [ ] Chart loading skeletons
+- [ ] Data refresh indicators
+- [ ] Export functionality for charts
+
+**Technical Notes:**
+- Dashboard KPIs now load correctly (auth fixed ✅)
+- Focus on real-time updates and interactivity
+- Use Recharts for enhanced visualizations
+
+**Dependencies:**
+- None
+
+---
+
+#### T-005: E2E Testing & Bug Fixes
+
+**User Story:** -
+**Category:** QUALITY
+**DUs:** 2
+
+**Description:**
+Run comprehensive E2E tests and fix any discovered bugs before RBAC implementation.
+
+**Acceptance Criteria:**
+- [ ] All critical user flows tested with Playwright
+- [ ] Bug fixes for any discovered issues
+- [ ] Performance verification
+- [ ] Cross-browser compatibility
+- [ ] Mobile testing
+
+**Technical Notes:**
+- Test client pipeline, dashboard, settings, integrations
+- Verify authentication flows work correctly
+- Check real-time features
+
+**Dependencies:**
+- T-001, T-002, T-003, T-004
 
 ---
 
 ### Sprint 1 Risks
-- Supabase RLS complexity could require additional debugging time
-- JWT claims setup might need custom trigger functions
-- Performance impact of RLS policies on complex queries
+- Performance issues may require optimization
+- Real-time features could have connection issues
+- Mobile responsiveness may need additional work
 
 ---
 
-## Sprint 2: Core Dashboard & Pipeline
+## Sprint 2: Multi-Org RBAC Implementation
 
-**Duration:** Days 6-12
-**Goal:** Build primary user interface with dashboard KPIs and Kanban pipeline
-**DUs:** 18
+**Traditional:** Week 3-4 | **AI Reality:** ~6 sessions (~6 days)
+**Goal:** Implement role-based access control with multi-organization support
+**DUs:** 14 | **Sessions:** 6 | **Compute:** ~$30
 
 ### Tasks
 
 | ID | Task | User Story | Priority | DUs | Depends On |
 |----|------|------------|----------|-----|------------|
-| T-010 | Build executive KPI dashboard | US-001 | P0 | 3 | T-003 |
-| T-011 | Create interactive trend charts | US-002 | P0 | 2 | T-010 |
-| T-012 | Implement drill-down navigation | US-003 | P0 | 2 | T-011 |
-| T-013 | Build Kanban pipeline board | US-004 | P0 | 4 | T-003 |
-| T-014 | Implement drag-drop with dnd-kit | US-005 | P0 | 3 | T-013 |
-| T-015 | Create client detail drawer | US-006 | P0 | 2 | T-014 |
-| T-015.5 | Implement pipeline filtering system | US-007 | P0 | 2 | T-013 |
+| T-006 | RBAC Database Schema Implementation | RBAC-001, RBAC-002 | P0 | 3 | T-005 |
+| T-007 | Permission Middleware & API Protection | RBAC-003, RBAC-004 | P0 | 4 | T-006 |
+| T-008 | Role Management UI | RBAC-005, RBAC-006 | P0 | 4 | T-007 |
+| T-009 | Client Access Control & Assignment | RBAC-007, RBAC-008 | P0 | 3 | T-008 |
 
 ### Task Details
 
-#### T-010: Build Executive KPI Dashboard
+#### T-006: RBAC Database Schema Implementation
 
-**User Story:** US-001
-**Category:** DEVELOPMENT
+**User Story:** RBAC-001, RBAC-002
+**Category:** BACKEND
 **DUs:** 3
 
 **Description:**
-Create the main dashboard with real-time KPI cards showing agency performance metrics.
+Implement RBAC database schema with roles, permissions, and user assignments.
 
 **Acceptance Criteria:**
-- [ ] 4 KPI cards: Active Onboardings, At-Risk Clients, Support Hours, Avg Install Time
-- [ ] Real-time updates via Supabase Realtime
-- [ ] Trend indicators (↑↓) with color coding
-- [ ] Manual refresh button with loading states
-- [ ] Responsive design for all screen sizes
+- [ ] 5 new tables: role, permission, user_role, member_client_access, audit_log
+- [ ] Role hierarchy: Owner (1) → Admin (2) → Manager (3) → Member (4)
+- [ ] 8 resources × 3 actions permission matrix
+- [ ] Migration scripts for existing data
+- [ ] RLS policies updated for RBAC
 
 **Technical Notes:**
-- Use Recharts for mini-chart indicators
-- Implement optimistic updates for better UX
-- Cache KPI calculations in materialized views
+- Use existing agency_id for multi-tenant isolation
+- Implement permission inheritance for role hierarchy
+- Audit logging for all permission changes
 
-**Dependencies:** T-003
+**Dependencies:**
+- T-005
 
 ---
 
-#### T-011: Create Interactive Trend Charts
+#### T-007: Permission Middleware & API Protection
 
-**User Story:** US-002
-**Category:** DEVELOPMENT
-**DUs:** 2
-
-**Description:**
-Add visualization components showing client trends over time with interactive controls.
-
-**Acceptance Criteria:**
-- [ ] "New vs Completed Installs" area chart
-- [ ] Time period toggles: 7, 30, 90 days
-- [ ] Hover tooltips with exact values
-- [ ] Loading states and error handling
-- [ ] Chart data auto-refreshes with dashboard
-
-**Technical Notes:**
-- Use Recharts ResponsiveContainer for mobile
-- Implement efficient data aggregation queries
-- Add chart export functionality
-
-**Dependencies:** T-010
-
----
-
-#### T-013: Build Kanban Pipeline Board
-
-**User Story:** US-004
-**Category:** DEVELOPMENT
+**User Story:** RBAC-003, RBAC-004
+**Category:** BACKEND
 **DUs:** 4
 
 **Description:**
-Create the core Kanban board showing clients across pipeline stages with real-time updates.
+Implement permission checking middleware and protect all 34 API endpoints.
 
 **Acceptance Criteria:**
-- [ ] 6 columns: Onboarding → Off-Boarding
-- [ ] Client cards with name, health, days in stage, owner
-- [ ] Column pagination (max 10 cards per page)
-- [ ] Real-time updates when others modify pipeline
-- [ ] Filter chips: All, My Clients, At Risk, Blocked
+- [ ] Permission middleware with efficient caching
+- [ ] All 34 endpoints protected with appropriate permissions
+- [ ] Client-scoped access for Members (member_client_access table)
+- [ ] API error responses for unauthorized access
+- [ ] Performance optimization for permission checks
 
 **Technical Notes:**
-- Use Supabase Realtime for live updates
-- Implement virtualization for performance
-- Add keyboard navigation support
+- Cache permissions in middleware for performance
+- Use with-permission utility function pattern
+- Implement client-scoped queries for Members
 
-**Dependencies:** T-003
+**Dependencies:**
+- T-006
 
 ---
 
-#### T-015.5: Implement Pipeline Filtering System
+#### T-008: Role Management UI
 
-**User Story:** US-007
-**Category:** DEVELOPMENT
-**DUs:** 2
+**User Story:** RBAC-005, RBAC-006
+**Category:** FRONTEND
+**DUs:** 4
 
 **Description:**
-Create comprehensive filtering system for the pipeline board with URL state persistence.
+Build comprehensive role management interface for Owners and Admins.
 
 **Acceptance Criteria:**
-- [ ] Filter chips above board: All, My Clients, At Risk, Blocked
-- [ ] "My clients" uses CLIENT_ASSIGNMENT table
-- [ ] Multiple filters can be combined
-- [ ] Filter state persisted in URL query params
-- [ ] Clear all filters button
+- [ ] Role assignment interface in team management
+- [ ] Permission matrix display and editing
+- [ ] Bulk user operations (assign/remove roles)
+- [ ] Role hierarchy visualization
+- [ ] Permission conflict resolution
 
 **Technical Notes:**
-- Use nuqs for URL state management
-- Implement filter persistence across page refreshes
-- Keyboard shortcuts for common filters
+- Extend existing settings/team management UI
+- Use permission matrix component
+- Real-time updates for role changes
 
-**Dependencies:** T-013
+**Dependencies:**
+- T-007
+
+---
+
+#### T-009: Client Access Control & Assignment
+
+**User Story:** RBAC-007, RBAC-008
+**Category:** FRONTEND
+**DUs:** 3
+
+**Description:**
+Implement client assignment system for Members and access control UI.
+
+**Acceptance Criteria:**
+- [ ] Client assignment interface for Members
+- [ ] Bulk client assignment operations
+- [ ] Access control indicators in client list
+- [ ] Member-scoped client filtering
+- [ ] Assignment audit trail
+
+**Technical Notes:**
+- Update client list/pipeline views with access indicators
+- Implement member_client_access CRUD operations
+- Show access scope in user profiles
+
+**Dependencies:**
+- T-008
 
 ---
 
 ### Sprint 2 Risks
-- dnd-kit integration complexity with real-time updates
-- Performance optimization for large client lists
-- Chart rendering performance on mobile devices
+- RBAC complexity may introduce performance issues
+- Migration of existing data could cause downtime
+- Permission matrix complexity needs careful UX design
 
 ---
 
-## Sprint 3: Integrations & External Data Sync
+## Sprint 3: Launch Preparation & Deployment
 
-**Duration:** Days 13-18
-**Goal:** Connect external platforms and establish automated data synchronization
-**DUs:** 14
+**Traditional:** Week 5-6 | **AI Reality:** ~2 sessions (~2 days)
+**Goal:** Finalize production deployment, monitoring, and launch readiness
+**DUs:** 6 | **Sessions:** 2 | **Compute:** ~$10
 
 ### Tasks
 
 | ID | Task | User Story | Priority | DUs | Depends On |
 |----|------|------------|----------|-----|------------|
-| T-016 | Implement OAuth flow framework | US-009-012 | P0 | 2 | T-003 |
-| T-017 | Build Slack OAuth integration | US-009 | P0 | 2 | T-016 |
-| T-018 | Build Gmail OAuth integration | US-010 | P0 | 2 | T-016 |
-| T-019 | Build Google Ads OAuth integration | US-011 | P0 | 2 | T-016 |
-| T-020 | Build Meta Ads OAuth integration | US-012 | P0 | 2 | T-016 |
-| T-021 | Create integration management UI | - | P0 | 2 | T-020 |
-| T-022 | Implement background sync scheduler | - | P0 | 2 | T-021 |
+| T-010 | Production Monitoring & Error Tracking | - | P0 | 2 | T-009 |
+| T-011 | Performance Optimization & Caching | - | P0 | 2 | T-009 |
+| T-012 | Launch Checklist & Go-Live | - | P0 | 2 | T-010, T-011 |
 
 ### Task Details
 
-#### T-016: Implement OAuth Flow Framework
+#### T-010: Production Monitoring & Error Tracking
 
-**User Stories:** US-009-012
-**Category:** DEVELOPMENT
+**User Story:** -
+**Category:** DEVOPS
 **DUs:** 2
 
 **Description:**
-Create reusable OAuth framework supporting multiple providers with secure token storage.
+Set up comprehensive monitoring, error tracking, and alerting for production environment.
 
 **Acceptance Criteria:**
-- [ ] Generic OAuth flow with PKCE support
-- [ ] Encrypted token storage in Supabase Vault
-- [ ] Automatic token refresh logic
-- [ ] Connection health monitoring
-- [ ] Error handling for failed auths
+- [ ] Sentry error tracking fully configured
+- [ ] Performance monitoring with Core Web Vitals
+- [ ] Database query performance monitoring
+- [ ] Alert thresholds configured
+- [ ] Uptime monitoring
 
 **Technical Notes:**
-- Store tokens encrypted in INTEGRATION_CREDENTIAL table
-- Implement refresh token rotation
-- Add webhook endpoints for token revocation
+- Sentry already integrated, ensure production config
+- Set up performance budgets
+- Configure alert notifications
 
-**Dependencies:** T-003
+**Dependencies:**
+- T-009
 
 ---
 
-#### T-017: Build Slack OAuth Integration
+#### T-011: Performance Optimization & Caching
 
-**User Story:** US-009
-**Category:** DEVELOPMENT
+**User Story:** -
+**Category:** OPTIMIZATION
 **DUs:** 2
 
 **Description:**
-Connect Slack workspaces to pull channel messages and enable reply drafting.
+Final performance optimization pass with caching strategies and bundle optimization.
 
 **Acceptance Criteria:**
-- [ ] Slack OAuth 2.0 flow with bot scopes
-- [ ] Channel message ingestion via Web API
-- [ ] Message threading support
-- [ ] Real-time updates via Socket Mode
-- [ ] Rate limiting compliance
+- [ ] Bundle size optimization with code splitting
+- [ ] Database query optimization and indexing
+- [ ] Cache-Control headers for static assets
+- [ ] Supabase connection pooling
+- [ ] Core Web Vitals score >90
 
 **Technical Notes:**
-- Required scopes: channels:read, channels:history, chat:write
-- Store channel preferences per client
-- Handle Slack rate limits gracefully
+- Use Next.js 16 optimization features
+- Implement database query caching
+- Optimize image loading and assets
 
-**Dependencies:** T-016
+**Dependencies:**
+- T-009
+
+---
+
+#### T-012: Launch Checklist & Go-Live
+
+**User Story:** -
+**Category:** LAUNCH
+**DUs:** 2
+
+**Description:**
+Execute launch checklist and go-live procedures with monitoring and rollback plans.
+
+**Acceptance Criteria:**
+- [ ] Pre-launch checklist completed
+- [ ] Production environment verified
+- [ ] Rollback procedures documented
+- [ ] User training materials prepared
+- [ ] Launch monitoring dashboard active
+
+**Technical Notes:**
+- Verify all environment variables
+- Test production deployment
+- Monitor for issues during launch window
+
+**Dependencies:**
+- T-010, T-011
 
 ---
 
 ### Sprint 3 Risks
-- OAuth app approval delays from external platforms
-- Rate limiting and API quota management
-- Token refresh complexity across multiple providers
-
----
-
-## Sprint 4: AI Intelligence Layer
-
-**Duration:** Days 19-25
-**Goal:** Integrate Claude AI for intelligent assistance and risk detection
-**DUs:** 20
-
-### Tasks
-
-| ID | Task | User Story | Priority | DUs | Depends On |
-|----|------|------------|----------|-----|------------|
-| T-023 | Setup Claude API integration framework | US-017 | P0 | 2 | T-003 |
-| T-024 | Build AI risk detection system | US-018 | P0 | 3 | T-023 |
-| T-025 | Create Chi intelligent chat interface | US-019 | P0 | 4 | T-023 |
-| T-026 | Implement RAG with Gemini File Search | US-020 | P0 | 3 | T-025 |
-| T-027 | Build AI draft generation | US-021 | P0 | 2 | T-026 |
-| T-028 | Create context-aware chat routing | US-022 | P0 | 2 | T-027 |
-| T-029 | Implement chat memory system | US-023 | P0 | 2 | T-028 |
-| T-029.5 | Build AI context-aware communications drafts | US-024 | P0 | 2 | T-027 |
-
-### Task Details
-
-#### T-023: Setup Claude API Integration Framework
-
-**User Story:** US-017
-**Category:** DEVELOPMENT
-**DUs:** 2
-
-**Description:**
-Create secure Claude API integration with proper error handling and token management.
-
-**Acceptance Criteria:**
-- [ ] Anthropic SDK integration with API key management
-- [ ] Request/response logging for debugging
-- [ ] Token usage tracking and limits
-- [ ] Error handling with graceful degradation
-- [ ] Rate limiting compliance
-
-**Technical Notes:**
-- Store API keys in Supabase Vault
-- Implement circuit breaker pattern
-- Add request queuing for high volume
-
-**Dependencies:** T-003
-
----
-
-#### T-024: Build AI Risk Detection System
-
-**User Story:** US-018
-**Category:** DEVELOPMENT
-**DUs:** 3
-
-**Description:**
-Implement intelligent risk detection analyzing client patterns and communication sentiment.
-
-**Acceptance Criteria:**
-- [ ] Risk scoring algorithm with configurable thresholds
-- [ ] Sentiment analysis on communications
-- [ ] Performance trend anomaly detection
-- [ ] Automated risk alerts with recommended actions
-- [ ] Risk dashboard with drill-down capability
-
-**Technical Notes:**
-- Combine rule-based and AI-powered detection
-- Run risk analysis on cron schedule
-- Store risk scores with audit trail
-
-**Dependencies:** T-023
-
----
-
-#### T-025: Create Chi Intelligent Chat Interface
-
-**User Story:** US-019
-**Category:** DEVELOPMENT
-**DUs:** 4
-
-**Description:**
-Build the main AI chat interface with progressive reveal and context awareness.
-
-**Acceptance Criteria:**
-- [ ] Chat interface with message history
-- [ ] Progressive reveal (War Room pattern)
-- [ ] Typing indicators and loading states
-- [ ] File upload for document analysis
-- [ ] Citation support with source links
-
-**Technical Notes:**
-- Use streaming responses for better UX
-- Implement message persistence
-- Add export chat functionality
-
-**Dependencies:** T-023
-
----
-
-#### T-029.5: Build AI Context-Aware Communications Drafts
-
-**User Story:** US-024
-**Category:** DEVELOPMENT
-**DUs:** 2
-
-**Description:**
-Implement AI-powered draft generation that considers full communication context including conversation history, client data, and knowledge base.
-
-**Acceptance Criteria:**
-- [ ] "Draft Response" button in alerts and communications
-- [ ] AI analyzes: conversation history, alerts, Knowledge Base
-- [ ] Generated draft includes context and next steps
-- [ ] Multiple variations: formal, casual, urgent
-- [ ] User can edit before sending
-
-**Technical Notes:**
-- Context assembly from multiple sources
-- Tone detection and matching
-- Template-based fallbacks for common scenarios
-
-**Dependencies:** T-027
-
----
-
-### Sprint 4 Risks
-- Claude API rate limits affecting user experience
-- Context window management for long conversations
-- RAG accuracy and relevance tuning
-
----
-
-## Sprint 5: Advanced Features
-
-**Duration:** Days 26-33
-**Goal:** Deliver automation workflows, knowledge base, and support ticketing
-**DUs:** 20
-
-### Tasks
-
-| ID | Task | User Story | Priority | DUs | Depends On |
-|----|------|------------|----------|-----|------------|
-| T-030 | Build knowledge base with document upload | US-025-028 | P0 | 5 | T-026 |
-| T-031 | Create support ticket Kanban system | US-029-032 | P0 | 4 | T-015 |
-| T-032 | Implement workflow automation engine | US-033-037 | P0 | 6 | T-022 |
-| T-033 | Build unified communications timeline | US-013-016 | P1 | 3 | T-020 |
-| T-034 | Create agency settings management | US-038-041 | P1 | 2 | T-003 |
-
-### Task Details
-
-#### T-030: Build Knowledge Base with Document Upload
-
-**User Stories:** US-025-028
-**Category:** DEVELOPMENT
-**DUs:** 5
-
-**Description:**
-Create comprehensive knowledge management system with RAG-powered search capabilities.
-
-**Acceptance Criteria:**
-- [ ] Document upload (PDF, DOCX, video) with metadata extraction
-- [ ] Semantic search powered by Gemini File Search
-- [ ] Category management and tagging system
-- [ ] Version control for document updates
-- [ ] Access permissions and sharing controls
-
-**Technical Notes:**
-- Use Supabase Storage for file storage
-- Implement chunking strategy for large documents
-- Add OCR support for scanned documents
-
-**Dependencies:** T-026
-
----
-
-#### T-031: Create Support Ticket Kanban System
-
-**User Stories:** US-029-032
-**Category:** DEVELOPMENT
-**DUs:** 4
-
-**Description:**
-Build ticket management system with AI-assisted resolution suggestions.
-
-**Acceptance Criteria:**
-- [ ] Kanban board: New → In Progress → Waiting → Resolved
-- [ ] AI-powered root cause analysis
-- [ ] Suggested fix steps from knowledge base
-- [ ] SLA tracking and escalation rules
-- [ ] Client communication integration
-
-**Technical Notes:**
-- Reuse Kanban components from pipeline
-- Integrate with knowledge base for solution suggestions
-- Add time tracking capabilities
-
-**Dependencies:** T-015
-
----
-
-#### T-032: Implement Workflow Automation Engine
-
-**User Stories:** US-033-037
-**Category:** DEVELOPMENT
-**DUs:** 6
-
-**Description:**
-Create IF/THEN workflow system for automated agency operations.
-
-**Acceptance Criteria:**
-- [ ] Visual workflow builder with trigger/action configuration
-- [ ] Triggers: Stage Change, Inactivity, KPI Thresholds, New Tickets
-- [ ] Actions: Send Email, Slack Message, Create Task, Update Field
-- [ ] Dynamic variable substitution ({client_name}, {stage}, etc.)
-- [ ] Workflow execution logging and error handling
-
-**Technical Notes:**
-- Use queue-based execution for reliability
-- Implement workflow versioning
-- Add scheduling and retry logic
-
-**Dependencies:** T-022
-
----
-
-### Sprint 5 Risks
-- Workflow engine complexity affecting development timeline
-- Document indexing performance with large files
-- Integration testing across multiple subsystems
-
----
-
-## Sprint 6: Polish & Launch Preparation
-
-**Duration:** Days 34-38
-**Goal:** Finalize product quality, performance optimization, and deployment readiness
-**DUs:** 12
-
-### Tasks
-
-| ID | Task | User Story | Priority | DUs | Depends On |
-|----|------|------------|----------|-----|------------|
-| T-035 | Comprehensive testing suite | - | P0 | 3 | All features |
-| T-036 | Performance optimization & monitoring | - | P0 | 2 | T-035 |
-| T-037 | Security audit & penetration testing | - | P0 | 2 | T-036 |
-| T-038 | Production deployment & CI/CD | - | P0 | 2 | T-037 |
-| T-039 | User documentation & onboarding | - | P0 | 2 | T-038 |
-| T-040 | Launch readiness checklist | - | P0 | 1 | T-039 |
-
-### Task Details
-
-#### T-035: Comprehensive Testing Suite
-
-**Category:** TESTING
-**DUs:** 3
-
-**Description:**
-Create complete test coverage including unit, integration, and end-to-end tests.
-
-**Acceptance Criteria:**
-- [ ] Unit tests for all business logic (90%+ coverage)
-- [ ] Integration tests for API endpoints
-- [ ] E2E tests for critical user journeys
-- [ ] Performance tests for high-load scenarios
-- [ ] Security tests for auth and data access
-
-**Dependencies:** All feature implementations
-
----
-
-#### T-036: Performance Optimization & Monitoring
-
-**Category:** DEVELOPMENT
-**DUs:** 2
-
-**Description:**
-Optimize application performance and implement comprehensive monitoring.
-
-**Acceptance Criteria:**
-- [ ] Page load times under 2 seconds
-- [ ] Database query optimization
-- [ ] Image and asset optimization
-- [ ] Real-time monitoring with Sentry
-- [ ] Performance budgets and alerts
-
-**Dependencies:** T-035
-
----
-
-### Sprint 6 Risks
-- Performance bottlenecks requiring architectural changes
-- Security vulnerabilities needing significant rework
-- Deployment complexity causing launch delays
+- Performance optimization may reveal last-minute issues
+- Production environment could have unexpected configuration issues
+- Launch timing may need coordination with stakeholders
 
 ---
 
 ## Dependency Map
 
 ```
-Foundation Layer:
-T-001 (Supabase) → T-002 (RLS) → T-003 (Auth)
-T-004 (UI Components) → T-005 (App Shell)
+Sprint 1 (Production Polish - Parallel Tasks):
+T-001 (UI Polish) ─┐
+T-002 (Auth Edge Cases) ─┼─→ T-005 (E2E Testing & Bug Fixes)
+T-003 (Integration Testing) ─┤
+T-004 (Dashboard Polish) ─┘
 
-Core Features:
-T-003 → T-010 (Dashboard) → T-011 (Charts) → T-012 (Drill-down)
-T-003 → T-013 (Kanban) → T-014 (Drag-drop) → T-015 (Drawer)
+Sprint 2 (RBAC Implementation - Sequential):
+T-005 → T-006 (RBAC Schema) → T-007 (Permission Middleware) → T-008 (Role Management UI) → T-009 (Client Access Control)
 
-Integrations:
-T-003 → T-016 (OAuth Framework) → [T-017, T-018, T-019, T-020] → T-021 (Management UI)
-T-021 → T-022 (Sync Scheduler)
-
-AI Layer:
-T-003 → T-023 (Claude API) → T-024 (Risk Detection)
-T-023 → T-025 (Chat) → T-026 (RAG) → T-027 (Drafts)
-
-Advanced Features:
-T-026 → T-030 (Knowledge Base)
-T-015 → T-031 (Support Tickets)
-T-022 → T-032 (Automations)
+Sprint 3 (Launch Preparation - Parallel then Sequential):
+T-009 → T-010 (Production Monitoring) ─┐
+T-009 → T-011 (Performance Optimization) ─┼─→ T-012 (Launch Checklist)
 ```
 
 ---
@@ -656,33 +441,28 @@ T-022 → T-032 (Automations)
 
 | Milestone | Sprint | Key Deliverables | Status |
 |-----------|--------|------------------|--------|
-| **MVP Foundation** | 1 | Auth, Database, Basic UI | Not Started |
-| **Core Product** | 2 | Dashboard, Pipeline, Client Management | Not Started |
-| **External Integration** | 3 | OAuth flows, Data sync | Not Started |
-| **AI-Powered Intelligence** | 4 | Claude integration, Risk detection | Not Started |
-| **Advanced Capabilities** | 5 | Automations, Knowledge Base, Support | Not Started |
-| **Production Ready** | 6 | Testing, Performance, Launch | Not Started |
+| **Production Ready** | 1 | UI Polish, Auth Fixes, Testing Complete | Not Started |
+| **RBAC Implemented** | 2 | Multi-Org Roles & Permissions Active | Not Started |
+| **Launch Complete** | 3 | Monitoring, Performance, Go-Live | Not Started |
 
 ---
 
 ## DU Summary by Category
 
-| Sprint | STRATEGY | PRODUCT | CREATIVE | DEV | TEST | Total |
-|--------|----------|---------|----------|-----|------|-------|
-| 1 | 0 | 0 | 1 | 9 | 2 | 12 |
-| 2 | 0 | 1 | 2 | 11 | 2 | 16 |
-| 3 | 0 | 0 | 1 | 11 | 2 | 14 |
-| 4 | 0 | 1 | 1 | 14 | 2 | 18 |
-| 5 | 0 | 2 | 2 | 14 | 2 | 20 |
-| 6 | 0 | 1 | 1 | 7 | 3 | 12 |
-| **Total** | **0** | **5** | **8** | **66** | **13** | **92** |
+| Sprint | STRATEGY | DESIGN | BACKEND | FRONTEND | DEVOPS | QUALITY | Total |
+|--------|----------|--------|---------|----------|--------|---------|-------|
+| 1 | 0 | 3 | 2 | 2 | 0 | 5 | 12 |
+| 2 | 0 | 0 | 7 | 7 | 0 | 0 | 14 |
+| 3 | 0 | 0 | 0 | 0 | 4 | 2 | 6 |
+| **Total** | **0** | **3** | **9** | **9** | **4** | **7** | **32** |
 
 ### DU Breakdown by Type
-- **STRATEGY:** 0 DUs - Technical implementation focused
-- **PRODUCT:** 5 DUs - Feature specification and UX design
-- **CREATIVE:** 8 DUs - UI/UX design and visual implementation
-- **DEVELOPMENT:** 66 DUs - Backend, frontend, and integration development
-- **TESTING:** 13 DUs - Quality assurance and validation
+- **STRATEGY:** 0 DUs - Implementation focused, strategy complete
+- **DESIGN:** 3 DUs - UI polish and Linear design consistency
+- **BACKEND:** 9 DUs - RBAC implementation and API protection
+- **FRONTEND:** 9 DUs - Role management UI and client access control
+- **DEVOPS:** 4 DUs - Production monitoring and deployment
+- **QUALITY:** 7 DUs - Testing, optimization, and launch readiness
 
 ---
 
@@ -703,28 +483,37 @@ Update this table as work progresses:
 
 | Task | Status | DUs Used | Completion | Notes |
 |------|--------|----------|------------|-------|
-| T-001 | Not Started | 0/2 | 0% | |
-| T-002 | Not Started | 0/2 | 0% | |
-| T-003 | Not Started | 0/2 | 0% | |
+| T-001 | Not Started | 0/3 | 0% | UI Polish & Linear Design Consistency |
+| T-002 | Not Started | 0/2 | 0% | Authentication Edge Cases & Error Handling |
+| T-003 | Not Started | 0/2 | 0% | Integration Components Testing & Polish |
+| T-004 | Not Started | 0/3 | 0% | Dashboard KPIs & Charts Polish |
+| T-005 | Not Started | 0/2 | 0% | E2E Testing & Bug Fixes |
+| T-006 | Not Started | 0/3 | 0% | RBAC Database Schema Implementation |
+| T-007 | Not Started | 0/4 | 0% | Permission Middleware & API Protection |
+| T-008 | Not Started | 0/4 | 0% | Role Management UI |
+| T-009 | Not Started | 0/3 | 0% | Client Access Control & Assignment |
+| T-010 | Not Started | 0/2 | 0% | Production Monitoring & Error Tracking |
+| T-011 | Not Started | 0/2 | 0% | Performance Optimization & Caching |
+| T-012 | Not Started | 0/2 | 0% | Launch Checklist & Go-Live |
 
 ---
 
 ## Risk Mitigation Strategies
 
 ### Technical Risks
-- **Multi-tenant RLS complexity:** Allocate extra time in Sprint 1 for thorough testing
-- **OAuth approval delays:** Have fallback MCP integrations ready
-- **AI API rate limits:** Implement robust caching and fallback mechanisms
+- **RBAC complexity:** Extra testing time allocated in Sprint 2, use existing patterns where possible
+- **Permission performance impact:** Implement caching strategy from day 1, benchmark regularly
+- **Production deployment issues:** Staging environment mirrors production exactly
 
 ### Schedule Risks
-- **Feature scope creep:** Strict adherence to defined user stories
-- **Integration dependencies:** Early engagement with external platform support
-- **Performance optimization:** Continuous testing throughout development
+- **Polish work scope creep:** Strict focus on production-critical issues only
+- **RBAC implementation complexity:** Break down into smaller incremental changes
+- **Launch readiness blockers:** Parallel workstreams for monitoring and performance
 
 ### Quality Risks
-- **Security vulnerabilities:** Regular security audits throughout development
-- **Data isolation bugs:** Comprehensive multi-tenant testing
-- **User experience gaps:** Regular stakeholder demos and feedback
+- **Security vulnerabilities in RBAC:** Security-focused code review for all permission logic
+- **Performance regression:** Continuous monitoring during optimization phase
+- **User experience degradation:** Preserve existing working features during polish
 
 ---
 
@@ -732,18 +521,49 @@ Update this table as work progresses:
 
 ### Sprint Completion Metrics
 - [ ] All P0 tasks completed within sprint duration
-- [ ] No critical bugs or security vulnerabilities
-- [ ] Performance benchmarks met
-- [ ] User stories acceptance criteria satisfied
+- [ ] No critical bugs or security vulnerabilities introduced
+- [ ] 95%+ existing functionality preserved and improved
+- [ ] Performance targets maintained or improved
 
 ### Product Launch Readiness
-- [ ] All 56 user stories implemented and tested
-- [ ] Security audit passed
-- [ ] Performance targets achieved
-- [ ] Documentation complete
-- [ ] Monitoring and alerting operational
+- [ ] Production-ready UI with consistent Linear design
+- [ ] Multi-Org RBAC fully implemented and tested
+- [ ] Monitoring and error tracking operational
+- [ ] Performance optimized for production load
+- [ ] Launch checklist completed and signed off
+
+### Chi CTO Handover Criteria
+- [ ] All task acceptance criteria clearly defined
+- [ ] Technical implementation notes detailed
+- [ ] Dependency relationships mapped
+- [ ] Risk mitigation strategies documented
+- [ ] Progress tracking mechanisms in place
 
 ---
 
-*Sprint plan generated on 2025-01-01*
-*Next update: After Sprint 1 completion*
+## Chi CTO Autonomous Execution Notes
+
+**This sprint plan is designed for autonomous execution by Chi CTO.**
+
+### Key Success Factors:
+1. **Clear Acceptance Criteria:** Every task has specific, testable acceptance criteria
+2. **Completion Focus:** Build on 95% complete foundation, not from scratch
+3. **Risk Awareness:** Known issues and solutions documented upfront
+4. **Progress Visibility:** Structured progress tracking for stakeholder updates
+5. **Quality Gates:** Testing and validation built into each sprint
+
+### Execution Priority:
+1. **Sprint 1:** Essential for user experience and stability
+2. **Sprint 2:** High-value feature for enterprise customers
+3. **Sprint 3:** Critical for production operations and scaling
+
+### Stakeholder Communication:
+- Daily progress updates via progress tracking table
+- Sprint completion summaries with key metrics
+- Risk escalation process for blockers or scope changes
+
+---
+
+*Sprint plan v2.0 generated on 2026-01-11*
+*Completion-focused for Chi CTO autonomous execution*
+*Next update: After each sprint completion*
