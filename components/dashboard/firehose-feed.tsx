@@ -63,8 +63,8 @@ export function FirehoseFeed({ items, onItemClick, isLoading, className }: Fireh
         </div>
       </div>
 
-      {/* Feed list */}
-      <div className="flex-1 overflow-y-auto scrollbar-hide">
+      {/* Feed list - natural flow, no nested scroll */}
+      <div className="flex-1">
         {isLoading ? (
           <>
             <FirehoseItemSkeleton />

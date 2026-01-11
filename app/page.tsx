@@ -392,7 +392,7 @@ function CommandCenterContent() {
                     onClientMove={handleClientMove}
                   />
                 ) : (
-                  <div className="flex-1 overflow-y-auto">
+                  <div className="flex-1">
                     {filteredClients.map((client) => {
                       const ownerData = getOwnerData(client.owner)
                       return (
@@ -430,7 +430,7 @@ function CommandCenterContent() {
 
       case "dashboard":
         return (
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 p-4">
             <DashboardView
               clients={filteredClients}
               onClientClick={(client) => setSelectedClient(client)}

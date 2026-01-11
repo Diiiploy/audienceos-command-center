@@ -560,8 +560,8 @@ export function AutomationsHub() {
             </div>
           </div>
 
-          {/* Configuration Content */}
-          <div className="flex-1 overflow-y-auto p-4">
+          {/* Configuration Content - natural flow */}
+          <div className="flex-1 p-4">
             <StepConfiguration step={selectedStep} />
           </div>
         </motion.div>

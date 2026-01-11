@@ -698,8 +698,8 @@ export function ActiveOnboardings({ onClientClick }: ActiveOnboardingsProps) {
             )}
           </div>
 
-          {/* Stages Accordion */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {/* Stages Accordion - natural flow */}
+          <div className="flex-1 p-4 space-y-3">
             {onboardingStages.map((stage) => {
               const stageInstances = instancesByStage[stage.id] || []
               const isExpanded = expandedStages.has(stage.id)
