@@ -2,7 +2,7 @@
 
 **Location:** `~/PAI/projects/command_center_audience_OS/features/`
 **Purpose:** Track status of all product features
-**Last Audit:** 2026-01-09 (Full E2E audit: 9/9 modules verified working, AI Chat confirmed operational)
+**Last Audit:** 2026-01-12 (RBAC Phase 4 complete: Client Assignment UI built and code reviewed)
 
 ---
 
@@ -11,9 +11,9 @@
 | Metric | Count |
 |--------|-------|
 | React Components | 118 files |
-| API Endpoints | 42 endpoints |
+| API Endpoints | 44 endpoints |
 | Zustand Stores | 7 complete |
-| Custom Hooks | 13 |
+| Custom Hooks | 14 |
 | Type Definitions | 7 files |
 | Build Status | ✅ Zero errors |
 
@@ -48,7 +48,7 @@
 | seo-enriched-onboarding | 📝 Specced | [SEO-ENRICHED-ONBOARDING.md](SEO-ENRICHED-ONBOARDING.md) | Part of Onboarding & Intake Hub. Auto-fetch SEO data from DataForSEO. 4 integration points. $0.02/enrichment via chi-gateway. |
 | dark-mode | 🚧 Building | [DARK-MODE.md](DARK-MODE.md) | Light/dark mode toggle. Branch: feature/dark-mode-toggle. Phase 1: Color extraction. 2026-01-08. |
 | user-invitations | ⏳ Deferred | - | Data model ready (USER_INVITATION), API exists |
-| multi-org-roles | 🚧 Building | [VISION](../docs/01-product/VISION.md) / [SCOPE](../docs/01-product/SCOPE.md) / [RISKS](../docs/05-planning/RISK-REGISTER.md) / [PRD](../docs/01-product/PRD-MULTI-ORG-ROLES.md) / [DATA MODEL](../docs/04-technical/DATA-MODEL-RBAC.md) / [API CONTRACTS](../docs/04-technical/API-CONTRACTS-RBAC.md) | **Phase 4 COMPLETE (2026-01-12)**: Client Assignment UI built. Settings → Team Members → "Manage Client Access" for Members. 4 new files (2 API routes, 1 hook, 1 modal). Stress-tested with validator agent before implementation. Next: role management UI or E2E testing. |
+| multi-org-roles | 🚧 Building | [VISION](../docs/01-product/VISION.md) / [SCOPE](../docs/01-product/SCOPE.md) / [RISKS](../docs/05-planning/RISK-REGISTER.md) / [PRD](../docs/01-product/PRD-MULTI-ORG-ROLES.md) / [DATA MODEL](../docs/04-technical/DATA-MODEL-RBAC.md) / [API CONTRACTS](../docs/04-technical/API-CONTRACTS-RBAC.md) | **Phase 4 COMPLETE (2026-01-12)**: Client Assignment UI built, code reviewed, fixes applied. 4 new files, 8 modified. Build passes. Commits: 547e94f, a46dedd. Next: E2E testing via Chrome or role management UI. |
 | zoom-integration | ⏳ Deferred | - | Zoom v2+ for call recordings/transcripts |
 
 ---
@@ -69,6 +69,7 @@
 
 | Date | Score | Gaps Fixed |
 |------|-------|------------|
+| 2026-01-12 | 9/10 | **RBAC PHASE 4 - CLIENT ASSIGNMENT UI**: Built complete feature for assigning Members to specific clients. 4 new files (2 API routes, 1 hook, 1 modal), 4 modified. Code reviewed by validator agent. Fixed: race condition (atomic unique constraint), type safety (no `as any`), loading state (counter pattern). Build passes. Commits: 547e94f, a46dedd. Pending: E2E browser test. |
 | 2026-01-09 | 10/10 | **FULL E2E AUDIT PASSED**: All 9 modules verified working via Claude in Chrome. Dashboard (KPIs, charts), Pipeline (Kanban 20 clients), Clients (list+detail), Support Tickets (5 tickets), Intelligence Center (**AI Chat WORKING** - tested "How many clients at risk?" got intelligent response), Knowledge Base (9 docs), Automations (6 workflows), Integrations (4 connected), Settings (agency data loads). URL routing fixed (useEffect for hydration). Agency RLS fixed. No console errors. Commit 352cef2. |
 | 2026-01-06 | 10/10 | **SEND TO AI + OAUTH COORDINATION**: Shipped Send to AI integration (global chat opener, contextual prompts from dashboard tasks/clients). Added logout button to settings. Coordinated Trevor's OAuth/signup work (branch: trevor/oauth-signup). Killed CPU hog (next-server at 132% CPU). Commits: 43e6b48, 35f9e72, 3131525. Documentation updated across features/, RUNBOOK, active-tasks. |
 | 2026-01-05 | 9/10 | **GEMINI 3 ENFORCEMENT + BLOCKERS FIXED**: All 5 critical blockers resolved. Fixed env var (GOOGLE_AI_API_KEY), rewrote chat route, added credentials to ChatInterface, enforced Gemini 3 in all files. Commit 6a781d2. Needs runtime E2E testing. |
@@ -94,7 +95,7 @@
 | **Third-party APIs** | ⏳ Pending | Gmail, Slack, Google Ads, Meta (OAuth handlers exist, need testing) |
 | **Testing** | ⏳ Pending | Unit tests (14), E2E tests (3), more tests in progress |
 | **Monitoring** | ⏳ Pending | Sentry integration needed |
-| **Multi-Org Roles** | 🔄 B-2 Complete | [SCOPE.md](../docs/01-product/SCOPE.md) - 28 DUs MVP. Next: B-3 Risks → D-1 SpecKit |
+| **Multi-Org Roles** | 🔄 Phase 4 | Client Assignment UI complete (2026-01-12). 4 phases done (RLS, Middleware, Routes, UI). Next: E2E testing |
 
 ---
 
@@ -109,4 +110,4 @@
 
 ---
 
-*Living Document - Last verified: 2026-01-09 (Full E2E Audit: 9/9 modules working, AI Chat operational)*
+*Living Document - Last verified: 2026-01-12 (RBAC Phase 4: Client Assignment UI complete, code reviewed)*

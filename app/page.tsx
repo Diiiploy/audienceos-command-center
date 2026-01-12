@@ -538,6 +538,15 @@ function CommandCenterContent() {
           // Clear intelligence initial props when navigating normally
           setIntelligenceInitialSection(undefined)
           setIntelligenceInitialCartridgeTab(undefined)
+          // Sync view to URL for shareable links and browser history
+          const params = new URLSearchParams(searchParams.toString())
+          if (view === 'dashboard') {
+            params.delete('view') // Dashboard is default, keep URL clean
+          } else {
+            params.set('view', view)
+          }
+          const newUrl = params.toString() ? `/?${params.toString()}` : '/'
+          router.replace(newUrl, { scroll: false })
         }}
         onQuickCreate={() => setCommandPaletteOpen(true)}
         user={sidebarUser}
