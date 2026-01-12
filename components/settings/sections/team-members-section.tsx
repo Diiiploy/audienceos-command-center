@@ -29,6 +29,7 @@ import {
   Slack,
   Loader2,
   AlertCircle,
+  Users,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -48,8 +49,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { UserInvitationModal } from "@/components/settings/modals/user-invitation-modal"
+import { ClientAssignmentModal } from "@/components/settings/modals/client-assignment-modal"
 import { toast } from "sonner"
 import type { TeamMember } from "@/types/settings"
+import { RoleHierarchyLevel } from "@/types/rbac"
 
 function getInitials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
@@ -316,6 +319,7 @@ export function TeamMembersSection() {
   const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "user">("all")
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null)
   const [memberToRemove, setMemberToRemove] = useState<TeamMember | null>(null)
+  const [memberForClientAccess, setMemberForClientAccess] = useState<TeamMember | null>(null)
   const [isRemoving, setIsRemoving] = useState(false)
 
   // API state
@@ -578,6 +582,18 @@ export function TeamMembersSection() {
                     Edit profile
                   </DropdownMenuItem>
                   <DropdownMenuItem>Change role</DropdownMenuItem>
+                  {/* Show "Manage Client Access" only for Members (hierarchy_level=4) */}
+                  {member.hierarchy_level === RoleHierarchyLevel.MEMBER && (
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setMemberForClientAccess(member)
+                      }}
+                    >
+                      <Users className="h-4 w-4 mr-2" />
+                      Manage Client Access
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem>View activity</DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
@@ -617,6 +633,16 @@ export function TeamMembersSection() {
         onClose={() => setIsInviteModalOpen(false)}
         onSuccess={() => {
           fetchMembers() // Refresh members list after invite
+        }}
+      />
+
+      {/* Client Assignment Modal (for Members only) */}
+      <ClientAssignmentModal
+        isOpen={!!memberForClientAccess}
+        onClose={() => setMemberForClientAccess(null)}
+        member={memberForClientAccess}
+        onSuccess={() => {
+          // Could refresh member list if showing client count badges
         }}
       />
 

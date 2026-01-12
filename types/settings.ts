@@ -90,6 +90,9 @@ export interface TeamMember {
   is_active: boolean
   last_active_at: string | null
   created_at: string
+  // RBAC fields (from role table join)
+  role_id?: string
+  hierarchy_level?: number
   // Computed fields
   full_name?: string
   client_count?: number

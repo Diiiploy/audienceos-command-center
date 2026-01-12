@@ -83,9 +83,9 @@ export interface MemberClientAccess {
   user_id: string;
   agency_id: string;
   client_id: string;
-  assigned_by: string | null;
+  permission: 'read' | 'write';
+  assigned_by: string;
   assigned_at: string;
-  is_active: boolean;
 }
 
 export interface AuditLog {
