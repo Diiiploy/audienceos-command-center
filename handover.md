@@ -1,4 +1,66 @@
 ---
+## Session 2026-01-12 - E2E RBAC Verification & RLS Policy Bug Fix
+
+### Completed
+**E2E RBAC Verification - Member User Client Scoping**
+- ✅ Created Member test user: `member.test@audienceos.dev` / `MemberTest123!`
+- ✅ User ID: `e66aa618-08ed-4680-8243-781d7c35937f`
+- ✅ Role: Member (hierarchy_level=4)
+- ✅ Assigned 3 clients via `member_client_access`:
+  - TechCorp Solutions (write)
+  - Green Gardens LLC (read)
+  - FitLife Gym (read)
+
+**CRITICAL BUG FOUND & FIXED**
+- 🐛 **Bug:** Member user could see all 20 clients instead of just 3 assigned
+- 🔍 **Root Cause:** Duplicate SELECT policies on `client` table
+  - `client_agency_read` (old): Allows all agency members → all clients
+  - `client_member_scoped_select` (new): Filters by member_client_access
+  - PostgreSQL RLS combines SELECT policies with OR logic → old policy bypasses new
+- ✅ **Fix Applied:** Dropped old `client_agency_read` policy via Supabase SQL Editor
+- ✅ **Verified:** Member user now sees exactly 3 assigned clients
+
+### Migration Created
+- File: `supabase/migrations/20260112_fix_rls_policy_conflict.sql`
+- Purpose: Documents the RLS policy conflict fix for future environments
+- Also drops conflicting policies on communication and ticket tables
+
+### Key Learning
+**PostgreSQL RLS Policy Combination:**
+When multiple SELECT policies exist on the same table, they're combined with OR logic.
+If ANY policy permits access, the row is returned. This can cause security bypasses
+when adding new restrictive policies alongside old permissive ones.
+
+**Solution:** Always DROP old permissive policies before adding new restrictive ones.
+
+### Test Data
+| Entity | ID |
+|--------|-----|
+| Member User | `e66aa618-08ed-4680-8243-781d7c35937f` |
+| Member Role | `b80956eb-b90c-4f2d-bbb0-4e493a235009` |
+| Agency | `11111111-1111-1111-1111-111111111111` |
+
+### RBAC Implementation Status (Updated)
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Phase 1: Database Schema | ✅ Complete | 5 RBAC tables created |
+| Phase 2: API Middleware | ✅ Complete | 46/48 routes protected |
+| Phase 3: RLS Policies | ✅ Complete | **E2E VERIFIED** - Member sees only assigned clients |
+| Phase 4: Frontend Components | ⏳ Pending | PermissionGate, RoleBasedRoute ready |
+| Phase 5: UI Assignment | ⏳ Pending | Role/client assignment UI |
+
+### DU Accounting
+- E2E test setup + debugging: 1.0 DU
+- RLS fix investigation + application: 0.5 DU
+- Documentation: 0.25 DU
+- **Total: 1.75 DU**
+
+### Next Steps
+1. Add role assignment UI to Settings
+2. Add client assignment UI for Members
+3. E2E test with real Vercel deployment
+
+---
 ## Session 2026-01-11 - RBAC Phase 3: RLS Migration Applied (Chi CTO Mode B)
 
 ### Completed
