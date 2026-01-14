@@ -6,7 +6,7 @@ import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permi
 import type { HealthStatus } from '@/types/database'
 
 // Valid values for enums
-const VALID_STAGES = ['Lead', 'Onboarding', 'Installation', 'Audit', 'Live', 'Needs Support', 'Off-Boarding']
+const VALID_STAGES = ['Lead', 'Onboarding', 'Installation', 'Audit', 'Live', 'Needs Support', 'Off-boarding']
 const VALID_HEALTH_STATUSES: HealthStatus[] = ['green', 'yellow', 'red']
 
 // GET /api/v1/clients - List all clients for the agency

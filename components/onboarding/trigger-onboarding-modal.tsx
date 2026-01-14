@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import {
   Dialog,
   DialogContent,
@@ -22,10 +22,25 @@ import {
 import { useOnboardingStore } from "@/stores/onboarding-store"
 import { Mail, Info, Loader2, Globe } from "lucide-react"
 import { toast } from "sonner"
+import { SEOPreviewCard } from "./seo-preview-card"
 
 interface TriggerOnboardingModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+}
+
+interface SEOSummary {
+  total_keywords: number
+  traffic_value: number
+  top_10_keywords: number
+  competitors_count: number
+  domain_rank: number | null
+  backlinks: number | null
+}
+
+interface Competitor {
+  domain: string
+  intersecting_keywords: number
 }
 
 export function TriggerOnboardingModal({ open, onOpenChange }: TriggerOnboardingModalProps) {
@@ -36,6 +51,12 @@ export function TriggerOnboardingModal({ open, onOpenChange }: TriggerOnboarding
   const [clientWebsite, setClientWebsite] = useState("")
   const [clientTier, setClientTier] = useState<"Core" | "Enterprise">("Core")
 
+  // SEO enrichment state
+  const [seoLoading, setSeoLoading] = useState(false)
+  const [seoData, setSeoData] = useState<{ summary: SEOSummary | null; competitors: Competitor[] } | null>(null)
+  const [seoError, setSeoError] = useState<string | null>(null)
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
   // Reset form when modal closes
   useEffect(() => {
     if (!open) {
@@ -43,8 +64,78 @@ export function TriggerOnboardingModal({ open, onOpenChange }: TriggerOnboarding
       setClientEmail("")
       setClientWebsite("")
       setClientTier("Core")
+      setSeoLoading(false)
+      setSeoData(null)
+      setSeoError(null)
     }
   }, [open])
+
+  // Debounced SEO enrichment
+  const fetchSEOData = useCallback(async (domain: string) => {
+    if (!domain || domain.trim() === "") {
+      setSeoData(null)
+      setSeoError(null)
+      return
+    }
+
+    setSeoLoading(true)
+    setSeoError(null)
+
+    try {
+      const response = await fetch("/api/v1/seo/enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        setSeoError(error.error || "Failed to fetch SEO data")
+        setSeoData(null)
+        return
+      }
+
+      const result = await response.json()
+      if (result.success && result.summary) {
+        setSeoData({
+          summary: result.summary,
+          competitors: result.competitors || []
+        })
+        setSeoError(null)
+      } else {
+        setSeoData(null)
+        setSeoError(result.error || "Unable to retrieve SEO data for this domain")
+      }
+    } catch (error) {
+      setSeoError("Failed to fetch SEO data")
+      setSeoData(null)
+      console.error("SEO enrichment error:", error)
+    } finally {
+      setSeoLoading(false)
+    }
+  }, [])
+
+  // Debounced website URL handler (500ms debounce)
+  const handleWebsiteChange = useCallback((url: string) => {
+    setClientWebsite(url)
+
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current)
+    }
+
+    debounceTimeoutRef.current = setTimeout(() => {
+      fetchSEOData(url)
+    }, 500)
+  }, [fetchSEOData])
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -54,16 +145,24 @@ export function TriggerOnboardingModal({ open, onOpenChange }: TriggerOnboarding
       return
     }
 
-    const instance = await triggerOnboarding({
+    const onboardingData = {
       client_name: clientName,
       client_email: clientEmail,
       client_tier: clientTier,
       website_url: clientWebsite || undefined,
-    })
+      ...(seoData?.summary && {
+        seo_data: {
+          ...seoData,
+          fetched_at: new Date().toISOString(),
+        },
+      }),
+    }
+
+    const instance = await triggerOnboarding(onboardingData)
 
     if (instance) {
       toast.success("Onboarding link sent!", {
-        description: `An onboarding email has been sent to ${clientEmail}`,
+        description: `An onboarding email has been sent to ${clientEmail}${seoData?.summary ? " with SEO data" : ""}`,
       })
       onOpenChange(false)
     } else {
@@ -111,7 +210,7 @@ export function TriggerOnboardingModal({ open, onOpenChange }: TriggerOnboarding
 
           <div className="space-y-2">
             <Label htmlFor="clientWebsite">
-              Website URL <span className="text-muted-foreground">(optional)</span>
+              Website URL <span className="text-muted-foreground">(optional - for SEO enrichment)</span>
             </Label>
             <div className="relative">
               <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -121,10 +220,21 @@ export function TriggerOnboardingModal({ open, onOpenChange }: TriggerOnboarding
                 placeholder="acme.com"
                 className="pl-10"
                 value={clientWebsite}
-                onChange={(e) => setClientWebsite(e.target.value)}
+                onChange={(e) => handleWebsiteChange(e.target.value)}
               />
             </div>
           </div>
+
+          {/* SEO Preview Card */}
+          {(seoLoading || seoData || seoError) && (
+            <SEOPreviewCard
+              loading={seoLoading}
+              domain={clientWebsite}
+              summary={seoData?.summary || null}
+              competitors={seoData?.competitors || []}
+              error={seoError || undefined}
+            />
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="clientTier">Client Tier</Label>

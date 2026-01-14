@@ -4,6 +4,13 @@
  * GET /api/v1/integrations/[id]/sync - Check sync status
  *
  * RBAC: Requires integrations:manage permission
+ *
+ * Sync Data Flow:
+ * 1. Read integration record (get provider, tokens)
+ * 2. Call provider-specific sync function
+ * 3. Upsert to ad_performance / communication tables
+ * 4. Update integration.last_sync_at
+ * 5. Return sync summary
  */
 
 import { NextResponse } from 'next/server'
@@ -11,6 +18,8 @@ import { cookies } from 'next/headers'
 import { createRouteHandlerClient } from '@/lib/supabase'
 import { withCsrfProtection } from '@/lib/security'
 import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission'
+import { syncGoogleAds } from '@/lib/sync/google-ads-sync'
+import type { SyncJobConfig, SyncResult } from '@/lib/sync/types'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -49,43 +58,143 @@ export const POST = withPermission({ resource: 'integrations', action: 'manage' 
       )
     }
 
-    // In a real implementation, this would queue a sync job
-    // For MVP, we'll simulate a sync by updating last_sync_at
-    // Future: Use background jobs (Supabase Edge Functions, Inngest, etc.)
+    // Build sync job config
+    // Note: integration is agency-scoped. clientId comes from config or defaults to agency
+    const integrationConfig = (integration.config as Record<string, unknown>) || {}
+    const syncConfig: SyncJobConfig = {
+      integrationId: id,
+      agencyId,
+      clientId: (integrationConfig.clientId as string) || agencyId, // Fallback to agency
+      provider: integration.provider,
+      accessToken: integration.access_token || '',
+      refreshToken: integration.refresh_token || undefined,
+      config: integrationConfig,
+    }
 
-    // Simulate sync delay (in production, this would be a queue)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    let syncResult: SyncResult
 
-    // Update last sync time
+    // Execute provider-specific sync
+    switch (integration.provider) {
+      case 'google_ads': {
+        const { records, result } = await syncGoogleAds(syncConfig)
+        syncResult = result
+
+        // Upsert ad_performance records if we have any
+        if (records.length > 0) {
+          const { error: upsertError } = await supabase
+            .from('ad_performance')
+            .upsert(
+              records.map((r) => ({
+                ...r,
+                updated_at: new Date().toISOString(),
+              })),
+              {
+                onConflict: 'agency_id,client_id,platform,campaign_id,date',
+                ignoreDuplicates: false,
+              }
+            )
+
+          if (upsertError) {
+            console.error('[sync] ad_performance upsert error:', upsertError)
+            syncResult.errors.push(`Database upsert failed: ${upsertError.message}`)
+            syncResult.success = false
+          } else {
+            syncResult.recordsCreated = records.length
+          }
+        }
+        break
+      }
+
+      case 'slack':
+        // TODO: Implement Slack sync (Phase 2)
+        syncResult = {
+          success: true,
+          provider: 'slack',
+          recordsProcessed: 0,
+          recordsCreated: 0,
+          recordsUpdated: 0,
+          errors: ['Slack sync not yet implemented'],
+          syncedAt: new Date().toISOString(),
+        }
+        break
+
+      case 'gmail':
+        // TODO: Implement Gmail sync
+        syncResult = {
+          success: true,
+          provider: 'gmail',
+          recordsProcessed: 0,
+          recordsCreated: 0,
+          recordsUpdated: 0,
+          errors: ['Gmail sync not yet implemented'],
+          syncedAt: new Date().toISOString(),
+        }
+        break
+
+      case 'meta_ads':
+        // TODO: Implement Meta Ads sync
+        syncResult = {
+          success: true,
+          provider: 'meta_ads',
+          recordsProcessed: 0,
+          recordsCreated: 0,
+          recordsUpdated: 0,
+          errors: ['Meta Ads sync not yet implemented'],
+          syncedAt: new Date().toISOString(),
+        }
+        break
+
+      default:
+        syncResult = {
+          success: false,
+          provider: integration.provider,
+          recordsProcessed: 0,
+          recordsCreated: 0,
+          recordsUpdated: 0,
+          errors: [`Unknown provider: ${integration.provider}`],
+          syncedAt: new Date().toISOString(),
+        }
+    }
+
+    // Update last sync time and store result
     const { error: updateError } = await supabase
       .from('integration')
       .update({
-        last_sync_at: new Date().toISOString(),
+        last_sync_at: syncResult.syncedAt,
         config: {
           ...((integration.config as object) || {}),
-          lastManualSync: new Date().toISOString(),
+          lastManualSync: syncResult.syncedAt,
           syncTrigger: 'manual',
+          lastSyncResult: {
+            success: syncResult.success,
+            recordsProcessed: syncResult.recordsProcessed,
+            recordsCreated: syncResult.recordsCreated,
+            errors: syncResult.errors,
+          },
         },
       })
       .eq('id', id)
       .eq('agency_id', agencyId) // Multi-tenant isolation (SEC-007)
 
     if (updateError) {
-      console.error('Error updating sync status:', updateError)
-      return NextResponse.json(
-        { error: 'Failed to update sync status' },
-        { status: 500 }
-      )
+      console.error('[sync] Error updating sync status:', updateError)
+      // Don't fail the whole request, just log it
     }
 
     return NextResponse.json({
       data: {
-        status: 'completed',
-        syncedAt: new Date().toISOString(),
+        status: syncResult.success ? 'completed' : 'failed',
+        syncedAt: syncResult.syncedAt,
         provider: integration.provider,
-        message: `${integration.provider} sync completed successfully`,
+        recordsProcessed: syncResult.recordsProcessed,
+        recordsCreated: syncResult.recordsCreated,
+        recordsUpdated: syncResult.recordsUpdated,
+        errors: syncResult.errors,
+        message: syncResult.success
+          ? `${integration.provider} sync completed: ${syncResult.recordsCreated} records synced`
+          : `${integration.provider} sync failed: ${syncResult.errors.join(', ')}`,
       },
-      })
+    })
     } catch (error) {
       console.error('Sync trigger error:', error)
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

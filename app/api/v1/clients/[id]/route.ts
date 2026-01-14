@@ -10,7 +10,7 @@ interface RouteParams {
 }
 
 // Valid values for enums
-const VALID_STAGES = ['Lead', 'Onboarding', 'Installation', 'Audit', 'Live', 'Needs Support', 'Off-Boarding']
+const VALID_STAGES = ['Lead', 'Onboarding', 'Installation', 'Audit', 'Live', 'Needs Support', 'Off-boarding']
 const VALID_HEALTH_STATUSES: HealthStatus[] = ['green', 'yellow', 'red']
 
 // GET /api/v1/clients/[id] - Get a single client

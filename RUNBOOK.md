@@ -1,719 +1,421 @@
 # AudienceOS Command Center - RUNBOOK
 
----
-
-## ⛔ CRITICAL: Gemini 3 ONLY Policy
-
-**THIS PROJECT USES GEMINI 3 EXCLUSIVELY.**
-
-| Allowed | NOT Allowed |
-|---------|-------------|
-| `gemini-3-flash-preview` | ~~gemini-2.0-flash-001~~ |
-| `gemini-3-pro-preview` | ~~gemini-2.0-flash~~ |
-| Any `gemini-3-*` model | ~~gemini-1.5-*~~ |
-| | ~~gemini-pro~~ |
-
-**Rationale:** Gemini 3 provides superior function calling, reasoning, and consistency for AudienceOS Chat requirements.
-
-**If you see Gemini 2.x or 1.x anywhere:** Stop. Fix it immediately. Do not proceed.
+**Status:** Production active | 95% MVP complete
+**Last Updated:** 2026-01-12
+**For strategy/status:** See CLAUDE.md | **For day-to-day ops:** This file
 
 ---
 
-## 👥 Current Work Assignments (Updated 2026-01-11)
+## ⚡ Quick Navigation
 
-| Developer | Working On | Branch | Status |
-|-----------|------------|--------|--------|
-| **Roderic** | Main features, chat alignment, core functionality | `main` | Active |
-| **Trevor** | OAuth + Signup implementation | `trevor/oauth-backend` | ✅ OAuth Complete |
-
-### Trevor's OAuth Status (Verified 2026-01-11)
-**Branch:** `trevor/oauth-backend` (on remote)
-**OAuth Status:** ✅ **VERIFIED WORKING**
-
-**Completed:**
-- ✅ "Sign in with Google" button on login page
-- ✅ OAuth callback handler at `/auth/callback/route.ts`
-- ✅ Supabase Google provider configured
-- ✅ Vercel env vars updated (all 3 Supabase credentials)
-- ✅ End-to-end test: Button → Google account chooser → Correct Supabase callback URL
-
-**Verification Evidence (2026-01-11):**
-- Clicked "Sign in with Google" on production (`audienceos-agro-bros.vercel.app/login`)
-- Browser redirected to Google OAuth with `redirect_uri=https://qzkirjjrcblkqvhvalue.supabase.co/auth/v1/callback`
-- Google account chooser displayed correctly with "to continue to qzkirjjrcblkqvhvalue.supabase.co"
-
-**Remaining (Trevor):**
-- [ ] Signup page at `/signup`
-- [ ] Google SSO toggle in settings
-
-### Coordination
-- **Trevor:** Creates PR from `trevor/oauth-backend` → `main` when ready
-- **Roderic:** Reviews and merges Trevor's PR
-- **Communication:** Slack/Discord for questions and blockers
-- **Testing:** Always test on Vercel preview URLs (not localhost)
+**Starting a work session?** Go to "Development Workflow" below.
+**Something broken?** Jump to "Troubleshooting" (Ctrl+F).
+**Need to verify a feature works?** See "Claude in Chrome: Verification Protocol."
+**Checking deployment status?** See "URLs & Deployment."
 
 ---
 
-## 🔧 Infrastructure Dependencies (Updated 2026-01-10)
+## 🔧 Development Workflow
 
-### Diiiploy-Gateway Integration
+### 1. Before You Start
 
-**AudienceOS uses diiiploy-gateway for third-party API access:**
-
-| Service | Route | Purpose |
-|---------|-------|---------|
-| **DataForSEO** | `/dataforseo/*` | SEO enrichment during onboarding |
-
-**Gateway URL:** `https://diiiploy-gateway.roderic-andrews.workers.dev`
-**Required Env Var:** `DIIIPLOY_GATEWAY_API_KEY` (optional - gateway allows unauthenticated calls)
-
-**Why Gateway Pattern:**
-- **Credential isolation** - AudienceOS doesn't need DataForSEO keys
-- **Rate limiting** - Gateway enforces limits across tenants
-- **Audit logging** - All API calls logged centrally
-- **Multi-tenant** - Same gateway serves multiple products
-
-**Architecture:**
-- ✅ **diiiploy-gateway** - Multi-tenant product infrastructure (AudienceOS, RevOS, etc.)
-- ❌ **chi-gateway** - Personal PAI infrastructure (NOT for products)
-
-**DataForSEO Bug Fix (EP-072):**
-- **Issue:** `dataforseo_ideas` sent `keyword` string, API expects `keywords` array
-- **Fixed:** 2026-01-10 - Changed to `keywords: [keyword]` in getKeywordIdeas function
-- **Cross-ref:** Same fix applied to chi-gateway by CC2
-
-**Verification:**
 ```bash
-curl -s https://diiiploy-gateway.roderic-andrews.workers.dev/health | jq .tools
-# Should return 64 (includes 7 DataForSEO tools with EP-072 fix)
+# Verify you're on latest main
+git checkout main && git pull
+
+# Check what's being worked on (status, completion %)
+cat features/INDEX.md
+
+# Check active blockers
+cat CLAUDE.md  # See "🚀 Active Work" section
+```
+
+### 2. Making Changes
+
+```bash
+# Edit code in your editor
+vim lib/chat/service.ts
+
+# Build locally to catch errors BEFORE committing
+npm run build
+
+# If build fails: read the error, fix it, try again
+# Common: missing imports, type mismatches, undefined variables
+
+# Commit with clear message
+git add . && git commit -m "feat: description of what changed"
+
+# Push to main (Vercel will auto-deploy)
+git push
+```
+
+### 3. Verify on Production
+
+```bash
+# Wait ~2 minutes for Vercel deployment
+# Navigate to: https://audienceos-agro-bros.vercel.app
+
+# Test the feature:
+# - Click through the UI
+# - Check Console for errors
+# - Check Network tab for failed requests
+# - Take screenshots if claiming "works"
+```
+
+### 4. Update Tracking
+
+```bash
+# At end of session, log work to project sheet:
+mcp__chi-gateway__sheets_append({
+  spreadsheetId: "15wGY-DlE1BV5VBLpU_Jghi3nGiPviaNZXXl9Wth68GI",
+  range: "Sheet2!A:E",
+  values: [["2026-01-14", "Fixed pipeline loading bug", "3", "Bug Fix", "✅"]]
+})
 ```
 
 ---
 
-## Quick Start
-
-```bash
-git clone https://github.com/growthpigs/audienceos-command-center.git
-cd audienceos-command-center
-npm install
-cp .env.example .env.local
-# Fill in environment variables (see below)
-npm run dev
-```
-
----
-
-## 🔧 Claude in Chrome: Active Debugging Workflow
-
-**DIRECTIVE:** Use Claude in Chrome every time you can. You have the tools to do it. Make it happen. Make it work. Find the problems. Fix the problems.
-
-**When debugging ANY issue:**
-
-### ✅ DO THIS (Active Investigation)
-1. **Open the app in Claude in Chrome**
-   - Navigate to https://audienceos-agro-bros.vercel.app
-   - Authenticate as test user (E2E Tester)
-
-2. **Reproduce the problem directly**
-   - Click through the UI to trigger the issue
-   - Watch Network tab for failed requests
-   - Check Console for errors and warnings
-   - Take screenshots of broken state
-
-3. **Inspect what's actually happening**
-   - **Network tab:** See the actual API responses
-   - **Console tab:** Read actual error messages (not guesses)
-   - **Sources tab:** Pause execution and inspect state
-   - **Accessibility tree:** Understand DOM structure
-
-4. **Capture evidence before claiming anything works**
-   - "The feature works" → Show network response proving it
-   - "The error is fixed" → Show console output proving success
-   - "The data loaded" → Show network timing + response body
-   - **File existence ≠ functionality. Runtime execution is truth.**
-
-### ❌ DON'T DO THIS (Guessing)
-- ❌ "I added the code, so it should work" → Verify it actually runs
-- ❌ "The error is probably..." → Check the actual console output
-- ❌ "The API returns X" → Inspect Network tab to see what it actually returns
-- ❌ "This should be fixed" → Run a test to prove it's fixed
-- ❌ Assume anything without seeing the evidence
-
-### 🎯 Citation Bug Example (Jan 7, 2026)
-**Wrong approach:**
-- "I added stripping logic" → commit, push, wait
-- Issue not fixed → no idea why
-
-**Right approach:**
-- Add deployment verification logging → commit, push
-- Open app in Claude in Chrome
-- Send test query → check Console for logs
-- See logs → code is deployed ✅
-- See no logs → code not deployed ❌
-- See logs but wrong output → fix based on actual data
-
-**Result:** Can see EXACTLY what's happening on production, not guessing.
-
-### 📋 Tools You Have
-- **Navigate:** Go to pages, click buttons, type in forms
-- **Console:** Read actual errors and custom logs
-- **Network:** Capture API requests and responses
-- **DOM:** Inspect elements, understand structure
-- **Screenshots:** Visual proof of state
-- **GIF Recording:** Capture multi-step interactions
-
-### 🔑 Key Principle
-**Verification requires execution. File existence does not imply functionality.**
-
-Before saying "this is fixed" or "this should work":
-1. Open the app
-2. Trigger the feature/bug
-3. Show the actual result (console, network, UI)
-4. Only then claim success/failure with evidence
-
----
-
-## Important Notes
-
-> **Development Workflow:** We develop via **push-to-Vercel**, NOT localhost. Make changes, commit, push to `main`, and verify on Vercel preview URLs. The "Failed to load clients" error on Vercel is expected - the app uses mock data locally but Supabase isn't fully configured for production data yet.
-
-> **Chat/AI Integration:** The chat functionality in Intelligence Center will come from a **separate project called Holy Grail Chat (HGC)**. Do NOT implement chat features directly in this codebase. The current `lib/chat/` code is placeholder/mock only. When ready, HGC will be integrated as an external service.
-
-## URLs
+## 🌐 URLs & Deployment
 
 | Environment | URL | Status |
-|-------------|-----|---------|
-| Local | http://localhost:3000 | ⚠️ NOT USED (we use Vercel only) |
-| Production | https://audienceos-agro-bros.vercel.app | ✅ Deployed |
+|-------------|-----|--------|
+| **Production** | [audienceos-agro-bros.vercel.app](https://audienceos-agro-bros.vercel.app) | ✅ Active |
+| **GitHub** | [growthpigs/audienceos-command-center](https://github.com/growthpigs/audienceos-command-center) | Main branch |
+| **Vercel** | [vercel.com/agro-bros/audienceos](https://vercel.com/agro-bros/audienceos) | Deployment logs |
 
-**Vercel Project:** `audienceos-agro-bros`
-**Vercel Team:** TBD
-
-## Repository
-
-- **GitHub**: https://github.com/growthpigs/audienceos-command-center
-- **Clone URL**: `git@github.com:growthpigs/audienceos-command-center.git`
-- **Default Branch**: `main`
-
-## Active Worktrees
-
-| Branch | Worktree Path | Purpose |
-|--------|---------------|---------|
-| `main` | `/Users/rodericandrews/_PAI/projects/command_center_audience_OS` | Production/stable (primary worktree) |
-
-**Current Work:** All development uses the `main` branch in `/Users/rodericandrews/_PAI/projects/command_center_audience_OS`.
-
-## Database & Project Naming Convention
-
-**Best Practice:** Use `{project}-{environment}` pattern consistently.
-
-| Pattern | Example | Use When |
-|---------|---------|----------|
-| `{project}-prod` | `audienceos-prod` | Production database |
-| `{project}-staging` | `audienceos-staging` | Staging/preview |
-| `{project}-dev` | `audienceos-dev` | Shared development |
-| `{project}-local` | `audienceos-local` | Local dev (optional) |
-
-### ❌ Anti-Patterns (Never Use)
-
-| Bad Name | Why It's Bad |
-|----------|--------------|
-| `audienceos-fresh` | What's next? `fresher`? `freshest`? |
-| `audienceos-new` | Implies old one exists but doesn't indicate purpose |
-| `audienceos-v2` | Version numbers belong in code, not infra names |
-| `audienceos-test` | Ambiguous - staging? QA? unit tests? |
-| `audienceos-2026` | Dates become stale, confusing after time passes |
-
-### Current Supabase Projects
-
-| Project | Environment | URL |
-|---------|-------------|-----|
-| `command_center` | Development | `https://qzkirjjrcblkqvhvalue.supabase.co` |
-
-**Note:** This project was set up by Trevor during OAuth implementation (2026-01-09). The naming should eventually follow `audienceos-{env}` pattern when we consolidate.
-
-### Migration Plan
-
-When consolidating databases:
-1. Create new `audienceos-prod` project
-2. Migrate schema with `supabase db dump` / `push`
-3. Update all env vars in Vercel
-4. Deprecate old project names
+**Deployment:** Push to `main` → Vercel auto-deploys → Check URL after 2 min
 
 ---
 
-## Environment Variables
-
-Copy `.env.example` to `.env.local` and configure:
-
-| Variable | Purpose | Status | Where to get |
-|----------|---------|--------|--------------|
-| NEXT_PUBLIC_SUPABASE_URL | Supabase project URL | ❌ Required | Supabase dashboard |
-| NEXT_PUBLIC_SUPABASE_ANON_KEY | Supabase anon key | ❌ Required | Supabase API settings |
-| SUPABASE_SERVICE_ROLE_KEY | Supabase service role | ❌ Required | Supabase API settings |
-| ANTHROPIC_API_KEY | Claude AI integration | ❌ Required | Anthropic Console |
-| GOOGLE_AI_API_KEY | Gemini AI integration | ❌ Required | Google AI Studio |
-| SLACK_CLIENT_ID | Slack OAuth integration | ⏳ Optional | Slack App Dashboard |
-| SLACK_CLIENT_SECRET | Slack OAuth secret | ⏳ Optional | Slack App Dashboard |
-| GOOGLE_CLIENT_ID | Google OAuth (Gmail/Ads) | ⏳ Optional | Google Cloud Console |
-| GOOGLE_CLIENT_SECRET | Google OAuth secret | ⏳ Optional | Google Cloud Console |
-| META_APP_ID | Meta Ads integration | ⏳ Optional | Meta Developer Console |
-| META_APP_SECRET | Meta Ads secret | ⏳ Optional | Meta Developer Console |
-| SENTRY_DSN | Error monitoring | ⏳ Optional | Sentry Dashboard |
-
-## Development
-
-### Development Workflow (Push-to-Vercel)
-
-**We do NOT use localhost for development.** All changes are verified on Vercel.
-
-```bash
-# 1. Make code changes
-# 2. Build locally to catch errors
-npm run build
-
-# 3. Commit and push
-git add . && git commit -m "feat: description" && git push
-
-# 4. Verify on Vercel preview URL
-# Check deployment at: https://command-center-linear.vercel.app
-```
-
-### Available Scripts
-
-```bash
-npm run build        # Create production build (use before committing)
-npm run lint         # Run ESLint checks
-npm run dev          # Local dev server (NOT recommended - use Vercel)
-npm run start        # Run production build locally
-```
-
-### Tech Stack
-
-- **Framework**: Next.js 16 (App Router)
-- **React**: v19
-- **UI Components**: shadcn/ui (Radix primitives)
-- **Styling**: Tailwind CSS v4
-- **State Management**: Zustand
-- **Forms**: React Hook Form + Zod
-- **Drag & Drop**: @dnd-kit
-- **Charts**: Recharts
-- **Icons**: Lucide React
-
-### Key Dependencies
-
-- **dnd-kit**: Kanban board drag & drop functionality
-- **zustand**: Global state management
-- **zod**: Schema validation
-- **react-hook-form**: Form handling
-- **recharts**: Dashboard charts and analytics
-- **date-fns**: Date manipulation
-- **sonner**: Toast notifications
-
-## Deployment
-
-### Prerequisites
-
-**Backend Services Required:**
-1. **Supabase Project** - Database, Auth, Storage, Realtime
-2. **Anthropic API** - Claude AI for intelligent features
-3. **Google AI Studio** - Gemini for document indexing
-
-**Optional Integrations:**
-- Slack App (for unified communications)
-- Google Cloud Project (for Gmail/Ads OAuth)
-- Meta Developer App (for Meta Ads integration)
-- Sentry Project (for error monitoring)
-
-### Staging Deployment
-
-```bash
-# TBD - Configure Vercel or other hosting
-```
-
-### Production Deployment
-
-```bash
-# TBD - Configure production hosting
-```
-
-## Services & Integrations
-
-| Service | Purpose | Status | Dashboard |
-|---------|---------|--------|-----------|
-| **Supabase** | Database, Auth, Storage | ✅ Configured | [supabase.com/dashboard](https://supabase.com/dashboard) |
-| **Anthropic** | Claude AI integration | ⏳ Optional | [console.anthropic.com](https://console.anthropic.com) |
-| **Google AI** | Gemini 3 Flash (Chat + Document RAG) | ✅ Configured | [aistudio.google.com](https://aistudio.google.com) |
-| Slack | Communication integration | ⏳ Optional | [api.slack.com/apps](https://api.slack.com/apps) |
-| Google Cloud | Gmail/Ads OAuth | ⏳ Optional | [console.cloud.google.com](https://console.cloud.google.com) |
-| Meta for Developers | Ads integration | ⏳ Optional | [developers.facebook.com](https://developers.facebook.com) |
-| Sentry | Error monitoring | ⏳ Optional | [sentry.io](https://sentry.io) |
-
-### API Key Locations
-
-| Key | Local | Vercel | PAI Secrets |
-|-----|-------|--------|-------------|
-| `GOOGLE_AI_API_KEY` | `.env.local` | ✅ All envs | `~/.claude/secrets/secrets-vault.md` |
-| `SUPABASE_*` | `.env.local` | ✅ All envs | Project-specific |
-| `OAUTH_STATE_SECRET` | `.env.local` | ✅ Production | Generated per-project |
-| `TOKEN_ENCRYPTION_KEY` | `.env.local` | ✅ Production | Generated per-project |
-
-**Note:** `.env.local` is gitignored. Safe to store actual secrets there for local dev.
-
-### PAI Secrets Vault
-
-**Location:** `~/.claude/secrets/secrets-vault.md`
-
-**What it contains:**
-- Global API keys (Gemini, OpenAI, etc.)
-- Project-specific credentials (Supabase service role keys)
-- Supabase CLI personal access token (for type generation)
-- Database connection strings
-- Chi-Gateway and Diiiploy-Gateway secrets
-
-**Usage:**
-- Chi can reference secrets from here when setting up new services
-- All API keys are organized by service and project
-- Includes instructions for when/how to add new secrets
-
-**Regenerating Supabase Types:**
-```bash
-# Requires Supabase personal access token from secrets vault
-SUPABASE_ACCESS_TOKEN="[token]" npx supabase gen types typescript \
-  --project-id ebxshdqfaqupnvpghodi > types/database.ts
-```
-
-## Common Tasks
-
-### First-Time Setup
-
-```bash
-# Clone and setup
-git clone https://github.com/growthpigs/audienceos-command-center.git
-cd audienceos-command-center
-npm install
-
-# Environment setup
-cp .env.example .env.local
-# Edit .env.local with your API keys
-
-# Start development
-npm run dev
-```
-
-### Database Setup (Supabase)
-
-```sql
--- TBD: Add database schema setup instructions
--- Will be populated when Supabase project is configured
-```
-
-### Adding New Dependencies
-
-```bash
-# Add new package
-npm install package-name
-
-# Add dev dependency
-npm install --save-dev package-name
-
-# Update all dependencies
-npm update
-```
-
-### Code Quality
-
-```bash
-# Run linting
-npm run lint
-
-# Type checking
-npx tsc --noEmit
-
-# Format code (if prettier added)
-npm run format
-```
-
-## Project Structure
-
-```
-audienceos-command-center/
-├── app/                     # Next.js App Router pages
-│   ├── page.tsx            # Dashboard home
-│   ├── client/[id]/        # Client detail pages
-│   └── onboarding/start/   # Onboarding flow
-├── components/              # React components
-│   ├── ui/                 # shadcn/ui primitives
-│   ├── kanban-board.tsx    # Pipeline management
-│   ├── *-view.tsx          # Feature components
-│   └── sidebar.tsx         # Navigation
-├── lib/
-│   ├── mock-data.ts        # Development data
-│   ├── utils.ts            # Utility functions
-│   ├── store.ts            # Zustand state
-│   └── api.ts              # API client (TBD)
-├── features/               # Feature specifications
-├── docs/                   # Project documentation
-└── stores/                 # Additional stores
-```
-
-## UI Verification Commands
-
-**Runtime verification is MANDATORY.** Static file checks are insufficient.
-
-### cursor-pointer Verification
-```bash
-# Start dev server
-npm run dev
-
-# In browser DevTools console, verify any clickable element:
-getComputedStyle(document.querySelector('button')).cursor
-# Expected: "pointer"
-
-# Or use Claude in Chrome to verify runtime:
-# Navigate to element → getComputedStyle check → confirm "pointer"
-```
-
-### Build Verification
-```bash
-# Full build check - catches TypeScript & Next.js issues
-npm run build
-
-# Type check only
-npx tsc --noEmit
-```
-
-### UI Component Checklist
-After ANY UI changes, verify:
-```
-□ npm run build passes (no compile errors)
-□ All buttons show cursor: pointer on hover (runtime check)
-□ Interactive elements (checkboxes, toggles) actually respond to clicks
-□ Scroll containers have overflow-y-auto AND max-height set
-□ Flex layouts with button anchoring use flex-col + mt-auto pattern
-□ CHAT PADDING: All page containers have pb-28 (112px bottom padding) for chat overlay
-```
-
-### ⚠️ Chat Overlay Padding (UI-002)
-
-**CRITICAL:** Every page MUST have ~100-112px bottom padding (`pb-28`) to accommodate the chat overlay.
-
-**Problem:** The chat interface sits at the bottom of the screen. Without bottom padding, content (buttons, form fields like "Add Field") gets hidden behind the chat.
-
-**Solution:** Add `pb-28` class to main content containers:
-```tsx
-// ✅ CORRECT - has bottom padding for chat
-<div className="h-full flex flex-col p-6 pb-28">
-
-// ❌ WRONG - content will be covered by chat
-<div className="h-full flex flex-col p-6">
-```
-
-**Affected pages to check:**
-- All settings pages
-- Onboarding Hub (Form Builder tab especially)
-- Client detail pages
-- Any page with scrollable content
-
-### Related Error Patterns
-See `~/.claude/troubleshooting/error-patterns.md`:
-- EP-057: "File Existence Fallacy" - static vs runtime verification
+## 📱 Claude in Chrome: Verification Protocol
+
+**Use this EVERY TIME you claim a feature works.** Don't guess—verify runtime behavior.
+
+### Setup
+1. Open Claude in Chrome (MCP tool)
+2. Navigate to [audienceos-agro-bros.vercel.app](https://audienceos-agro-bros.vercel.app)
+3. Sign in as test user (available in Supabase)
+
+### Verification Steps
+1. **Navigate to feature** - Click through UI to the feature you changed
+2. **Trigger the action** - Click button, fill form, whatever should happen
+3. **Check Console** - Open DevTools → Console tab
+   - Look for red errors (means something broke)
+   - Look for custom logs (if you added them)
+4. **Check Network** - Open DevTools → Network tab
+   - Trigger action again
+   - Look for failed requests (red X = 400/500 error)
+   - Click successful request → preview tab to see response
+5. **Take screenshot** - If claiming "works", show proof (not just "I added the code")
+
+### Examples
+
+**Claim:** "Fixed the client loading issue"
+**Evidence:**
+- Screenshot showing Network tab with successful `/api/v1/clients` response
+- Console showing no errors
+- UI showing client list loaded
+
+**Claim:** "Chat is working"
+**Evidence:**
+- Screenshot showing chat interface
+- Network tab showing POST to `/api/chat/route.ts` with response
+- Console showing Gemini response parsed correctly
 
 ---
 
-## Troubleshooting
+## 🐛 Troubleshooting
 
-### Common Issues
+### Build Fails After Changes
+```bash
+npm run build
+# Read the error message carefully
+# Common issues:
+# - Import missing: Add "import X from 'y'"
+# - Type error: Check property names match interface
+# - Undefined variable: Make sure it's declared
 
-**Phantom numbers/badges appearing in sidebar (UI-001):**
+# Fix it, commit, push
+git add . && git commit -m "fix: issue"
+git push
+```
 
-*Symptoms:* Random numbers (e.g., 61, 12, 8, 4) appear next to or under navigation menu items in the sidebar. Numbers don't correspond to any feature logic.
+### "401 No session" on API Calls
+**Issue:** Feature data won't load, Network tab shows 401 responses
+**Fix:** Fetch calls need `{ credentials: 'include' }`
+```typescript
+// ❌ WRONG - no cookies sent
+const response = await fetch('/api/v1/clients');
 
-*Root cause:* NOT a code issue. The sidebar.tsx has no count/badge logic. Likely causes:
-- Browser extension (Vimium, accessibility tools showing keyboard indices)
-- Cached build artifacts
-- React DevTools accessibility overlay
-- Browser DevTools element inspector residue
+// ✅ CORRECT - browser sends auth cookie
+const response = await fetch('/api/v1/clients', {
+  credentials: 'include'
+});
+```
+**Already fixed in:** All stores, hooks (Commit 59cd1e6). If adding new API call, add this option.
 
-*Resolution:*
+### Sidebar Shows "Loading... Member" Forever
+**Issue:** User profile in sidebar footer won't load
+**Root Cause:** Stale Supabase auth cookie from old project
+**Fix Options:**
+
+Option 1 (Quick): Clear cookies in DevTools
+- Open DevTools → Application → Cookies
+- Delete all `sb-*-auth-token` cookies
+- Refresh page
+
+Option 2 (JavaScript): Run in console
+```javascript
+// Delete the stale cookie
+document.cookie = 'sb-OLD_PROJECT_REF-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+location.reload();
+```
+
+Option 3 (Permanent): Fix was applied in Commit 69c4881
+- `hooks/use-auth.ts` now extracts project ref from env var
+- Specifically looks for `sb-{projectRef}-auth-token`
+- Ignores stale cookies from other projects
+
+### TypeScript Errors in Editor
+**Issue:** VS Code shows red squiggles, but code might still compile
+```bash
+# Get the actual errors:
+npx tsc --noEmit
+
+# Or run full build:
+npm run build
+```
+
+### Feature Not Loading on Production
+**Scenario:** Code looks correct, builds pass, but feature doesn't work on prod
+**Debug Steps:**
+
+1. **Take screenshot** of broken state
+2. **Open DevTools Console** → Look for errors
+3. **Open DevTools Network** → Did requests succeed?
+4. **Check response data** → Click request → Preview tab
+5. **Search for similar issues** in CLAUDE.md troubleshooting section
+
+**Don't assume.** Check actual network responses and console output.
+
+### Phantom Numbers in Sidebar (UI-001)
+**Issue:** Random numbers (61, 12, 8) appear next to menu items
+**Root Cause:** NOT a code bug—usually browser extension or cached build
+**Fix:**
 ```bash
 # 1. Clear Next.js cache
 rm -rf .next && npm run dev
 
-# 2. Hard refresh browser
-# Cmd+Shift+R (Mac) or Ctrl+Shift+R (Windows)
+# 2. Hard refresh (Cmd+Shift+R on Mac, Ctrl+Shift+R on Windows)
 
-# 3. Disable browser extensions temporarily
-# Check if numbers disappear - if yes, one of your extensions is the cause
+# 3. Disable extensions temporarily
+# Check if numbers disappear—if yes, one of your extensions is the cause
 
-# 4. Check for React DevTools accessibility features
-# Disable any "accessibility tree" overlays
-```
-
-*Verification:* Sidebar code has NO count logic - confirmed via `grep -r "count\|badge\|\.length" components/sidebar.tsx` returns nothing relevant.
-
----
-
-**Build errors after dependency updates:**
-```bash
-rm -rf node_modules package-lock.json
-npm install
-npm run build
-```
-
-**Environment variables not loading:**
-```bash
-# Ensure .env.local exists and has correct format
-# Restart development server after changes
-npm run dev
-```
-
-**TypeScript errors:**
-```bash
-# Check for type issues
-npx tsc --noEmit
+# 4. Check React DevTools accessibility tree is off
 ```
 
 ---
 
-**Sidebar shows "Loading... Member" instead of user profile (AUTH-002, Fixed 2026-01-11):**
+## 🔌 Environment Setup
 
-*Symptoms:* User profile in sidebar footer shows "Loading... Member" and never loads the actual user name. Console shows `[AUTH] Profile fetch failed: 401`.
-
-*Root cause:* Supabase cookie collision. When switching between Supabase projects (e.g., during migration), old auth cookies persist in browser. The `getSessionFromCookie()` function in `hooks/use-auth.ts` was using `cookies.find()` which returned the **first** matching `sb-*-auth-token` cookie alphabetically. If a stale cookie from an old project exists, it gets used instead of the current project's cookie.
-
-*Resolution:*
+### Local Development (`.env.local`)
 ```bash
-# Option 1: Clear browser cookies for the site
-# In Chrome DevTools > Application > Cookies > Clear all
+# Copy example
+cp .env.example .env.local
 
-# Option 2: Delete specific stale cookie via console
-document.cookie = 'sb-OLD_PROJECT_REF-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+# Fill in actual values:
+NEXT_PUBLIC_SUPABASE_URL=https://ebxshdqfaqupnvpghodi.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+GOOGLE_AI_API_KEY=AIza...
 ```
 
-*Prevention:* Fixed in commit `69c4881`. The auth hook now extracts the project ref from `NEXT_PUBLIC_SUPABASE_URL` and specifically looks for `sb-{projectRef}-auth-token` cookie, ignoring stale cookies from other projects.
+**Don't commit `.env.local`** - It's gitignored for security.
 
-*File:* `hooks/use-auth.ts:18-48`
-
----
-
-### Getting Help
-
-- **GitHub Issues**: [Report bugs and request features](https://github.com/growthpigs/audienceos-command-center/issues)
-- **Documentation**: Check `docs/` folder for detailed specs
-- **Feature Specs**: Review `features/` folder for implementation details
-
-## Status
-
-### ✅ Complete
-- [x] Next.js 16 + React 19 setup
-- [x] shadcn/ui component system
-- [x] All required dependencies installed
-- [x] Git repository created and pushed
-- [x] Environment configuration template
-- [x] Build process verified working
-- [x] Vercel deployment (production)
-- [x] Supabase configuration
-- [x] Email/password login
-- [x] Logout button in settings (2026-01-06)
-- [x] Send to AI integration (2026-01-06)
-  - Global chat opener method
-  - Contextual prompts from dashboard
-  - Task and client integration
-- [x] Settings UX improvements (2026-01-09)
-  - Direct red Sign Out button in slide-over settings
-  - Removed unnecessary Security wrapper section
-  - Team members list cleanup (8 test accounts deleted)
-  - Database integrity verified (FK constraints handled)
-
-### ✅ Complete (Trevor + Roderic collaboration - 2026-01-11)
-- [x] Google OAuth login integration (Trevor: backend, Roderic: UI)
-- [x] OAuth callback handler (`app/auth/callback/route.ts`)
-- [x] "Sign in with Google" button on login page
-- [x] Supabase provider configured with Google Cloud Console credentials
-- [x] All env vars updated in Vercel (5 credentials across all environments)
-
-### ⏳ In Progress (Trevor)
-- [ ] Signup page implementation
-- [ ] Google SSO toggle functionality in settings
-
-### 🎯 In Progress (Roderic)
-- [ ] Chat interface refinements
-- [ ] Core feature development
-- [ ] Integration with Holy Grail Chat (HGC)
-
-### ✅ Complete (Auth Improvements - 2026-01-11)
-- [x] Signup page with email/password and Google OAuth
-- [x] Forgot password page (`/forgot-password`)
-- [x] Password reset page (`/reset-password`) - with manual PKCE token handling
-- [x] Chat excluded from auth pages (login, signup, forgot-password, reset-password)
-
-### 📋 Pending
-- [ ] Email infrastructure (waiting on DNS - see Email Setup section below)
-- [ ] OAuth app name "AudienceOS" (see OAuth Configuration below)
-- [ ] Two-factor authentication
-- [ ] Session management improvements
-- [ ] CI/CD pipeline enhancements
-- [ ] Monitoring and alerting setup
+### Vercel Secrets
+All env vars are also set in Vercel project settings (handled by Roderic/admins).
+No additional action needed—just commit code, push, Vercel uses its env vars.
 
 ---
 
-## 📧 Email Infrastructure Setup
+## 📊 Active Work Assignments
+
+### Roderic (Main Branch)
+**Current Status:** Core features complete, Phase 4/5 of multi-org roles in progress
+
+**What's Done:**
+- ✅ All 12 MVP features (pipeline, dashboard, chat, integrations, etc.)
+- ✅ Gemini 3 chat integration working end-to-end
+- ✅ Supabase auth (email/password + Google OAuth)
+- ✅ Multi-org roles Phase 1-4 (RLS, middleware, API routes, client assignment UI)
+
+**What's In Progress:**
+- 🚧 Multi-org roles Phase 5 (E2E testing)
+- 🚧 Dark mode toggle
+
+**Next Up:**
+- Phase 5 E2E testing for multi-org roles
+- Integrate Trevor's OAuth signup branch
+- Production hardening
+
+### Trevor (OAuth Branch)
+**Current Status:** OAuth working, signup page pending
+
+**What's Done:**
+- ✅ Google OAuth provider configured (Supabase)
+- ✅ "Sign in with Google" button on login page
+- ✅ OAuth callback handler at `/auth/callback/route.ts`
+- ✅ Verified working end-to-end with Google account chooser
+
+**What's In Progress:**
+- Signup page at `/signup` (email/password + Google SSO)
+- Google SSO toggle in settings
+
+**How to Coordinate:**
+1. Trevor creates PR from `trevor/oauth-backend` → `main`
+2. Roderic reviews and merges
+3. Test on production URL after merge
+
+---
+
+## 🔗 External Dependencies
+
+### diiiploy-gateway (Product Infrastructure)
+**URL:** https://diiiploy-gateway.roderic-andrews.workers.dev
+
+**Purpose:** Centralized API gateway for third-party integrations (Google Ads, DataForSEO, etc.)
+
+**Available Endpoints:**
+- `/google-ads/*` - Google Ads API (campaigns, performance, customers)
+- `/dataforseo/*` - SEO enrichment (keyword ideas, SERP, domain analysis)
+
+**Note:** AudienceOS uses diiiploy-gateway (not chi-gateway). Chi-gateway is personal PAI infrastructure.
+
+### Google Ads Integration Status
+| Component | Status | Notes |
+|-----------|--------|-------|
+| OAuth Flow | ✅ Complete | Refresh token obtained |
+| Gateway Secrets | ✅ Complete | All credentials configured |
+| Developer Token | ⚠️ Pending | Requires Google approval (5 days) |
+| Sync Implementation | ✅ Complete | Code ready at `lib/sync/google-ads-sync.ts` |
+| Live Testing | ⏳ Blocked | Waiting on Developer Token approval |
+
+**To Unblock:** Apply for Google Ads API Standard Access at https://ads.google.com/home/tools/manager-accounts/
+
+### DataForSEO Integration
+**Status:** ✅ Working (Fixed EP-072: Jan 10)
+**Issue:** `dataforseo_ideas` endpoint expects `keywords` array, not `keyword` string
+**Fix Location:** `lib/sync/google-ads-sync.ts` → getKeywordIdeas function
+**Verification:**
+```bash
+curl -s https://diiiploy-gateway.roderic-andrews.workers.dev/health | jq .tools
+# Should include 7 DataForSEO tools with fix
+```
+
+---
+
+## 📧 Email Infrastructure
 
 **Status:** ⏳ Waiting on DNS configuration
 
 ### Current State
-- Supabase custom SMTP: **DISABLED** (using built-in with limits)
-- Resend account: **EXISTS** (org: rodericandrews, via GitHub)
-- Resend domains: **NONE VERIFIED**
-- Result: Signup confirmation emails don't send
+- Supabase custom SMTP: DISABLED (using built-in with rate limits)
+- Resend account: EXISTS (org: rodericandrews)
+- Email issue: Signup confirmation emails don't send
 
-### Solution
-Use subdomain pattern: `audienceos.diiiploy.io`
+### Solution (Requires DNS Access)
+Use subdomain: `audienceos.diiiploy.io`
 
-**Benefits:**
-- Reputation isolation (transactional email doesn't affect main domain)
-- Centralized DNS management under diiiploy.io
-- Scalable for future apps (revos.diiiploy.io, etc.)
-- Complies with Gmail/Yahoo 2024-25 requirements
+**Steps:**
+1. Add domain to Resend: [resend.com/domains](https://resend.com/domains)
+2. Add DNS records Resend provides (MX, SPF, DKIM)
+3. Enable custom SMTP in Supabase Auth settings
+4. Use `noreply@audienceos.diiiploy.io` as sender
 
-### Setup Steps (Requires DNS Access)
-1. **Resend:** Add domain `audienceos.diiiploy.io` at [resend.com/domains](https://resend.com/domains)
-2. **DNS:** Add the records Resend provides (MX, TXT for SPF, CNAME for DKIM)
-3. **Verify:** Wait for Resend to confirm verification (5-30 min)
-4. **Supabase:** Enable custom SMTP in Auth settings with Resend credentials:
-   - Host: `smtp.resend.com`
-   - Port: `465` (SSL) or `587` (TLS)
-   - Username: `resend`
-   - Password: Your Resend API key
-   - Sender: `noreply@audienceos.diiiploy.io`
-
-**Email sent to team:** 2026-01-11 (Chase, Brent, Trevor)
+**Owner:** Roderic (DNS access needed)
 
 ---
 
-## 🔐 OAuth App Name Configuration
+## 💾 Database Info
 
-**Status:** ⏳ Pending
+**Supabase Project:** `audienceos-cc-fresh` (Project ID: `ebxshdqfaqupnvpghodi`)
+**Connection:** Secure (SSL required), RLS enabled on all tables
 
-When users click "Sign in with Google," the consent screen shows the Supabase project name, not "AudienceOS."
+### Key Tables
+| Table | Purpose | RLS | Rows |
+|-------|---------|-----|------|
+| agency | Tenant root | ✅ | 1 test |
+| user | Team members | ✅ | 4 test |
+| client | Customers | ✅ | 20 test |
+| stage_event | Pipeline history | ✅ | 100+ |
+| integration | Connected platforms | ✅ | 8 test |
+| communication | Email/Slack threads | ✅ | 50+ |
+| ticket | Support tickets | ✅ | 5+ |
+| document | Knowledge base | ✅ | 9 test |
+| onboarding | Intake hub instances | ✅ | 4 demo |
 
-### To Fix (Google Cloud Console)
-1. Go to [Google Cloud Console](https://console.cloud.google.com)
-2. Select the project used for OAuth
-3. Navigate to **APIs & Services → OAuth consent screen**
-4. Update **App name** to "AudienceOS"
-5. Update **User support email** if needed
-6. Save changes
-
-### To Fix (Supabase - Optional Branding)
-1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
-2. Select project → **Authentication → Providers → Google**
-3. Review OAuth client settings
-4. Optionally configure email templates with AudienceOS branding under **Authentication → Email Templates**
+### Test Credentials
+Query test users:
+```sql
+SELECT id, email, first_name FROM "user"
+ORDER BY created_at DESC LIMIT 5;
+```
 
 ---
 
-*Last updated: 2026-01-11*
-*Project Phase: Production (Vercel) | Active Development*
-*Current Focus: OAuth Complete | Signup (Trevor) + Core Features (Roderic)*
+## 🔐 Critical Rules
+
+**These are non-negotiable. Violating them breaks production.**
+
+1. **Gemini 3 ONLY** - No Gemini 2.x or 1.x anywhere. Check `lib/chat/service.ts`
+2. **RLS on all data** - Every table has `agency_id`, every query filters by it
+3. **Credentials in fetch** - All API calls must include `{ credentials: 'include' }`
+4. **pb-28 on pages** - Every page needs bottom padding for chat overlay
+5. **E2E verification** - Test on production with Claude in Chrome, don't guess
+
+See CLAUDE.md for detailed explanation of each rule.
+
+---
+
+## 📋 Commands Reference
+
+```bash
+# Development
+npm run dev          # Local server (NOT recommended—use Vercel)
+npm run build        # Production build (run before committing)
+npm run lint         # ESLint check
+npm run typecheck    # TypeScript check
+
+# Database
+supabase gen types   # Generate TypeScript types from schema
+
+# Deployment
+git push             # Triggers Vercel auto-deploy
+```
+
+---
+
+## 🎯 When to Update This File
+
+Update RUNBOOK.md when:
+- ✅ Fixing a bug (add to Troubleshooting section)
+- ✅ Changing a deployment step (update URLs & Deployment)
+- ✅ Starting new active work (update Active Work Assignments)
+- ✅ External dependency status changes (update diiiploy-gateway section)
+- ❌ Don't repeat info from CLAUDE.md (reference it instead)
+
+---
+
+## 🔗 Quick Links
+
+| Link | Purpose |
+|------|---------|
+| [CLAUDE.md](CLAUDE.md) | Project strategy, status, architecture |
+| [features/INDEX.md](features/INDEX.md) | Feature completion tracking |
+| [docs/01-product/MVP-PRD.md](docs/01-product/MVP-PRD.md) | What we're building |
+| [docs/04-technical/ARCHITECTURE.md](docs/04-technical/ARCHITECTURE.md) | How it works |
+| [Project Sheet](https://docs.google.com/spreadsheets/d/15wGY-DlE1BV5VBLpU_Jghi3nGiPviaNZXXl9Wth68GI) | Work tracking |
+
+---
+
+*Last verified: 2026-01-12 | Production working ✅ | All blockers resolved ✅*

@@ -11,6 +11,8 @@ import {
   KanbanBoard,
   CommandPalette,
   useCommandPalette,
+  AddClientModal,
+  type CommandAction,
   type FilterConfig,
   type ActiveFilters,
   type SortOption,
@@ -116,7 +118,22 @@ const clientSortOptions: SortOption[] = [
 ]
 
 import { Button } from "@/components/ui/button"
-import { Plus, AlertCircle, Loader2 } from "lucide-react"
+import {
+  Plus,
+  AlertCircle,
+  Loader2,
+  LayoutDashboard,
+  Kanban,
+  Users,
+  UserPlus,
+  Settings,
+  Ticket,
+  Brain,
+  FolderOpen,
+  Zap,
+  Plug,
+  GraduationCap,
+} from "lucide-react"
 import { ToastProvider } from "@/components/linear"
 import { IntelligenceCenter } from "@/components/views/intelligence-center"
 import { OnboardingHub } from "@/components/views/onboarding-hub"
@@ -170,6 +187,7 @@ function CommandCenterContent() {
     return initial
   })
   const { open: commandPaletteOpen, setOpen: setCommandPaletteOpen } = useCommandPalette()
+  const [addClientModalOpen, setAddClientModalOpen] = useState(false)
 
   // Sort state - default to priority (smart sorting)
   const [clientSort, setClientSort] = useState<SortMode>("priority")
@@ -252,6 +270,34 @@ function CommandCenterContent() {
     setSelectedClient(null) // Close the drawer
   }, [])
 
+  /**
+   * Command palette actions - includes navigation + quick actions
+   */
+  const commandPaletteActions: CommandAction[] = useMemo(() => {
+    const navigateTo = (view: LinearView) => {
+      setActiveView(view)
+      setSelectedClient(null)
+      const newPath = view === 'dashboard' ? '/' : `/${view}`
+      router.push(newPath, { scroll: false })
+      setCommandPaletteOpen(false)
+    }
+
+    return [
+      // Navigation group - at the top
+      { id: "go-dashboard", icon: <LayoutDashboard className="w-4 h-4" />, label: "Go to Dashboard", shortcut: "G D", group: "Navigation", onSelect: () => navigateTo("dashboard") },
+      { id: "go-pipeline", icon: <Kanban className="w-4 h-4" />, label: "Go to Pipeline", shortcut: "G P", group: "Navigation", onSelect: () => navigateTo("pipeline") },
+      { id: "go-clients", icon: <Users className="w-4 h-4" />, label: "Go to Clients", shortcut: "G C", group: "Navigation", onSelect: () => navigateTo("clients") },
+      { id: "go-tickets", icon: <Ticket className="w-4 h-4" />, label: "Go to Support Tickets", shortcut: "G T", group: "Navigation", onSelect: () => navigateTo("tickets") },
+      { id: "go-intelligence", icon: <Brain className="w-4 h-4" />, label: "Go to Intelligence Center", shortcut: "G I", group: "Navigation", onSelect: () => navigateTo("intelligence") },
+      { id: "go-knowledge", icon: <FolderOpen className="w-4 h-4" />, label: "Go to Knowledge Base", shortcut: "G K", group: "Navigation", onSelect: () => navigateTo("knowledge") },
+      { id: "go-automations", icon: <Zap className="w-4 h-4" />, label: "Go to Automations", shortcut: "G A", group: "Navigation", onSelect: () => navigateTo("automations") },
+      { id: "go-integrations", icon: <Plug className="w-4 h-4" />, label: "Go to Integrations", shortcut: "G N", group: "Navigation", onSelect: () => navigateTo("integrations") },
+      { id: "go-onboarding", icon: <GraduationCap className="w-4 h-4" />, label: "Go to Onboarding Hub", shortcut: "G O", group: "Navigation", onSelect: () => navigateTo("onboarding") },
+      { id: "go-settings", icon: <Settings className="w-4 h-4" />, label: "Go to Settings", shortcut: "G S", group: "Navigation", onSelect: () => navigateTo("settings") },
+      // Quick actions
+      { id: "new-client", icon: <UserPlus className="w-4 h-4" />, label: "New Client", shortcut: "N C", group: "Quick Actions", onSelect: () => { setAddClientModalOpen(true); setCommandPaletteOpen(false) } },
+    ]
+  }, [router, setCommandPaletteOpen])
 
   // Convert store clients to UI format
   const clients: MinimalClient[] = useMemo(() => {
@@ -380,7 +426,11 @@ function CommandCenterContent() {
               activeSort={clientSort}
               onSortChange={(sortId) => setClientSort(sortId as SortMode)}
               actions={
-                <Button size="sm" className="h-8 gap-1.5">
+                <Button
+                  size="sm"
+                  className="h-8 gap-1.5"
+                  onClick={() => setAddClientModalOpen(true)}
+                >
                   <Plus className="h-4 w-4" />
                   Add Client
                 </Button>
@@ -584,7 +634,12 @@ function CommandCenterContent() {
       <CommandPalette
         open={commandPaletteOpen}
         onOpenChange={setCommandPaletteOpen}
+        actions={commandPaletteActions}
         context={selectedClient ? `${selectedClient.logo} - ${selectedClient.name}` : undefined}
+      />
+      <AddClientModal
+        isOpen={addClientModalOpen}
+        onClose={() => setAddClientModalOpen(false)}
       />
     </>
   )
