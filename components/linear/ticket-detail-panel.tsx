@@ -1,10 +1,12 @@
 "use client"
 
-import React from "react"
+import React, { useState } from "react"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ActivityFeed, CommentInput, type ActivityType } from "./activity-feed"
 import { type TicketPriority, type TicketStatus } from "./inbox-item"
+import { useToast } from "@/hooks/use-toast"
+import { fetchWithCsrf } from "@/lib/csrf"
 import {
   X,
   MoreHorizontal,
@@ -21,6 +23,7 @@ import {
   UserPlus,
   Flag,
   CircleDot,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -33,6 +36,16 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface TicketActivity {
   id: string
@@ -122,6 +135,11 @@ export function TicketDetailPanel({
   onComment,
   className,
 }: TicketDetailPanelProps) {
+  const { toast } = useToast()
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isAssigning, setIsAssigning] = useState(false)
+
   // Handler functions
   const handleEdit = () => {
     // TODO: Open edit modal
@@ -131,21 +149,92 @@ export function TicketDetailPanel({
   const handleCopyLink = () => {
     const url = `${window.location.origin}/tickets/${ticket.id}`
     navigator.clipboard.writeText(url)
-    // TODO: Show toast notification
+    toast({
+      title: "Copied",
+      description: "Ticket link copied to clipboard",
+      variant: "default",
+    })
   }
 
-  const handleAssign = (assignee: string) => {
-    // TODO: Update assignee via API
-    console.log("Assign ticket to:", assignee)
+  const handleAssign = async (assigneeName: string) => {
+    setIsAssigning(true)
+    try {
+      // Map assignee names to IDs (in a real app, these would come from a user list)
+      const assigneeMap: Record<string, string> = {
+        "Brent": "d5f1e5c2-1234-5678-abcd-ef0123456789",
+        "Roderic": "e6g2f6d3-2345-6789-bcde-f10234567890",
+        "Trevor": "f7h3g7e4-3456-7890-cdef-f21345678901",
+        "Chase": "a8i4h8f5-4567-8901-def0-f32456789012",
+      }
+
+      const assigneeId = assigneeMap[assigneeName]
+      if (!assigneeId) {
+        throw new Error("Invalid assignee")
+      }
+
+      const response = await fetchWithCsrf(`/api/v1/tickets/${ticket.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ assignee_id: assigneeId }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || "Failed to assign ticket")
+      }
+
+      toast({
+        title: "Ticket assigned",
+        description: `Assigned to ${assigneeName}`,
+        variant: "default",
+      })
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to assign ticket"
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setIsAssigning(false)
+    }
+  }
+
+  const handleConfirmDelete = async () => {
+    setIsDeleting(true)
+    try {
+      const response = await fetchWithCsrf(`/api/v1/tickets/${ticket.id}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || "Failed to delete ticket")
+      }
+
+      toast({
+        title: "Ticket deleted",
+        description: "The ticket has been removed",
+        variant: "default",
+      })
+      setShowDeleteModal(false)
+      onClose()
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to delete ticket"
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   const handleDelete = () => {
-    // TODO: Open delete confirmation modal
-    console.log("Delete ticket:", ticket.id)
+    setShowDeleteModal(true)
   }
 
   const handleOpenExternal = () => {
-    // TODO: Open ticket in new tab or external system
     window.open(`/tickets/${ticket.id}`, '_blank')
   }
 
@@ -369,6 +458,29 @@ export function TicketDetailPanel({
       <div className="px-4 py-3 border-t border-border">
         <CommentInput onSubmit={onComment} placeholder="Add a comment..." />
       </div>
+
+      {/* Delete confirmation modal */}
+      <AlertDialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete ticket</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this ticket? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isDeleting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

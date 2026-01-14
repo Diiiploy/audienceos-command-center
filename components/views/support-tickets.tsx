@@ -236,6 +236,79 @@ export function SupportTickets() {
     }
   }
 
+  const handleStatusChange = async (newStatus: "open" | "in_progress" | "waiting" | "resolved" | "closed") => {
+    if (!selectedTicket) return
+
+    // Map UI status to API status
+    const statusMap: Record<string, string> = {
+      'open': 'new',
+      'in_progress': 'in_progress',
+      'waiting': 'waiting_client',
+      'resolved': 'resolved',
+      'closed': 'resolved',
+    }
+
+    try {
+      const response = await fetchWithCsrf(`/api/v1/tickets/${selectedTicket.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: statusMap[newStatus] }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to update status')
+      }
+
+      // Update local state
+      setSelectedTicket((prev) => prev ? { ...prev, status: newStatus } : null)
+
+      toast({
+        title: 'Status updated',
+        description: `Ticket status changed to ${newStatus}`,
+        variant: 'default',
+      })
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update status'
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handlePriorityChange = async (newPriority: "low" | "medium" | "high" | "urgent") => {
+    if (!selectedTicket) return
+
+    try {
+      const response = await fetchWithCsrf(`/api/v1/tickets/${selectedTicket.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ priority: newPriority }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to update priority')
+      }
+
+      // Update local state
+      setSelectedTicket((prev) => prev ? { ...prev, priority: newPriority } : null)
+
+      toast({
+        title: 'Priority updated',
+        description: `Ticket priority changed to ${newPriority}`,
+        variant: 'default',
+      })
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update priority'
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      })
+    }
+  }
+
   return (
     <div className="flex h-full overflow-hidden">
       {/* Ticket list - shrinks when detail panel is open */}
@@ -319,6 +392,8 @@ export function SupportTickets() {
               ticket={selectedTicket}
               onClose={() => setSelectedTicket(null)}
               onComment={handleComment}
+              onStatusChange={handleStatusChange}
+              onPriorityChange={handlePriorityChange}
             />
           </motion.div>
         )}
