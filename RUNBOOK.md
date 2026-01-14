@@ -15,6 +15,29 @@
 
 ---
 
+## ⚠️ TEMPORARY: Kaizen Logo for Demo (2026-01-14)
+
+**STATUS:** Logo temporarily swapped from AudienceOS to Kaizen for demo purposes.
+
+**Files Changed:**
+- `components/kaizen-logo.tsx` - New Kaizen logo component (original AudienceOS logo in comments)
+- `app/login/page.tsx` - Uses KaizenLogo
+- `app/signup/page.tsx` - Uses KaizenLogo
+- `app/forgot-password/page.tsx` - Uses KaizenLogo
+- `app/reset-password/page.tsx` - Uses KaizenLogo
+- `components/linear/sidebar.tsx` - Sidebar logo changed to "kaizen"
+- `components/sidebar.tsx` - Sidebar logo changed to "kaizen"
+
+**TO REVERT AFTER DEMO:**
+1. Delete `components/kaizen-logo.tsx`
+2. In each auth page, restore original `AudienceOSLogo` component (code preserved in `kaizen-logo.tsx`)
+3. In sidebars, restore audienceOS text branding
+4. Or just `git revert` the commit that added Kaizen branding
+
+**Tracked in:** Mem0 (chi user) - search "Kaizen logo temporary"
+
+---
+
 ## 🔧 Development Workflow
 
 ### 1. Before You Start

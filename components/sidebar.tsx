@@ -72,16 +72,14 @@ export function Sidebar({ activeView, onViewChange, collapsed, onCollapsedChange
         collapsed ? "w-14" : "w-56",
       )}
     >
-      {/* Logo - text only, Poppins-style */}
+      {/* Logo - TEMPORARY: Kaizen branding for demo (2026-01-14) - see RUNBOOK.md */}
       <div className="flex items-center justify-center h-12 px-[15px] border-b border-border">
         {!collapsed && (
           <span
-            className="text-[17px] tracking-tight flex-1 text-foreground"
-            style={{
-              fontFamily: 'var(--font-poppins), Poppins, sans-serif'
-            }}
+            className="text-[17px] tracking-tight flex-1 font-medium"
+            style={{ color: '#B91C1C' }}
           >
-            <span className="font-medium">audience</span><span className="font-normal text-muted-foreground">OS</span>
+            kaizen
           </span>
         )}
         <button

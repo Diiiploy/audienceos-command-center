@@ -168,7 +168,7 @@ export function LinearSidebar({
       transition={transition}
       className="bg-sidebar border-r border-sidebar-border flex flex-col h-screen"
     >
-      {/* Header - matches Pipeline header height */}
+      {/* Header - TEMPORARY: Kaizen branding for demo (2026-01-14) - see RUNBOOK.md */}
       <div className="h-[52px] px-[15px] flex items-center justify-center">
         <div className="flex items-center justify-between w-full">
           <div className={cn("flex items-center", collapsed && "justify-center w-full")}>
@@ -180,12 +180,10 @@ export function LinearSidebar({
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={fadeTransition}
-                  className="text-[17px] tracking-tight text-foreground"
-                  style={{
-                    fontFamily: 'var(--font-poppins), Poppins, sans-serif'
-                  }}
+                  className="text-[17px] tracking-tight font-medium"
+                  style={{ color: '#B91C1C' }}
                 >
-                  <span className="font-light text-muted-foreground">audience</span><span className="text-[15px] font-semibold text-foreground">OS</span>
+                  kaizen
                 </motion.span>
               ) : (
                 <motion.span
@@ -194,12 +192,10 @@ export function LinearSidebar({
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={fadeTransition}
-                  className="text-[15px] font-normal text-foreground"
-                  style={{
-                    fontFamily: 'var(--font-poppins), Poppins, sans-serif'
-                  }}
+                  className="text-[15px] font-medium"
+                  style={{ color: '#B91C1C' }}
                 >
-                  aOS
+                  K
                 </motion.span>
               )}
             </AnimatePresence>
