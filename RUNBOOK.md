@@ -338,7 +338,51 @@ No additional action needed—just commit code, push, Vercel uses its env vars.
 
 ## 🔗 External Dependencies
 
-### diiiploy-gateway (Product Infrastructure)
+### Diiiploy-Gateway (MCP Aggregator) - CRITICAL ARCHITECTURE
+
+**Location:** `infrastructure/cloudflare/cc-gateway/`
+**Planned URL:** https://cc-gateway.roderic-andrews.workers.dev
+**Status:** Code exists, needs deployment
+
+**Purpose:** MCP-based integration gateway. Instead of building OAuth flows for each service, we use a single gateway with 50+ MCP tools.
+
+**Architecture Pattern:**
+```
+User Onboarding → Enter Credentials → Store per-agency → Gateway uses agency tokens
+```
+
+**Available MCP Tools (50+):**
+| Service | Tools |
+|---------|-------|
+| Gmail | inbox, read, send, archive |
+| Calendar | events, create |
+| Drive | list, folder_create, move, search, export |
+| Sheets | list, create, read, write, append |
+| Docs | list, create, read, append |
+| Google Ads | campaigns, performance |
+| Meta Ads | accounts, campaigns, insights |
+| Supabase | query, insert, rpc |
+| Mem0 | add, search |
+
+**Deployment Command:**
+```bash
+cd infrastructure/cloudflare/cc-gateway
+wrangler deploy
+```
+
+**Adding New Integration:**
+1. Create handler in `src/routes/[service].ts`
+2. Add MCP tool definition in `src/index.ts` MCP_TOOLS array
+3. Add case in `executeToolCall` switch
+4. Deploy with `wrangler deploy`
+
+**Credential Entry UI Required:**
+Users need to enter their own tokens during onboarding:
+- Slack: Client ID, Client Secret, Signing Secret
+- Google Workspace: Done via OAuth (credentials already set)
+- Meta: App ID, App Secret
+
+### diiiploy-gateway (Legacy Reference)
 **URL:** https://diiiploy-gateway.roderic-andrews.workers.dev
 
 **Purpose:** Centralized API gateway for third-party integrations (Google Ads, DataForSEO, etc.)
