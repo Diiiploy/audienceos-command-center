@@ -18,37 +18,10 @@ import { cookies } from 'next/headers'
  * NOTE: This is for USER authentication, not integration OAuth.
  * Integration OAuth (Slack, Gmail, Ads) uses /api/v1/oauth/callback
  */
-/**
- * Validate and sanitize the redirect path to prevent open redirect attacks
- * Only allows relative paths starting with /
- */
-function sanitizeRedirectPath(path: string | null): string {
-  if (!path) return '/'
-
-  // Must start with / and not be a protocol-relative URL (//)
-  if (!path.startsWith('/') || path.startsWith('//')) {
-    return '/'
-  }
-
-  // Block any URL-like patterns that could bypass the check
-  try {
-    const testUrl = new URL(path, 'http://test.com')
-    // If the path contains a different host, reject it
-    if (testUrl.host !== 'test.com') {
-      return '/'
-    }
-  } catch {
-    // Invalid URL, default to root
-    return '/'
-  }
-
-  return path
-}
-
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
-  const next = sanitizeRedirectPath(requestUrl.searchParams.get('next'))
+  const next = requestUrl.searchParams.get('next') ?? '/'
   const error = requestUrl.searchParams.get('error')
   const errorDescription = requestUrl.searchParams.get('error_description')
 
@@ -76,11 +49,9 @@ export async function GET(request: Request) {
     const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
 
     if (exchangeError) {
-      // Log the actual error server-side for debugging, but don't expose to client
       console.error('[Auth Callback] Code exchange failed:', exchangeError.message)
-      // Return a generic error to avoid exposing internal details
       return NextResponse.redirect(
-        new URL('/login?error=auth_callback_error', requestUrl.origin)
+        new URL(`/login?error=auth_callback_error&message=${encodeURIComponent(exchangeError.message)}`, requestUrl.origin)
       )
     }
 

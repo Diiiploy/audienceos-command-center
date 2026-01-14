@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 
 /**
@@ -136,9 +135,9 @@ export default function TestOAuthPage() {
               </button>
 
               <div className="text-center">
-                <Link href="/" className="text-blue-600 hover:underline text-sm">
+                <a href="/" className="text-blue-600 hover:underline text-sm">
                   Go to Dashboard →
-                </Link>
+                </a>
               </div>
             </div>
           ) : (
