@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { integrationIcons } from "@/components/linear/integration-card"
 import { IntegrationSettingsModal } from "@/components/linear/integration-settings-modal"
+import { IntegrationConnectModal } from "@/components/linear/integration-connect-modal"
 import { useIntegrations } from "@/hooks/use-integrations"
 import { toast } from "sonner"
 import type { Database } from "@/types/database"
@@ -307,10 +308,14 @@ function IntegrationCardSkeleton() {
   )
 }
 
+// Providers that need manual credential entry (not OAuth)
+const credentialBasedProviders: IntegrationProvider[] = ['slack', 'google_ads', 'meta_ads']
+
 export function IntegrationsHub() {
   const [searchQuery, setSearchQuery] = useState("")
   const [categoryFilter, setCategoryFilter] = useState<IntegrationCategory | "all">("all")
   const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null)
+  const [connectingProvider, setConnectingProvider] = useState<IntegrationProvider | null>(null)
 
   // Fetch integrations from API
   const { integrations: dbIntegrations, isLoading, refetch } = useIntegrations()
@@ -336,6 +341,13 @@ export function IntegrationsHub() {
 
   // Handle Connect button click
   async function handleConnect(provider: string) {
+    // Check if this provider needs credential entry modal
+    if (credentialBasedProviders.includes(provider as IntegrationProvider)) {
+      setConnectingProvider(provider as IntegrationProvider)
+      return
+    }
+
+    // For OAuth-based providers (gmail), redirect to OAuth flow
     try {
       const res = await fetch('/api/v1/integrations', {
         method: 'POST',
@@ -359,6 +371,11 @@ export function IntegrationsHub() {
       toast.error('Connection failed')
       console.error('Integration connection error:', err)
     }
+  }
+
+  // Handle successful credential connection
+  function handleCredentialSuccess() {
+    refetch()
   }
 
   // Merge DB integrations with future integrations (all 8)
@@ -528,6 +545,16 @@ export function IntegrationsHub() {
         isOpen={!!selectedIntegration}
         onClose={() => setSelectedIntegration(null)}
         onRefetch={refetch}
+      />
+
+      {/* Integration Connect Modal (for credential-based integrations) */}
+      <IntegrationConnectModal
+        provider={connectingProvider}
+        isOpen={!!connectingProvider}
+        onClose={() => setConnectingProvider(null)}
+        onSuccess={handleCredentialSuccess}
+        icon={connectingProvider ? integrationMetadata[connectingProvider]?.icon : undefined}
+        color={connectingProvider ? integrationMetadata[connectingProvider]?.color.replace('bg-[', '').replace(']', '') : undefined}
       />
     </VerticalPageLayout>
   )

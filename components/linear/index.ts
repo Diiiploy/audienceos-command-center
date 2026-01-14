@@ -23,3 +23,4 @@ export { DocumentCard, DocumentCardSkeleton, type DocumentType, type DocumentCat
 export { DocumentPreviewPanel, type Document } from "./document-preview-panel"
 export { Toast, ToastContainer, type ToastProps, type ToastVariant } from "./toast"
 export { ToastProvider, useLinearToast } from "./toast-provider"
+export { IntegrationConnectModal } from "./integration-connect-modal"

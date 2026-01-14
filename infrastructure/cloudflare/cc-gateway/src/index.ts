@@ -21,6 +21,7 @@ import { handlePlaywright } from './routes/playwright';
 import { handleUnipile } from './routes/unipile';
 import { handleSupabaseRoute, queryTable, insertRows, executeRpc, listBuckets } from './routes/supabase';
 import { handleMem0 } from './routes/mem0';
+import { handleSlack } from './routes/slack';
 import { runFullHealthCheck, checkSingleService, createErrorResponse, ErrorCodes } from './routes/health';
 
 export interface Env {
@@ -53,6 +54,8 @@ export interface Env {
   CHI_API_KEY: string;
   // Mem0
   MEM0_API_KEY: string;
+  // Slack
+  SLACK_BOT_TOKEN: string;
 }
 
 // MCP Tool Definitions
@@ -130,6 +133,13 @@ const MCP_TOOLS = [
   // Mem0
   { name: "mem0_add", description: "Add a memory to mem0", inputSchema: { type: "object", properties: { content: { type: "string", description: "The memory content to store" }, userId: { type: "string", description: "User ID (default: chi)" } }, required: ["content"] } },
   { name: "mem0_search", description: "Search memories in mem0", inputSchema: { type: "object", properties: { query: { type: "string", description: "Search query" }, userId: { type: "string", description: "User ID (default: chi)" } }, required: ["query"] } },
+  // Slack
+  { name: "slack_channels", description: "List Slack channels", inputSchema: { type: "object", properties: { limit: { type: "number", description: "Max channels to return (default: 100)" } } } },
+  { name: "slack_messages", description: "Get messages from a Slack channel", inputSchema: { type: "object", properties: { channel: { type: "string", description: "Channel ID" }, limit: { type: "number", description: "Max messages (default: 50)" } }, required: ["channel"] } },
+  { name: "slack_post", description: "Post message to a Slack channel", inputSchema: { type: "object", properties: { channel: { type: "string", description: "Channel ID or name" }, text: { type: "string", description: "Message text" }, thread_ts: { type: "string", description: "Thread timestamp for replies" } }, required: ["channel", "text"] } },
+  { name: "slack_users", description: "List Slack workspace users", inputSchema: { type: "object", properties: { limit: { type: "number", description: "Max users (default: 200)" } } } },
+  { name: "slack_user", description: "Get Slack user info", inputSchema: { type: "object", properties: { user: { type: "string", description: "User ID" } }, required: ["user"] } },
+  { name: "slack_search", description: "Search Slack messages", inputSchema: { type: "object", properties: { query: { type: "string", description: "Search query" }, count: { type: "number", description: "Results count (default: 20)" } }, required: ["query"] } },
 ];
 
 // Handle MCP JSON-RPC requests
@@ -448,6 +458,25 @@ async function executeToolCall(toolName: string, args: any, env: Env): Promise<a
           env, '/search'
         );
         break;
+      // Slack
+      case "slack_channels":
+        response = await handleSlack(new Request(`https://x/channels?limit=${args.limit || 100}`), env, '/channels');
+        break;
+      case "slack_messages":
+        response = await handleSlack(new Request(`https://x/channel/${args.channel}/messages?limit=${args.limit || 50}`), env, `/channel/${args.channel}/messages`);
+        break;
+      case "slack_post":
+        response = await handleSlack(new Request(`https://x/post`, { method: 'POST', body: JSON.stringify(args) }), env, '/post');
+        break;
+      case "slack_users":
+        response = await handleSlack(new Request(`https://x/users?limit=${args.limit || 200}`), env, '/users');
+        break;
+      case "slack_user":
+        response = await handleSlack(new Request(`https://x/user/${args.user}`), env, `/user/${args.user}`);
+        break;
+      case "slack_search":
+        response = await handleSlack(new Request(`https://x/search`, { method: 'POST', body: JSON.stringify(args) }), env, '/search');
+        break;
       default:
         return {
           content: [{
@@ -548,6 +577,7 @@ export default {
     if (path.startsWith('/unipile')) return await handleUnipile(request, env, path.replace('/unipile', ''));
     if (path.startsWith('/supabase')) return await handleSupabaseRoute(request, env as any, path.replace('/supabase', ''));
     if (path.startsWith('/mem0')) return await handleMem0(request, env, path.replace('/mem0', ''));
+    if (path.startsWith('/slack')) return await handleSlack(request, env, path.replace('/slack', ''));
 
     return new Response(JSON.stringify({ error: 'Not found', path }), {
       status: 404, headers: { 'Content-Type': 'application/json' }
