@@ -1,8 +1,31 @@
 # AudienceOS Command Center - Project Intelligence
 
 **Project:** AudienceOS Command Center (Client Management Platform)
-**Status:** 95% MVP Complete | Integrations Phase
+**Status:** 95% MVP Frontend Complete | 60% Full-Stack Complete
 **Last Updated:** 2026-01-14
+**Key Learning:** EP-085 "Frontend Complete, Backend Missing" Fallacy (see below)
+
+---
+
+## ⚠️ CRITICAL DISCOVERY: January 14, 2026
+
+**FINDING:** Training Cartridges feature appears "complete" in UI but backend is **completely missing**.
+
+| Layer | Status | Details |
+|-------|--------|---------|
+| **Frontend** | ✅ 100% Complete | 5 tabs render perfectly: Brand, Voice, Style, Preferences, Instructions |
+| **API Routes** | ❌ 0% Complete | All 12 endpoints missing (`/api/v1/cartridges/*`) |
+| **Database Tables** | ❌ 0% Complete | No cartridges, voice_cartridges, style_cartridges, preferences, instructions, training_docs tables |
+| **Result** | ❌ Non-Functional | UI works but data never persists (404s on save) |
+
+**Pattern:** This is the **"Frontend Complete, Backend Missing" Fallacy** - the most insidious project gap because:
+- Static verification (file existence) says "looks good"
+- Runtime verification (try to save) says "doesn't work"
+- User feedback ("I can't save") → code investigation → ROOT CAUSE revealed
+
+**Impact:** 5-day effort to add 12 API endpoints + 5 DB tables will get from "looks 95% done" to "actually 95% done."
+
+**See:** ErrorPatterns.md (EP-085) + RUNBOOK.md (API Feature Verification)
 
 ---
 
@@ -14,6 +37,7 @@
 | GitHub | growthpigs/audienceos-command-center |
 | Supabase | ebxshdqfaqupnvpghodi |
 | Vercel | agro-bros/audienceos |
+| Feature Status | features/INDEX.md (most accurate) |
 
 ---
 
@@ -203,14 +227,81 @@ lib/
 
 ---
 
-## Next Steps (Priority Order)
+## Real Current State (2026-01-14)
 
-1. **Add Slack to cc-gateway** - Create routes/slack.ts handler
-2. **Build credential entry UI** - Modal for users to enter tokens
-3. **Deploy cc-gateway** - `wrangler deploy` to get live URL
-4. **Expand integrations list** - Add Calendar, Drive to UI
-5. **Multi-tenant credentials** - Per-agency token storage
+### ✅ COMPLETE & WORKING (9 MVP Features)
+- **Dashboard** - KPIs, charts, metrics (verified E2E 2026-01-09)
+- **Client Pipeline** - Kanban board, 20 test clients (verified E2E)
+- **Communications Hub** - Email/Slack timeline, reply composer (partial integration)
+- **Support Tickets** - Kanban board, ticket details (verified E2E)
+- **Intelligence Center** - AI Chat with function calling to Gemini 3 (verified E2E)
+- **Knowledge Base** - Document upload, search, RAG (verified E2E)
+- **Automations** - Workflow engine, runs tracking (verified E2E)
+- **Integrations Hub** - UI complete, OAuth flows stubbed (validated 2026-01-11)
+- **Settings** - Agency + User management, all CRUD ops (verified 2026-01-05)
+
+### 🚧 INCOMPLETE (Multi-Org Roles)
+- **RBAC System** - Phase 4/4 done (client assignment UI), needs E2E browser testing
+
+### ⚠️ PARTIALLY COMPLETE (Need Backend)
+- **Training Cartridges** - 5 UI tabs 100% complete, 0% backend (12 endpoints + 5 tables missing)
+- **Onboarding Hub** - Demo data seeded, needs E2E testing
+
+### ❌ NOT YET STARTED
+- Slack integration
+- Multi-tenant credential storage
+- Real Gmail/Calendar/Drive sync (OAuth flows exist, handlers stubbed)
 
 ---
 
-*Last verified: 2026-01-14 | UI 95% | Integrations 30%*
+## Realistic 30K Foot Assessment
+
+**Status:** The app LOOKS 95% done because:
+- ✅ All 9 core features have working UIs
+- ✅ Most APIs exist and work
+- ✅ Database schema complete
+- ✅ Auth working, production deployed
+
+**But ACTUALLY is ~60% done because:**
+- ⚠️ Training Cartridges: Frontend done, backend completely missing (5 days of work)
+- ⚠️ Integrations: Stubbed OAuth, no real Gmail/Slack/Meta data flowing
+- ⚠️ Multi-Org Roles: UI done, not tested end-to-end
+- ⚠️ Real-world data: No Gmail sync, no Slack sync, no performance data (still mock data)
+
+---
+
+## Next Steps (What ACTUALLY Needs Doing)
+
+### TIER 1: CRITICAL (Blocking "Actually Works" Claim)
+1. **Training Cartridges Backend** (5 days)
+   - Create 5 DB tables (cartridges, voice, style, preferences, instructions)
+   - Implement 12 API endpoints with CRUD + processing
+   - Wire up Gemini calls for brand blueprint generation
+   - Run 53-test suite created 2026-01-14
+   - **Impact:** Cartridges go from "looks good" to "actually works"
+
+2. **E2E Test Multi-Org Roles** (1 day)
+   - Use Claude in Chrome to test role assignment UI
+   - Verify permissions enforced on data access
+   - **Impact:** RBAC system goes from "code works" to "feature works"
+
+### TIER 2: HIGH (Real Features)
+3. **Real Gmail Sync** (3 days)
+   - Implement token storage in Supabase (per-agency)
+   - Build OAuth callback → store refresh token
+   - Create scheduled job to fetch new emails
+   - **Impact:** Communications Hub shows real Gmail data, not placeholders
+
+4. **Real Slack Sync** (3 days)
+   - Add Slack to diiiploy-gateway
+   - Implement token storage + scheduled sync
+   - Display Slack messages in timeline
+
+### TIER 3: MEDIUM (Polish)
+5. **Multi-Tenant Credentials** - Per-agency token storage
+6. **Real Google Ads** - Replace mock data with actual campaign metrics
+7. **Real Meta Ads** - Same as Google Ads
+
+---
+
+*Last verified: 2026-01-14 | **Updated with EP-085 learning about Static vs Runtime verification***

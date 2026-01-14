@@ -188,6 +188,62 @@ curl -s https://audienceos-agro-bros.vercel.app/api/v1/health | jq .status
 4. Verify actual navigation works (not just UI display)
 ```
 
+### API Feature Verification (CRITICAL - Added 2026-01-14)
+
+**RULE:** Before claiming a feature is "complete", verify the FULL STACK works:
+
+```bash
+# Step 1: Verify API endpoint EXISTS (not 404)
+echo "🔍 Checking if /api/v1/cartridges/voice exists..."
+curl -X POST https://audienceos-agro-bros.vercel.app/api/v1/cartridges/voice \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $(get_auth_token)" \
+  -d '{"name":"test-voice"}' 2>/dev/null | jq -r '.error // .id'
+
+# Expected: Either error message (400/401) or ID (200) - NOT 404
+# If you see: curl: (7) Failed to connect OR "404 Not Found" → ENDPOINT DOESN'T EXIST
+
+# Step 2: Verify database table exists
+echo "🔍 Checking if voice_cartridges table exists..."
+# Use Supabase UI at https://supabase.com/dashboard/project/[project-id]/editor
+# Or query via API:
+curl -X GET https://ebxshdqfaqupnvpghodi.supabase.co/rest/v1/voice_cartridges \
+  -H "apikey: $SUPABASE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_TOKEN" 2>/dev/null | jq '.error'
+
+# Expected: No error, or "Unauthorized" (401) - NOT "relation does not exist"
+
+# Step 3: Test full integration (UI → API → Database)
+echo "🔍 Running full-stack cartridge test..."
+npm run test:e2e -- cartridges.spec.ts
+
+# Expected: Tests pass without "404" or "relation does not exist" errors
+```
+
+**Cartridges Status (2026-01-14):**
+```
+Component Status:
+├─ UI Rendering: ✅ 100% (all 5 tabs load)
+├─ Form Validation: ✅ 100% (required fields, formats)
+├─ Component State: ✅ 100% (manages form data locally)
+├─ API Endpoints: ❌ 0% (5 routes missing)
+├─ Database Tables: ❌ 0% (no cartridge schema)
+├─ Data Persistence: ❌ 0% (lost on page reload)
+└─ ACTUAL COMPLETION: ~25% (UI only, no backend)
+
+Missing Endpoints:
+  ❌ POST /api/v1/cartridges/voice (Create voice cartridge)
+  ❌ POST /api/v1/cartridges/style/upload (Upload style documents)
+  ❌ POST /api/v1/cartridges/style/analyze (Analyze writing style)
+  ❌ POST /api/v1/cartridges/preferences (Save preferences)
+  ❌ POST /api/v1/cartridges/instructions (Create instruction set)
+  ❌ POST /api/v1/cartridges/instructions/[id]/upload (Upload training docs)
+  ❌ POST /api/v1/cartridges/instructions/[id]/process (Process documents)
+  ❌ POST /api/v1/cartridges/brand (Save brand info)
+  ❌ POST /api/v1/cartridges/brand/blueprint (Generate 112-Point Blueprint)
+  ❌ POST /api/v1/cartridges/brand/logo (Upload logo)
+```
+
 ### Data Contract Verification
 ```bash
 # Check API response shape matches frontend expectations

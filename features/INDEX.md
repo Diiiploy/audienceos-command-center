@@ -6,16 +6,19 @@
 
 ---
 
-## Build Summary
+## Build Summary (What's Actually Built)
 
-| Metric | Count |
-|--------|-------|
-| React Components | 118 files |
-| API Endpoints | 44 endpoints |
-| Zustand Stores | 7 complete |
-| Custom Hooks | 14 |
-| Type Definitions | 7 files |
-| Build Status | ✅ Zero errors |
+| Layer | Status | Details |
+|-------|--------|---------|
+| **Frontend Components** | ✅ 118 files | All UIs complete and rendering |
+| **API Endpoints - Core** | ✅ 35 endpoints | Clients, pipeline, settings, tickets, knowledge, etc. - all working |
+| **API Endpoints - Cartridges** | ❌ 0 of 12 | All missing - THIS IS THE GAP |
+| **Database Tables - Core** | ✅ 19 tables | All present with RLS configured |
+| **Database Tables - Cartridges** | ❌ 0 of 5 | All missing - needs: cartridges, voice_cartridges, style_cartridges, preferences, instructions |
+| **Zustand Stores** | ✅ 7 complete | Pipeline, communications, dashboard, tickets, KB, automations, settings |
+| **Custom Hooks** | ✅ 14 | All wired to real APIs |
+| **Build Status** | ✅ Zero errors | Builds successfully on main |
+| **Production Deployment** | ✅ Active | https://audienceos-agro-bros.vercel.app |
 
 ---
 
@@ -36,7 +39,8 @@
 | send-to-ai-integration | ✅ Complete | [send-to-ai-integration.md](send-to-ai-integration.md) | 100% | Contextual AI prompts from dashboard. Global chat opener. Task & client integration. Commit 3131525 (2026-01-06). |
 | dashboard-redesign | ✅ Complete | [dashboard-redesign.md](dashboard-redesign.md) | 95% | Linear design system merged. All features now fully functional. |
 
-**Overall Completion:** **95%** (12/12 MVP features complete. Full E2E audit passed 2026-01-09. All modules verified working.)
+**Frontend Completion:** **95%** (12/12 MVP feature UIs complete)
+**Full-Stack Completion:** **60%** (9/12 features have working backends; Training Cartridges has UI only; Integrations stubbed)
 
 ---
 
@@ -69,6 +73,7 @@
 
 | Date | Score | Gaps Fixed |
 |------|-------|------------|
+| 2026-01-14 | 9/10 | **TRAINING CARTRIDGES RED TEAM**: Created 53-test comprehensive suite (brand, voice, style, preferences, instructions). Browser E2E verified all 5 tabs render + forms validate. CRITICAL FINDING: Frontend 100% complete (UI works perfectly), Backend 0% complete (API endpoints don't exist). EP-085 "Frontend Complete, Backend Missing" Fallacy added to error-patterns.md. RUNBOOK.md updated with API Feature Verification section. Learning: Static verification (file existence) ≠ Runtime verification (API calls work). See [RUNBOOK API Verification](../RUNBOOK.md#api-feature-verification-critical---added-2026-01-14). |
 | 2026-01-12 | 10/10 | **ONBOARDING DEMO DATA**: Seeded 4 onboarding instances via Supabase MCP. E2E verified via Chrome - all stages displaying correctly. No console errors. Seed script committed (43c4a36). |
 | 2026-01-12 | 9/10 | **RBAC PHASE 4 - CLIENT ASSIGNMENT UI**: Built complete feature for assigning Members to specific clients. 4 new files (2 API routes, 1 hook, 1 modal), 4 modified. Code reviewed by validator agent. Fixed: race condition (atomic unique constraint), type safety (no `as any`), loading state (counter pattern). Build passes. Commits: 547e94f, a46dedd. Pending: E2E browser test. |
 | 2026-01-09 | 10/10 | **FULL E2E AUDIT PASSED**: All 9 modules verified working via Claude in Chrome. Dashboard (KPIs, charts), Pipeline (Kanban 20 clients), Clients (list+detail), Support Tickets (5 tickets), Intelligence Center (**AI Chat WORKING** - tested "How many clients at risk?" got intelligent response), Knowledge Base (9 docs), Automations (6 workflows), Integrations (4 connected), Settings (agency data loads). URL routing fixed (useEffect for hydration). Agency RLS fixed. No console errors. Commit 352cef2. |

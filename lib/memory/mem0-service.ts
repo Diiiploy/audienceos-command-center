@@ -16,7 +16,8 @@ import type {
 } from './types';
 
 /**
- * Mem0 MCP interface (matches chi-gateway)
+ * Mem0 MCP interface (matches diiiploy-gateway)
+ * CRITICAL: AudienceOS uses DIIIPLOY-GATEWAY, NOT chi-gateway!
  */
 interface Mem0MCPClient {
   addMemory: (params: { content: string; userId: string }) => Promise<{ id: string }>;
@@ -368,11 +369,12 @@ export function resetMem0Service(): void {
 }
 
 /**
- * Chi-gateway HTTP client for Mem0
- * Calls chi-gateway's mem0_add and mem0_search MCP tools
+ * Diiiploy-gateway HTTP client for Mem0
+ * Calls diiiploy-gateway's mem0_add and mem0_search MCP tools
+ * CRITICAL: AudienceOS uses DIIIPLOY-GATEWAY, NOT chi-gateway!
  */
-function createChiGatewayMem0Client(): Mem0MCPClient {
-  const gatewayUrl = process.env.CHI_GATEWAY_URL || 'https://chi-gateway.roderic-andrews.workers.dev';
+function createDiiiplopyGatewayMem0Client(): Mem0MCPClient {
+  const gatewayUrl = process.env.DIIIPLOY_GATEWAY_URL || 'https://diiiploy-gateway.roderic-andrews.workers.dev';
 
   return {
     addMemory: async (params: { content: string; userId: string }) => {
@@ -391,7 +393,7 @@ function createChiGatewayMem0Client(): Mem0MCPClient {
       });
 
       if (!response.ok) {
-        throw new Error(`Chi-gateway error: ${response.status}`);
+        throw new Error(`Diiiploy-gateway error: ${response.status}`);
       }
 
       const data = await response.json();
@@ -419,7 +421,7 @@ function createChiGatewayMem0Client(): Mem0MCPClient {
       });
 
       if (!response.ok) {
-        throw new Error(`Chi-gateway error: ${response.status}`);
+        throw new Error(`Diiiploy-gateway error: ${response.status}`);
       }
 
       const data = await response.json();
@@ -440,11 +442,12 @@ function createChiGatewayMem0Client(): Mem0MCPClient {
 }
 
 /**
- * Initialize Mem0Service with chi-gateway (lazy init)
+ * Initialize Mem0Service with diiiploy-gateway (lazy init)
+ * CRITICAL: AudienceOS uses DIIIPLOY-GATEWAY, NOT chi-gateway!
  */
 export function initializeMem0Service(): Mem0Service {
   if (!mem0ServiceInstance) {
-    const client = createChiGatewayMem0Client();
+    const client = createDiiiplopyGatewayMem0Client();
     mem0ServiceInstance = new Mem0Service(client);
   }
   return mem0ServiceInstance;

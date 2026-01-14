@@ -1,22 +1,32 @@
 "use client"
 
+/**
+ * Integrations Hub
+ *
+ * ============================================================
+ * CRITICAL: AudienceOS uses DIIIPLOY-GATEWAY, NOT chi-gateway!
+ * Chi-gateway is for personal PAI infrastructure only.
+ * ============================================================
+ *
+ * This follows the "agency model" where diiiploy-gateway is the
+ * single source of truth for integration tokens. The app only
+ * reads status - clients connect during onboarding calls.
+ */
+
 import React, { useState, useMemo, useEffect } from "react"
-import { useSearchParams } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { VerticalPageLayout, VerticalSection } from "@/components/linear/vertical-section"
-import { Search, Check, AlertCircle, Clock, ExternalLink, Settings2 } from "lucide-react"
+import { Search, Check, AlertCircle, Clock, ExternalLink, Settings2, RefreshCw } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { integrationIcons } from "@/components/linear/integration-card"
 import { IntegrationSettingsModal } from "@/components/linear/integration-settings-modal"
 import { IntegrationConnectModal } from "@/components/linear/integration-connect-modal"
-import { useIntegrations } from "@/hooks/use-integrations"
-import { fetchWithCsrf } from "@/lib/csrf"
 import { toast } from "sonner"
 import type { Database } from "@/types/database"
+import { fetchDiiiplopyGatewayHealth, type DiiiplopyGatewayHealthResponse } from "@/lib/integrations"
 
-type DbIntegration = Database['public']['Tables']['integration']['Row']
 type IntegrationProvider = Database['public']['Enums']['integration_provider']
 
 type IntegrationStatus = "connected" | "disconnected" | "error" | "syncing"
@@ -115,67 +125,7 @@ const futureIntegrations: Integration[] = [
   },
 ]
 
-/**
- * Format last sync time as relative string
- */
-function formatLastSync(lastSyncAt: string | null): string | undefined {
-  if (!lastSyncAt) return undefined
-
-  const now = new Date()
-  const syncDate = new Date(lastSyncAt)
-  const diffMs = now.getTime() - syncDate.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-
-  if (diffMins < 1) return "Just now"
-  if (diffMins < 60) return `${diffMins} min ago`
-
-  const diffHours = Math.floor(diffMins / 60)
-  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`
-
-  const diffDays = Math.floor(diffHours / 24)
-  return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`
-}
-
-/**
- * Map database integration to UI integration type
- */
-function mapDbToUiIntegration(dbIntegration: DbIntegration): Integration {
-  const metadata = integrationMetadata[dbIntegration.provider]
-
-  // Determine status based on connection and last sync
-  let status: IntegrationStatus = "disconnected"
-  if (dbIntegration.is_connected) {
-    // Check if sync is recent (within last 10 minutes = syncing)
-    const lastSync = dbIntegration.last_sync_at ? new Date(dbIntegration.last_sync_at) : null
-    const now = new Date()
-    const tenMinutesAgo = new Date(now.getTime() - 10 * 60000)
-
-    if (lastSync && lastSync > tenMinutesAgo) {
-      status = "syncing"
-    } else {
-      status = "connected"
-    }
-  }
-
-  // Detect error status from config.error or expired token
-  const config = dbIntegration.config as any
-  if (config?.error) {
-    status = "error"
-  }
-
-  return {
-    id: dbIntegration.id,
-    provider: dbIntegration.provider, // Include provider for API calls
-    name: metadata.name,
-    description: metadata.description,
-    icon: metadata.icon,
-    color: metadata.color,
-    category: metadata.category,
-    status,
-    lastSync: formatLastSync(dbIntegration.last_sync_at),
-    accounts: config?.account_count, // from integration config
-  }
-}
+// Removed: mapDbToUiIntegration - now using diiiploy-gateway status directly
 
 const statusConfig: Record<IntegrationStatus, { icon: React.ReactNode; label: string; className: string }> = {
   connected: {
@@ -316,100 +266,119 @@ function IntegrationCardSkeleton() {
 // Providers that need manual credential entry (not OAuth)
 const credentialBasedProviders: IntegrationProvider[] = ['slack', 'google_ads', 'meta_ads']
 
+// Map diiiploy-gateway service names to our IntegrationProvider types
+const GATEWAY_SERVICE_TO_PROVIDER: Record<string, IntegrationProvider | null> = {
+  gmail: 'gmail',
+  google_ads: 'google_ads',
+  meta_ads: 'meta_ads',
+  // Services without matching provider (not shown as integrations)
+  calendar: null,
+  drive: null,
+  sheets: null,
+  render: null,
+  sentry: null,
+  netlify: null,
+  neon: null,
+  supabase: null,
+  mercury: null,
+  mem0: null,
+  browser: null,
+}
+
 export function IntegrationsHub() {
   const [searchQuery, setSearchQuery] = useState("")
   const [categoryFilter, setCategoryFilter] = useState<IntegrationCategory | "all">("all")
   const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null)
   const [connectingProvider, setConnectingProvider] = useState<IntegrationProvider | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [gatewayHealth, setGatewayHealth] = useState<DiiiplopyGatewayHealthResponse | null>(null)
 
-  // Fetch integrations from API
-  const { integrations: dbIntegrations, isLoading, refetch } = useIntegrations()
+  // Fetch integration status from diiiploy-gateway
+  const fetchGatewayStatus = async () => {
+    try {
+      const health = await fetchDiiiplopyGatewayHealth()
+      setGatewayHealth(health)
+    } catch (error) {
+      console.error('Failed to fetch gateway status:', error)
+      toast.error('Failed to fetch integration status')
+    } finally {
+      setIsLoading(false)
+      setIsRefreshing(false)
+    }
+  }
 
-  // Handle OAuth callback URL parameters
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const success = params.get('success')
-    const error = params.get('error')
+    fetchGatewayStatus()
+  }, [])
 
-    if (success) {
-      toast.success(`${success} connected successfully!`)
-      // Refetch integrations to update UI
-      refetch()
-      window.history.replaceState({}, '', window.location.pathname + '?view=integrations')
-    }
+  // Handle refresh button click
+  const handleRefresh = () => {
+    setIsRefreshing(true)
+    fetchGatewayStatus()
+    toast.success('Refreshing integration status...')
+  }
 
-    if (error) {
-      toast.error(`Connection failed: ${error.replace(/_/g, ' ')}`)
-      window.history.replaceState({}, '', window.location.pathname + '?view=integrations')
-    }
-  }, [refetch])
-
-  // Handle Connect button click
+  // Handle Connect button click - Agency model: credential-based only
   async function handleConnect(provider: string) {
-    // Check if this provider needs credential entry modal
+    // Only credential-based providers can be connected from the UI
     if (credentialBasedProviders.includes(provider as IntegrationProvider)) {
       setConnectingProvider(provider as IntegrationProvider)
       return
     }
 
-    // For OAuth-based providers (gmail), redirect to OAuth flow
-    try {
-      const res = await fetchWithCsrf('/api/v1/integrations', {
-        method: 'POST',
-        body: JSON.stringify({ provider }),
-      })
-
-      const { data, error } = await res.json()
-
-      if (error) {
-        toast.error(`Failed to initiate connection: ${error}`)
-        return
-      }
-
-      if (data?.oauthUrl) {
-        // Redirect to OAuth provider
-        window.location.href = data.oauthUrl
-      }
-    } catch (err) {
-      toast.error('Connection failed')
-      console.error('Integration connection error:', err)
-    }
+    // For Google Workspace (gmail), show agency model message
+    toast.info('Google Workspace is managed centrally. Contact your administrator to connect.')
   }
 
   // Handle successful credential connection
   function handleCredentialSuccess() {
-    refetch()
+    fetchGatewayStatus()
   }
 
-  // Merge DB integrations with future integrations (all 8)
+  // Build integrations list from gateway health + metadata
   const allIntegrations = useMemo(() => {
-    // Map DB integrations to UI format
-    const mappedDb = dbIntegrations.map(mapDbToUiIntegration)
+    const integrations: Integration[] = []
 
-    // Create a set of connected provider IDs
-    const connectedProviders = new Set(dbIntegrations.map(i => i.provider))
-
-    // Add placeholder cards for MVP integrations not yet in DB
+    // Map MVP providers with their gateway status
     const mvpProviders: IntegrationProvider[] = ['slack', 'gmail', 'google_ads', 'meta_ads']
-    const missingMvp = mvpProviders
-      .filter(provider => !connectedProviders.has(provider))
-      .map(provider => {
-        const metadata = integrationMetadata[provider]
-        return {
-          id: provider,
-          provider, // Include provider for API calls
-          name: metadata.name,
-          description: metadata.description,
-          icon: metadata.icon,
-          color: metadata.color,
-          category: metadata.category,
-          status: 'disconnected' as IntegrationStatus,
-        }
+
+    for (const provider of mvpProviders) {
+      const metadata = integrationMetadata[provider]
+
+      // Find gateway status for this provider
+      const gatewayService = gatewayHealth?.services.find(s => {
+        const mappedProvider = GATEWAY_SERVICE_TO_PROVIDER[s.service]
+        return mappedProvider === provider
       })
 
-    // Combine: DB integrations + missing MVP + future integrations
-    return [...mappedDb, ...missingMvp, ...futureIntegrations]
-  }, [dbIntegrations])
+      // Determine status from gateway response
+      let status: IntegrationStatus = 'disconnected'
+      if (gatewayService) {
+        if (gatewayService.status === 'ok') {
+          status = 'connected'
+        } else if (gatewayService.status === 'error') {
+          status = 'error'
+        }
+      }
+
+      integrations.push({
+        id: provider,
+        provider,
+        name: metadata.name,
+        description: metadata.description,
+        icon: metadata.icon,
+        color: metadata.color,
+        category: metadata.category,
+        status,
+        // Add gateway message for display
+        ...(gatewayService?.message && { lastSync: gatewayService.message }),
+      })
+    }
+
+    // Add future integrations (always disconnected)
+    return [...integrations, ...futureIntegrations]
+  }, [gatewayHealth])
 
   // Filter integrations by search and category
   const filteredIntegrations = useMemo(() => {
@@ -448,22 +417,39 @@ export function IntegrationsHub() {
       title="Integrations"
       description="Connect your tools and services to power your workflow"
     >
-      {/* Stats */}
-      <div className="flex items-center gap-6 mb-6">
-        <div className="flex items-center gap-2 text-sm">
-          <div className="w-2 h-2 rounded-full bg-emerald-500" />
-          <span className="text-muted-foreground">
-            {connectedCount} connected
-          </span>
-        </div>
-        {errorCount > 0 && (
+      {/* Stats + Refresh */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-6">
           <div className="flex items-center gap-2 text-sm">
-            <div className="w-2 h-2 rounded-full bg-red-500" />
+            <div className="w-2 h-2 rounded-full bg-emerald-500" />
             <span className="text-muted-foreground">
-              {errorCount} with errors
+              {connectedCount} connected
             </span>
           </div>
-        )}
+          {errorCount > 0 && (
+            <div className="flex items-center gap-2 text-sm">
+              <div className="w-2 h-2 rounded-full bg-red-500" />
+              <span className="text-muted-foreground">
+                {errorCount} with errors
+              </span>
+            </div>
+          )}
+          {gatewayHealth && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>via diiiploy-gateway v{gatewayHealth.gateway.version}</span>
+            </div>
+          )}
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="gap-2"
+        >
+          <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
+          Refresh Status
+        </Button>
       </div>
 
       {/* Search and filters */}
@@ -539,7 +525,7 @@ export function IntegrationsHub() {
         integration={selectedIntegration ? {
           id: selectedIntegration.id,
           name: selectedIntegration.name,
-          provider: selectedIntegration.id, // provider ID matches integration ID for MVP
+          provider: selectedIntegration.provider || selectedIntegration.id, // provider ID
           status: selectedIntegration.status,
           lastSync: selectedIntegration.lastSync,
           accounts: selectedIntegration.accounts,
@@ -548,7 +534,7 @@ export function IntegrationsHub() {
         } : null}
         isOpen={!!selectedIntegration}
         onClose={() => setSelectedIntegration(null)}
-        onRefetch={refetch}
+        onRefetch={fetchGatewayStatus}
       />
 
       {/* Integration Connect Modal (for credential-based integrations) */}
