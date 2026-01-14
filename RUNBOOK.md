@@ -203,6 +203,48 @@ grep -r "VALID_STAGES" app/api/v1/clients/
 - **Impact:** Clients silently got wrong stage on creation
 - **Verification:** Always grep both frontend and backend for enum values
 
+### Email Delivery Verification (2026-01-14 - Critical Fix)
+
+**Issue:** Boolean logic bug `!== false` showed success when email status was undefined
+**Fix Applied:** Changed to `=== true`, added `email_sent?: boolean` type
+**Verification Command:**
+
+```bash
+# 1. Verify code change
+git log --oneline | head -2
+# Should show: "fix: Correct boolean logic and add type safety to email delivery"
+
+# 2. Run test suite
+npm test 2>&1 | tail -20
+# Expect: 711 passed, 4 unrelated failures in auth-callback tests
+
+# 3. Verify build succeeds
+npm run build 2>&1 | tail -5
+# Expect: "✓ Compiled successfully"
+
+# 4. RUNTIME TEST: Trigger onboarding in production
+# Use Claude in Chrome to navigate to:
+# https://audienceos-agro-bros.vercel.app/onboarding
+# Click "Trigger Onboarding" button
+# Enter test email: rodericandrews+test@gmail.com
+# Submit and verify toast notification is ACCURATE:
+#   - If Resend API succeeds: "Onboarding link sent!"
+#   - If Resend API fails: "Onboarding created, but email failed"
+# Check Resend dashboard: https://resend.com/emails
+# Verify email delivery status matches toast message
+
+# 5. Edge case: Simulate undefined email_sent
+# Check network response in DevTools:
+# Network tab → /api/v1/onboarding/instances POST
+# Response should include: "email_sent": true/false (never undefined)
+```
+
+**Critical Rule for Future Sessions:**
+- Never assume API response includes boolean fields - check actual JSON response
+- Always execute `npm test` before claiming type-safety fix
+- Always test on production UI (not just code review)
+- Boolean comparisons: use `=== true`/`=== false`, never `!== false`
+
 ---
 
 ## 🐛 Troubleshooting
