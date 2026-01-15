@@ -375,12 +375,16 @@ export function resetMem0Service(): void {
  */
 function createDiiiplopyGatewayMem0Client(): Mem0MCPClient {
   const gatewayUrl = process.env.DIIIPLOY_GATEWAY_URL || 'https://diiiploy-gateway.roderic-andrews.workers.dev';
+  const apiKey = process.env.DIIIPLOY_GATEWAY_API_KEY || '';
 
   return {
     addMemory: async (params: { content: string; userId: string }) => {
       const response = await fetch(gatewayUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(apiKey && { Authorization: `Bearer ${apiKey}` }),
+        },
         body: JSON.stringify({
           jsonrpc: '2.0',
           method: 'tools/call',
@@ -408,7 +412,10 @@ function createDiiiplopyGatewayMem0Client(): Mem0MCPClient {
     searchMemories: async (params: { query: string; userId: string }) => {
       const response = await fetch(gatewayUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(apiKey && { Authorization: `Bearer ${apiKey}` }),
+        },
         body: JSON.stringify({
           jsonrpc: '2.0',
           method: 'tools/call',
@@ -430,7 +437,7 @@ function createDiiiplopyGatewayMem0Client(): Mem0MCPClient {
         const parsed = JSON.parse(text);
         // Mem0 returns { results: [...] } or array directly
         const results = parsed.results || parsed || [];
-        return results.map((r: any) => ({
+        return results.map((r: { id?: string; memory_id?: string; memory?: string; content?: string; score?: number }) => ({
           id: r.id || r.memory_id || crypto.randomUUID(),
           content: r.memory || r.content || '',
           score: r.score,
