@@ -162,6 +162,26 @@ INSERT INTO permission (role_id, resource, action) VALUES
 ('role_member', 'workflows', 'read'),
 ('role_member', 'tickets', 'read');
 
+-- Owner (role_owner): Cartridge permissions (3)
+INSERT INTO permission (role_id, resource, action) VALUES
+('role_owner', 'cartridges', 'read'),
+('role_owner', 'cartridges', 'write'),
+('role_owner', 'cartridges', 'manage');
+
+-- Admin (role_admin): Cartridge permissions (3)
+INSERT INTO permission (role_id, resource, action) VALUES
+('role_admin', 'cartridges', 'read'),
+('role_admin', 'cartridges', 'write'),
+('role_admin', 'cartridges', 'manage');
+
+-- Manager (role_manager): Cartridge read-only (1)
+INSERT INTO permission (role_id, resource, action) VALUES
+('role_manager', 'cartridges', 'read');
+
+-- Member (role_member): Cartridge read-only (1)
+INSERT INTO permission (role_id, resource, action) VALUES
+('role_member', 'cartridges', 'read');
+
 -- ============================================================================
 -- Create indexes for performance
 -- ============================================================================
