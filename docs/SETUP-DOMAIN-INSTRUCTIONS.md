@@ -1,8 +1,19 @@
 # AudienceOS Domain Setup Instructions
 
-**Status:** Domain `audienceos.diiiploy.io` needs to be configured
+**Status:** ⚠️ Domain added to Vercel, **DNS VERIFICATION NEEDED**
 **Deadline:** ASAP (blocks Google OAuth)
 **People:** Brent (DNS), Trevor (Vercel + Supabase)
+**Last Checked:** 2026-01-15 by Chi
+
+---
+
+## 🚨 CURRENT BLOCKER (Jan 15, 2026)
+
+The domain `audienceos.diiiploy.io` was added to Vercel but shows **"Verification Needed"**.
+
+**Root Cause:** The `diiiploy.io` domain is linked to another Vercel account. Ownership verification via TXT record is required.
+
+**Action Required:** Brent needs to update DNS records (see section below).
 
 ---
 
@@ -23,6 +34,17 @@ This enables proper Google OAuth, email, and professional branding.
 **Time needed:** 5 minutes
 **System:** Google Domains (for diiiploy.io)
 
+### ⚠️ UPDATED DNS RECORDS (Jan 15, 2026)
+
+Vercel requires **TWO** DNS records now (ownership verification needed):
+
+| Type | Host | Value |
+|------|------|-------|
+| **CNAME** | `audienceos` | `e20ba527f311b024.vercel-dns-016.com.` |
+| **TXT** | `_vercel` | *(Copy from Vercel - see below)* |
+
+**Why TXT?** The `diiiploy.io` domain is linked to another Vercel account. The TXT record proves ownership.
+
 ### Step-by-Step
 
 1. **Go to Google Domains**
@@ -37,29 +59,51 @@ This enables proper Google OAuth, email, and professional branding.
    - Left sidebar → **"DNS"**
    - Scroll down to **"Custom records"** section
 
-4. **Add the CNAME Record**
-   - Click **"Create new record"**
+4. **Update/Add the CNAME Record**
+   - If `audienceos` CNAME exists, **edit it**
+   - If not, click **"Create new record"**
    - Fill in EXACTLY:
      ```
      Type:     CNAME
      Host:     audienceos
      TTL:      3600
-     Value:    cname.vercel-dns.com
+     Value:    e20ba527f311b024.vercel-dns-016.com.
      ```
-   - Click **"Save"** (blue button)
+   - ⚠️ **NOTE:** Old value was `cname.vercel-dns.com` - this is WRONG now
+   - Click **"Save"**
 
-5. **Verify It's Added**
+5. **Add the TXT Record (NEW - REQUIRED)**
+   - Click **"Create new record"**
+   - Fill in:
+     ```
+     Type:     TXT
+     Host:     _vercel
+     TTL:      3600
+     Value:    [GET FROM VERCEL - SEE STEP 6]
+     ```
+
+6. **Get the TXT Value from Vercel**
+   - Go to: https://vercel.com/agro-bros/audienceos/settings/domains
+   - Find `audienceos.diiiploy.io` row
+   - Click "Learn more" next to "Verification Needed"
+   - Copy the TXT record value (starts with `vc-domain-verify=...`)
+   - Paste it into Google Domains as the TXT value
+   - Click **"Save"**
+
+7. **Verify Records Added**
    - You should see in the list:
      ```
-     audienceos.diiiploy.io  CNAME  cname.vercel-dns.com  3600
+     audienceos.diiiploy.io  CNAME  e20ba527f311b024.vercel-dns-016.com.  3600
+     _vercel.diiiploy.io     TXT    vc-domain-verify=audienceos...        3600
      ```
 
-6. **Wait 5-10 minutes for DNS to propagate**
-   - Then tell Trevor it's done
+8. **Wait 5-10 minutes for DNS to propagate**
+   - Then click "Refresh" in Vercel Domains page
+   - Should change from "Verification Needed" to "Valid Configuration"
 
 ### That's It for DNS!
 
-Once Brent confirms DNS is done, Trevor can proceed with Vercel + Supabase.
+Once Vercel shows ✅ "Valid Configuration", the domain is ready.
 
 ---
 
@@ -136,8 +180,10 @@ Once Brent confirms DNS is done, Trevor can proceed with Vercel + Supabase.
 
 After both complete their parts:
 
-- [ ] Brent: DNS added to Google Domains (audienceos → cname.vercel-dns.com)
-- [ ] Trevor: Vercel shows ✅ "Domain Valid" for audienceos.diiiploy.io
+- [x] Roderic: Domain added to Vercel (audienceos.diiiploy.io) ✅ Done Jan 15
+- [ ] Brent: CNAME updated to `e20ba527f311b024.vercel-dns-016.com.`
+- [ ] Brent: TXT record added for `_vercel` (copy value from Vercel)
+- [ ] Trevor: Vercel shows ✅ "Valid Configuration" for audienceos.diiiploy.io
 - [ ] Trevor: Supabase Site URL is `https://audienceos.diiiploy.io`
 - [ ] Trevor: Supabase Redirect URL includes `https://audienceos.diiiploy.io/**`
 - [ ] Test: Go to https://audienceos.diiiploy.io/login
@@ -148,9 +194,20 @@ After both complete their parts:
 
 ## 🆘 If Something Goes Wrong
 
+### "Vercel shows Verification Needed" ⚠️ CURRENT ISSUE
+- **Cause:** Domain `diiiploy.io` is linked to another Vercel account
+- **Fix:** Add TXT record for ownership verification:
+  1. Go to Vercel Domains page
+  2. Click "Learn more" on the verification warning
+  3. Copy the TXT record value
+  4. Add TXT record in Google Domains: Host=`_vercel`, Value=copied text
+  5. Wait 5-10 minutes, click "Refresh" in Vercel
+
 ### "Vercel says domain is invalid"
-- **Cause:** DNS not propagated yet
-- **Fix:** Wait 10 minutes, refresh Vercel page
+- **Cause:** DNS not propagated yet OR wrong CNAME value
+- **Fix:**
+  1. Wait 10 minutes, refresh Vercel page
+  2. Verify CNAME is `e20ba527f311b024.vercel-dns-016.com.` (NOT `cname.vercel-dns.com`)
 - **Still broken?** Brent: Check DNS record is exactly right (no typos)
 
 ### "Google OAuth redirects to wrong domain"
@@ -160,6 +217,14 @@ After both complete their parts:
 ### "Google says 'Redirect URI mismatch'"
 - **Cause:** Supabase Site URL or Redirect URLs don't match domain
 - **Fix:** Verify all 3 fields in Supabase are set to `audienceos.diiiploy.io`
+
+### "404 DEPLOYMENT_NOT_FOUND"
+- **Cause:** Domain not added to Vercel project OR not assigned to Production
+- **Fix:**
+  1. Go to Vercel → Project Settings → Domains
+  2. Click "Add Domain" and enter `audienceos.diiiploy.io`
+  3. Make sure "Production" is selected
+  4. Complete DNS verification if prompted
 
 ---
 
@@ -174,4 +239,4 @@ Message Roderic with:
 
 ---
 
-*Last updated: 2026-01-14 | Created for AudienceOS OAuth setup*
+*Last updated: 2026-01-15 | Domain added to Vercel, DNS verification pending*

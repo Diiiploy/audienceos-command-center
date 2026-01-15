@@ -1,4 +1,43 @@
 ---
+## Session 2026-01-15 - Domain Setup for audienceos.diiiploy.io
+
+### Completed
+**Domain Configuration via Browser Automation**
+- ✅ Checked Vercel settings - domain was NOT added (root cause of 404)
+- ✅ Added `audienceos.diiiploy.io` to Vercel → Production environment
+- ✅ Discovered ownership verification required (diiiploy.io linked to another Vercel account)
+- ✅ Updated `docs/SETUP-DOMAIN-INSTRUCTIONS.md` with correct DNS values
+- ✅ Saved context to mem0
+
+### Issue Found
+**"Verification Needed" in Vercel**
+- Domain `diiiploy.io` is linked to another Vercel account
+- Requires TXT record for ownership verification
+- Brent needs to update DNS in Google Domains
+
+### DNS Records Required (For Brent)
+| Type | Host | Value |
+|------|------|-------|
+| CNAME | `audienceos` | `e20ba527f311b024.vercel-dns-016.com.` |
+| TXT | `_vercel` | Copy from Vercel dashboard |
+
+**Note:** Original CNAME value `cname.vercel-dns.com` is WRONG - Vercel now requires project-specific address.
+
+### Files Modified
+- `docs/SETUP-DOMAIN-INSTRUCTIONS.md` - Complete rewrite with correct values
+
+### DU Accounting
+- Browser automation + investigation: 0.5 DU
+- Documentation update: 0.25 DU
+- **Total: 0.75 DU**
+
+### Next Steps
+1. Brent: Update DNS records in Google Domains
+2. Trevor: Verify domain shows "Valid Configuration" in Vercel
+3. Trevor: Update Supabase URL configuration
+4. Test Google OAuth on new domain
+
+---
 ## Session 2026-01-12 - E2E RBAC Verification & RLS Policy Bug Fix
 
 ### Completed
