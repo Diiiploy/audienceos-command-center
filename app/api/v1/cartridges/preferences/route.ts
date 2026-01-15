@@ -78,12 +78,18 @@ export const POST = withPermission({ resource: 'cartridges', action: 'write' })(
       }
 
       // Try to update existing preferences for this platform
-      const { data: existing } = await (supabase
+      const { data: existing, error: existingError } = await (supabase
         .from('preferences_cartridge' as any)
         .select('id')
         .eq('agency_id', agencyId)
         .eq('platform', body.platform)
         .single() as any)
+
+      // Handle actual database errors (not just "no rows found")
+      if (existingError && existingError.code !== 'PGRST116') {
+        console.error('[Preferences Cartridge POST] Lookup error:', existingError)
+        return createErrorResponse(500, 'Failed to check existing preferences')
+      }
 
       let result
       let statusCode = 201

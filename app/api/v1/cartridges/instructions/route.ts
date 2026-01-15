@@ -71,12 +71,18 @@ export const POST = withPermission({ resource: 'cartridges', action: 'write' })(
       }
 
       // Try to update existing instruction
-      const { data: existing } = await (supabase
+      const { data: existing, error: existingError } = await (supabase
         .from('instruction_cartridge' as any)
         .select('id')
         .eq('agency_id', agencyId)
         .eq('name', cartridgeData.name)
         .single() as any)
+
+      // Handle actual database errors (not just "no rows found")
+      if (existingError && existingError.code !== 'PGRST116') {
+        console.error('[Instruction Cartridge POST] Lookup error:', existingError)
+        return createErrorResponse(500, 'Failed to check existing instruction cartridge')
+      }
 
       let result
       let statusCode = 201

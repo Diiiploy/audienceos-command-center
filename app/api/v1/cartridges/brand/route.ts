@@ -35,10 +35,7 @@ export const GET = withPermission({ resource: 'cartridges', action: 'read' })(
       return NextResponse.json(data || null)
     } catch (error) {
       console.error('[Brand Cartridge GET] Unexpected error:', error)
-      return NextResponse.json(
-        { error: 'Internal server error' },
-        { status: 500 }
-      )
+      return createErrorResponse(500, 'Internal server error')
     }
   }
 )
@@ -107,11 +104,17 @@ export const POST = withPermission({ resource: 'cartridges', action: 'write' })(
       }
 
       // Try to update existing cartridge first
-      const { data: existing } = await (supabase
+      const { data: existing, error: existingError } = await (supabase
         .from('brand_cartridge' as any)
         .select('id')
         .eq('agency_id', agencyId)
         .single() as any)
+
+      // Handle actual database errors (not just "no rows found")
+      if (existingError && existingError.code !== 'PGRST116') {
+        console.error('[Brand Cartridge POST] Lookup error:', existingError)
+        return createErrorResponse(500, 'Failed to check existing cartridge')
+      }
 
       let result
       let statusCode = 201
