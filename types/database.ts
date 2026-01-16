@@ -16,6 +16,49 @@ export type FieldType = 'text' | 'email' | 'url' | 'number' | 'textarea' | 'sele
 export type OnboardingStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled'
 export type StageStatus = 'pending' | 'in_progress' | 'completed' | 'blocked'
 
+// Cartridges
+export interface Cartridge {
+  id: string
+  agency_id: string
+  name: string
+  description?: string
+  type: 'voice' | 'brand' | 'style' | 'instructions'
+  tier: 'system' | 'agency' | 'client' | 'user'
+  is_active: boolean
+  is_default: boolean
+  client_id?: string
+  user_id?: string
+  parent_id?: string
+
+  // Voice
+  voice_tone?: string
+  voice_style?: string
+  voice_personality?: string
+  voice_vocabulary?: string
+
+  // Brand
+  brand_name?: string
+  brand_tagline?: string
+  brand_values?: string[]
+  brand_logo_url?: string
+
+  // Style
+  style_primary_color?: string
+  style_secondary_color?: string
+  style_fonts?: string[]
+
+  // Instructions
+  instructions_system_prompt?: string
+  instructions_rules?: string[]
+
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export type CartridgeType = 'voice' | 'brand' | 'style' | 'instructions'
+export type CartridgeTier = 'system' | 'agency' | 'client' | 'user'
+
 export type Json =
   | string
   | number
