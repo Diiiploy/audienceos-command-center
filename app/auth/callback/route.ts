@@ -17,11 +17,34 @@ import { cookies } from 'next/headers'
  *
  * NOTE: This is for USER authentication, not integration OAuth.
  * Integration OAuth (Slack, Gmail, Ads) uses /api/v1/oauth/callback
+ *
+ * SECURITY:
+ * - Does NOT expose error messages (information disclosure)
+ * - Validates redirect URLs to prevent open redirect attacks
+ * - Only allows same-origin, relative paths
  */
+
+/**
+ * Validate redirect URL is safe (same-origin, relative path only)
+ * Prevents open redirect vulnerabilities
+ */
+function isValidRedirectUrl(url: string): boolean {
+  // Must be a relative path (start with /)
+  if (!url.startsWith('/')) return false
+
+  // Must not be a protocol-relative URL (//example.com)
+  if (url.startsWith('//')) return false
+
+  // Must not contain protocol markers (http://, https://, etc)
+  if (url.includes('://')) return false
+
+  return true
+}
+
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
-  const next = requestUrl.searchParams.get('next') ?? '/'
+  const nextParam = requestUrl.searchParams.get('next') ?? '/'
   const error = requestUrl.searchParams.get('error')
   const errorDescription = requestUrl.searchParams.get('error_description')
 
@@ -49,15 +72,15 @@ export async function GET(request: Request) {
     const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
 
     if (exchangeError) {
+      // SECURITY: Do NOT expose error message (prevents information disclosure)
       console.error('[Auth Callback] Code exchange failed:', exchangeError.message)
-      return NextResponse.redirect(
-        new URL(`/login?error=auth_callback_error&message=${encodeURIComponent(exchangeError.message)}`, requestUrl.origin)
-      )
+      return NextResponse.redirect(new URL('/login?error=auth_callback_error', requestUrl.origin))
     }
 
-    // Success - redirect to the intended destination
-    console.log('[Auth Callback] Session established, redirecting to:', next)
-    return NextResponse.redirect(new URL(next, requestUrl.origin))
+    // SECURITY: Validate redirect URL to prevent open redirect attacks
+    const safeNext = isValidRedirectUrl(nextParam) ? nextParam : '/'
+    console.log('[Auth Callback] Session established, redirecting to:', safeNext)
+    return NextResponse.redirect(new URL(safeNext, requestUrl.origin))
 
   } catch (err) {
     console.error('[Auth Callback] Unexpected error:', err)
