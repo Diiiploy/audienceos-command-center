@@ -129,6 +129,90 @@ mcp__chi-gateway__sheets_append({
 
 ---
 
+## 🔬 Verification Commands (Runtime-First Testing)
+
+**Critical:** Always execute runtime tests—don't rely on file/config checks alone. See ErrorPatterns.md EP-093 for why this matters.
+
+### Database Schema Verification
+
+```bash
+# Verify actual user table columns (don't assume which fields exist)
+curl "https://ebxshdqfaqupnvpghodi.supabase.co/rest/v1/user?select=*&limit=1" \
+  -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  | jq 'keys'
+# Expected: ["id", "email", "first_name", "last_name", "avatar_url", "role_id", ...]
+# NOT: "role" (that's a foreign key, use role_id + JOIN for name)
+```
+
+### Auth Profile Fetch Verification
+
+```bash
+# Test if auth profile endpoint returns correct fields
+# This validates: REST API query selects correct columns, JOIN works, no HTTP 400
+curl -i "https://ebxshdqfaqupnvpghodi.supabase.co/rest/v1/user?id=eq.YOUR_USER_ID&select=id,agency_id,first_name,last_name,email,avatar_url,role_id,role_info:role_id(name,hierarchy_level)" \
+  -H "apikey: $ANON_KEY" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+# Expected:
+#  - HTTP 200 (not 400 = invalid column)
+#  - Response includes: role_id (UUID), role_info.name ("Owner", "Admin", etc.), role_info.hierarchy_level (1-4)
+# NOT: Direct "role" field (must come from JOIN)
+```
+
+### Team Members API Verification
+
+```bash
+# Test Settings → Teams endpoint returns 6 members with correct role names
+curl -i "https://audienceos-agro-bros.vercel.app/api/v1/settings/users" \
+  -H "Cookie: sb-{projectRef}-auth-token=YOUR_SESSION_COOKIE" \
+  | jq '.data | map({email, role, created_at})'
+# Expected: 6 team members, all with 'role' field (not role_id)
+# Example:
+# [
+#   { email: "roderic@...", role: "Owner", ... },
+#   { email: "member@...", role: "Member", ... },
+#   ...
+# ]
+```
+
+### RBAC Permission Verification
+
+```bash
+# Test that role hierarchy is enforced (Owner can do everything)
+# Step 1: List current user's permissions
+curl "https://ebxshdqfaqupnvpghodi.supabase.co/rest/v1/user_role?user_id=eq.YOUR_USER_ID&select=role_id,role_info:role_id(name,hierarchy_level)" \
+  -H "apikey: $ANON_KEY"
+# Should show: hierarchy_level: 1 (Owner = highest access)
+
+# Step 2: Verify API endpoint enforces role check
+# Try accessing settings as different role - should get 403 if unauthorized
+curl -i "https://audienceos-agro-bros.vercel.app/api/v1/settings/users" \
+  -H "Cookie: sb-{projectRef}-auth-token=MEMBER_SESSION" \
+  -X POST \
+  -d '{"email":"test@example.com","role":"admin"}' \
+  -H "Content-Type: application/json"
+# Expected: HTTP 403 Forbidden (Member can't invite users)
+# If HTTP 200: RBAC not enforced!
+```
+
+### Production Deployment Verification
+
+```bash
+# Verify deployment is live and responding
+curl -I https://audienceos-agro-bros.vercel.app
+# Expected: HTTP 307 (redirect to /login)
+# NOT: HTTP 503 (Service Unavailable)
+
+# Verify TypeScript build passed (no compilation errors)
+curl -s https://api.vercel.com/v13/deployments \
+  -H "Authorization: Bearer $VERCEL_TOKEN" | jq '.deployments[0] | {state, buildingAt, createdAt}'
+# Expected: state: "READY" (not BUILDING or FAILED)
+```
+
+**Rule:** Every verification command documents what "working" looks like. If behavior differs, that's the bug to investigate.
+
+---
+
 ## 🌐 URLs & Deployment
 
 | Environment | URL | Status |
