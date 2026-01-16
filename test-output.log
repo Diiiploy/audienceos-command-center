@@ -1,0 +1,14 @@
+
+> audienceos-command-center@0.1.0 test
+> vitest cartridges-patch-validation
+
+
+[1m[46m RUN [49m[22m [36mv4.0.16 [39m[90m/Users/rodericandrews/_PAI/projects/command_center_audience_OS[39m
+
+ [32m✓[39m __tests__/api/cartridges-patch-validation.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m24 passed[39m[22m[90m (24)[39m
+[2m   Start at [22m 20:39:10
+[2m   Duration [22m 1.37s[2m (transform 27ms, setup 63ms, import 14ms, tests 2ms, environment 1.23s)[22m
+

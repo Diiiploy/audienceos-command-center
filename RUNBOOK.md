@@ -195,6 +195,31 @@ curl -i "https://audienceos-agro-bros.vercel.app/api/v1/settings/users" \
 # If HTTP 200: RBAC not enforced!
 ```
 
+### Pre-Deployment Verification Commands (Runtime-First)
+
+**CRITICAL (2026-01-16):** Never rely on file existence checks alone. ALWAYS execute runtime verification before declaring "ready to deploy."
+
+```bash
+# 1. TypeScript Configuration Verification
+npm run typecheck
+# Expected: Exit code 0 (no errors)
+# If fails: Configuration files exist but content is invalid
+
+# 2. Full Test Suite Verification
+npm test 2>&1 | tail -10
+# Expected: "Tests ... passed" with no "TS2304" or "Cannot find name" errors
+# Watch for: TypeScript errors that prove configuration is broken
+
+# 3. Production Build Verification
+npm run build 2>&1 | grep -i "error"
+# Expected: 0 matches (clean build)
+# If fails: Build succeeds but includes errors (configuration incomplete)
+
+# 4. ESLint Verification
+npm run lint 2>&1 | grep "✖"
+# Expected: 0 or only warnings (no ✖ errors)
+```
+
 ### Production Deployment Verification
 
 ```bash
@@ -207,9 +232,19 @@ curl -I https://audienceos-agro-bros.vercel.app
 curl -s https://api.vercel.com/v13/deployments \
   -H "Authorization: Bearer $VERCEL_TOKEN" | jq '.deployments[0] | {state, buildingAt, createdAt}'
 # Expected: state: "READY" (not BUILDING or FAILED)
+
+# Verify Vitest Globals Configured (fixes "Cannot find name 'vi'" errors)
+npm test -- __tests__/auth 2>&1 | grep "Cannot find name"
+# Expected: 0 matches
+# If fails: tsconfig.json missing types: ["vitest/globals"]
+
+# Verify Memory Injector Works (runtime test, not just file check)
+npm test -- __tests__/api/chat-routes.test.ts 2>&1 | grep "should detect recall"
+# Expected: "✓" (passing)
+# If fails: Mock in test file out of sync with actual interface
 ```
 
-**Rule:** Every verification command documents what "working" looks like. If behavior differs, that's the bug to investigate.
+**Rule (from EP-094):** Every verification command documents what "working" looks like. If behavior differs, that's the bug to investigate. **File existence DOES NOT prove functionality - EXECUTION does.**
 
 ---
 

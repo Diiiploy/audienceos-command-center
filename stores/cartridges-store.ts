@@ -68,6 +68,16 @@ export const useCartridgesStore = create<CartridgesStore>((set, get) => ({
       }
 
       const result = await response.json()
+
+      // Validate result structure before using it
+      if (!result.data) {
+        throw new Error('Server did not return cartridge data')
+      }
+
+      if (!result.data.id) {
+        throw new Error('Server returned cartridge without id')
+      }
+
       const newCartridge = result.data
 
       set((state) => ({
