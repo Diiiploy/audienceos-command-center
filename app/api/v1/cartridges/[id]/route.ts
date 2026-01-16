@@ -50,6 +50,22 @@ export const PATCH = withPermission({ resource: 'cartridges', action: 'write' })
       const { id } = params
       const body = await request.json()
 
+      // VALIDATION: Prevent type field changes
+      if (body.type !== undefined) {
+        return NextResponse.json(
+          { error: 'Cannot change cartridge type. Use delete and create instead.' },
+          { status: 400 }
+        )
+      }
+
+      // VALIDATION: Prevent immutable fields
+      if (body.created_by !== undefined || body.created_at !== undefined) {
+        return NextResponse.json(
+          { error: 'Cannot modify immutable fields (created_by, created_at)' },
+          { status: 400 }
+        )
+      }
+
       const { error: updateError } = await supabase
         .from('cartridges')
         .update({

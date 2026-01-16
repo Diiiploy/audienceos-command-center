@@ -69,6 +69,22 @@ export const PATCH = withPermission({ resource: 'cartridges', action: 'write' })
       const supabase = await createRouteHandlerClient(cookies)
       const body = await request.json()
 
+      // VALIDATION: Prevent type field changes
+      if (body.type !== undefined) {
+        return createErrorResponse(
+          400,
+          'Cannot change cartridge type. Use delete and create instead.'
+        )
+      }
+
+      // VALIDATION: Prevent immutable fields
+      if (body.created_by !== undefined || body.created_at !== undefined) {
+        return createErrorResponse(
+          400,
+          'Cannot modify immutable fields (created_by, created_at)'
+        )
+      }
+
       // Add updated_at timestamp
       const updateData = {
         ...body,
