@@ -19,6 +19,8 @@ import { createRouteHandlerClient } from '@/lib/supabase'
 import { withCsrfProtection } from '@/lib/security'
 import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission'
 import { syncGoogleAds } from '@/lib/sync/google-ads-sync'
+import { syncGmail } from '@/lib/sync/gmail-sync'
+import { syncSlack } from '@/lib/sync/slack-sync'
 import type { SyncJobConfig, SyncResult } from '@/lib/sync/types'
 
 interface RouteParams {
@@ -105,31 +107,93 @@ export const POST = withPermission({ resource: 'integrations', action: 'manage' 
         break
       }
 
-      case 'slack':
-        // TODO: Implement Slack sync (Phase 2)
-        syncResult = {
-          success: true,
-          provider: 'slack',
-          recordsProcessed: 0,
-          recordsCreated: 0,
-          recordsUpdated: 0,
-          errors: ['Slack sync not yet implemented'],
-          syncedAt: new Date().toISOString(),
-        }
-        break
+      case 'slack': {
+        const { records, result } = await syncSlack(syncConfig)
+        syncResult = result
 
-      case 'gmail':
-        // TODO: Implement Gmail sync
-        syncResult = {
-          success: true,
-          provider: 'gmail',
-          recordsProcessed: 0,
-          recordsCreated: 0,
-          recordsUpdated: 0,
-          errors: ['Gmail sync not yet implemented'],
-          syncedAt: new Date().toISOString(),
+        // Upsert communication records if we have any
+        if (records.length > 0) {
+          const { error: upsertError } = await supabase
+            .from('communication')
+            .upsert(
+              records.map((r) => ({
+                id: r.id,
+                agency_id: r.agency_id,
+                client_id: r.client_id,
+                platform: r.platform,
+                message_id: r.message_id,
+                sender_name: r.sender_name,
+                sender_email: r.sender_email,
+                subject: r.subject,
+                content: r.content,
+                created_at: r.created_at,
+                received_at: r.received_at,
+                thread_id: r.thread_id,
+                is_inbound: r.is_inbound,
+                needs_reply: r.needs_reply,
+                replied_at: r.replied_at,
+                replied_by: r.replied_by,
+              })),
+              {
+                onConflict: 'agency_id,client_id,platform,message_id',
+                ignoreDuplicates: false,
+              }
+            )
+
+          if (upsertError) {
+            console.error('[sync] communication upsert error:', upsertError)
+            syncResult.errors.push(`Database upsert failed: ${upsertError.message}`)
+            syncResult.success = false
+          } else {
+            syncResult.recordsCreated = records.length
+          }
         }
         break
+      }
+
+      case 'gmail': {
+        const { records, result } = await syncGmail(syncConfig)
+        syncResult = result
+
+        // Upsert communication records if we have any
+        if (records.length > 0) {
+          const { error: upsertError } = await supabase
+            .from('communication')
+            .upsert(
+              records.map((r) => ({
+                id: r.id,
+                agency_id: r.agency_id,
+                client_id: r.client_id,
+                platform: r.platform,
+                message_id: r.message_id,
+                sender_name: r.sender_name,
+                sender_email: r.sender_email,
+                subject: r.subject,
+                content: r.content,
+                created_at: r.created_at,
+                received_at: r.received_at,
+                thread_id: r.thread_id,
+                is_inbound: r.is_inbound,
+                needs_reply: r.needs_reply,
+                replied_at: r.replied_at,
+                replied_by: r.replied_by,
+              })),
+              {
+                onConflict: 'agency_id,client_id,platform,message_id',
+                ignoreDuplicates: false,
+              }
+            )
+
+          if (upsertError) {
+            console.error('[sync] communication upsert error:', upsertError)
+            syncResult.errors.push(`Database upsert failed: ${upsertError.message}`)
+            syncResult.success = false
+          } else {
+            syncResult.recordsCreated = records.length
+          }
+        }
+        break
+      }
 
       case 'meta_ads':
         // TODO: Implement Meta Ads sync
