@@ -7,26 +7,29 @@
 
 ---
 
-## Current State (2026-01-14)
+## Current State (2026-01-16)
 
 | Layer | Status | Notes |
 |-------|--------|-------|
+| **TIER 1.2 RBAC** | ✅ VALIDATED 9.5/10 | Production-ready. Schema/code mismatch bug found and fixed. 150+ tests passing. |
 | **Frontend UI** | ✅ 95% Complete | 80+ components, 11 views, Add Client Modal + Command Palette navigation added |
-| **API Routes** | ✅ Complete | 24 endpoints built |
-| **Zustand Stores** | ✅ Complete | 6 stores |
+| **API Routes** | ✅ Complete | 34 endpoints (up from 24), RBAC middleware enforced on all |
+| **Zustand Stores** | ✅ Complete | 7 stores including RBAC unified auth store |
 | **Demo Mode** | ✅ Working | Mock data fallback when unauthenticated |
 | **Database Schema** | ✅ APPLIED | All 19 tables with RLS, seed data loaded |
-| **Auth** | ✅ Working | Supabase Auth + user table linked |
+| **Auth** | ✅ Working | Supabase Auth + user table linked, session parsing fixed |
+| **RBAC Middleware** | ✅ COMPLETE | withPermission() wrapper, 4-level hierarchy enforced |
 | **Third-party APIs** | ❌ Not Connected | OAuth creds empty |
 | **AI Chat (HGC)** | ✅ INTEGRATED | 5 routes working: dashboard, casual, rag, web, memory |
 | **Function Calling** | ✅ COMPLETE | 6 dashboard functions with Supabase queries |
 | **RAG System** | ✅ PORTED | Gemini File Search with circuit breaker |
 | **Memory System** | ✅ PORTED | Mem0 integration with recall detection |
+| **Runtime Verification** | ✅ DOCUMENTED | Verification commands section in RUNBOOK.md |
 
-**LATEST (2026-01-04):** Holy Grail Chat (HGC) integration complete. All 5 smart router routes wired: dashboard (function calling), casual (Gemini), rag (Gemini File Search), web (Google Search Grounding), memory (Mem0). TypeScript compiles clean. API auth working (SEC-006).
+**LATEST (2026-01-16):** TIER 1.2 Multi-Org RBAC validation complete. 9.5/10 confidence. Production-critical schema/code mismatch bug discovered (role field vs role_id) and fixed via runtime testing. PAI system enhanced: EP-093 pattern added, verification commands documented, living documents protocol established.
 
-**DEVELOPMENT:** App works in demo mode with mock data. All views functional.
-**PRODUCTION:** Supabase has legacy War Room schema (Nov 2025). The `001_initial_schema.sql` migration was never applied.
+**DEVELOPMENT:** App works in demo mode with mock data. All views functional. Production code compiles with 0 errors.
+**PRODUCTION:** Supabase connected with TIER 1.2 RBAC tables. Ready for deployment after GitHub verification.
 
 ---
 
@@ -494,6 +497,7 @@ flowchart TD
 
 | Date | Change |
 |------|--------|
+| 2026-01-16 | **TIER 1.2 RBAC Validation Complete**: 9.5/10 confidence - production-ready. Schema/code mismatch bug found (role vs role_id) and fixed via runtime testing. PAI system enhanced: EP-093 pattern (global), verification commands (RUNBOOK.md), living documents protocol (CLAUDE.md), mem0 cross-session memory. See [VALIDATION.md](docs/04-technical/VALIDATION.md) for full audit. |
 | 2026-01-14 | **UI Fixes Complete**: Added Add Client Modal (312 lines), Command Palette navigation (10 items), fixed Off-boarding case mismatch. Red Team validated with Claude in Chrome. PAI system updated with runtime verification learnings. |
 | 2026-01-04 | **HGC Integration Complete**: Ported lib/rag/ and lib/memory/ from HGC. Wired all 5 smart router routes (dashboard, casual, rag, web, memory). Function calling with 6 Supabase-backed executors. API auth verified (SEC-006). |
 | 2026-01-02 | **Demo Mode Working**: Fixed infinite loop (EP-057), added mock data fallback for workflows API. App fully functional in demo mode. |
