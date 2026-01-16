@@ -22,7 +22,10 @@ vi.mock('@/lib/rag', () => ({
 vi.mock('@/lib/memory', () => ({
   getMemoryInjector: vi.fn(() => ({
     detectRecall: vi.fn((query: string) => ({
-      isRecall: true,
+      isRecallQuery: true,
+      confidence: 0.9,
+      extractedTopic: undefined,
+      timeReference: undefined,
       suggestedSearchQuery: query,
     })),
     injectMemories: vi.fn().mockResolvedValue({
