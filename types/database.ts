@@ -7,6 +7,7 @@ export type DocumentCategory = string
 export type IndexStatus = 'pending' | 'processing' | 'indexing' | 'indexed' | 'completed' | 'failed'
 export type CommunicationPlatform = 'email' | 'slack'
 export type IntegrationProvider = 'slack' | 'gmail' | 'google_ads' | 'meta_ads'
+export type OAuthProvider = 'gmail' | 'slack' | 'meta' | 'stripe'
 export type PreferenceCategory = string
 export type UserRole = 'admin' | 'user'
 export type WorkflowStatus = 'active' | 'paused' | 'disabled'
@@ -1173,6 +1174,53 @@ export type Database = {
             columns: ["agency_id"]
             isOneToOne: false
             referencedRelation: "agency"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_oauth_credential: {
+        Row: {
+          id: string
+          user_id: string
+          type: 'gmail' | 'slack' | 'meta' | 'stripe'
+          access_token: string
+          refresh_token: string | null
+          is_connected: boolean
+          last_sync_at: string | null
+          error_message: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          type: 'gmail' | 'slack' | 'meta' | 'stripe'
+          access_token: string
+          refresh_token?: string | null
+          is_connected?: boolean
+          last_sync_at?: string | null
+          error_message?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          type?: 'gmail' | 'slack' | 'meta' | 'stripe'
+          access_token?: string
+          refresh_token?: string | null
+          is_connected?: boolean
+          last_sync_at?: string | null
+          error_message?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_oauth_credential_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user"
             referencedColumns: ["id"]
           },
         ]
