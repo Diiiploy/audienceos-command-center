@@ -90,17 +90,18 @@ export const POST = withPermission({ resource: 'integrations', action: 'manage' 
       .eq('provider', provider as IntegrationProvider)
       .maybeSingle()
 
-    // If already connected, return 409
-    if (existing?.is_connected) {
+    // Credential-based providers (Slack, Google Ads, Meta Ads)
+    // These use manual token entry instead of OAuth flow
+    const credentialProviders = ['slack', 'google_ads', 'meta_ads']
+
+    // Only block reconnection for credential-based providers
+    // OAuth providers (gmail) can reconnect to refresh tokens
+    if (existing?.is_connected && credentialProviders.includes(provider)) {
       return NextResponse.json(
         { error: 'Integration already exists and is connected for this provider' },
         { status: 409 }
       )
     }
-
-    // Credential-based providers (Slack, Google Ads, Meta Ads)
-    // These use manual token entry instead of OAuth flow
-    const credentialProviders = ['slack', 'google_ads', 'meta_ads']
 
     if (credentialProviders.includes(provider) && credentials) {
       // Validate required credentials for each provider
