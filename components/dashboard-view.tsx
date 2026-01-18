@@ -14,7 +14,7 @@ import {
 import { type MinimalClient, getOwnerData } from "@/types/client"
 import { useDashboardStore } from "@/stores/dashboard-store"
 import { cn } from "@/lib/utils"
-import { Clock, AlertCircle, ExternalLink, X, CheckCircle2, CheckSquare, AlertTriangle, TrendingUp, Sparkles } from "lucide-react"
+import { Clock, AlertCircle, ExternalLink, X, CheckCircle2, CheckSquare, AlertTriangle, TrendingUp, Sparkles, PenLine, ArrowUpCircle, Clock3 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -601,17 +601,21 @@ function ClientDetailDrawer({
   )
 }
 
-// Alert Detail Drawer
+// Alert Detail Drawer - Enhanced with HGC features (Draft Response, Escalate, Snooze)
 function AlertDetailDrawer({
   item,
   onClose,
   onMarkComplete,
-  onSendToAI
+  onSendToAI,
+  onEscalate,
+  onSnooze
 }: {
   item: FirehoseItemData
   onClose: () => void
   onMarkComplete?: (itemId: string) => void
   onSendToAI?: (prompt: string) => void
+  onEscalate?: (itemId: string) => void
+  onSnooze?: (itemId: string) => void
 }) {
   const formatTimestamp = (date: Date) => {
     const now = new Date()
@@ -665,6 +669,22 @@ function AlertDetailDrawer({
       </div>
 
       <div className="p-4 border-t border-border space-y-2">
+        {/* Draft Response - sends prompt to draft a client response */}
+        <Button
+          variant="outline"
+          className="w-full"
+          size="sm"
+          onClick={() => {
+            const prompt = `Draft a professional response email for ${item.clientName || 'the client'} regarding: "${item.title || 'this alert'}". Context: ${item.description || 'No additional details'}`
+            onSendToAI?.(prompt)
+            onClose()
+          }}
+        >
+          <PenLine className="w-4 h-4 mr-2" />
+          Draft Response
+        </Button>
+
+        {/* Send to AI - analyze the alert */}
         <Button
           variant="outline"
           className="w-full bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-600 hover:text-amber-700"
@@ -672,24 +692,51 @@ function AlertDetailDrawer({
           onClick={() => {
             const prompt = `Analyze this critical alert: "${item.title || 'Untitled Alert'}" affecting ${item.clientName || 'a client'}. ${item.description || 'No details provided'}`
             onSendToAI?.(prompt)
-            onClose() // Close drawer after sending to AI
+            onClose()
           }}
         >
           <Sparkles className="w-4 h-4 mr-2" />
           Send to AI
         </Button>
+
+        {/* Action buttons row */}
+        <div className="flex gap-2">
+          <Button
+            className="flex-1"
+            size="sm"
+            variant="destructive"
+            onClick={() => onMarkComplete?.(item.id)}
+          >
+            <AlertCircle className="w-4 h-4 mr-2" />
+            Take Action
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              onEscalate?.(item.id)
+              onClose()
+            }}
+            title="Escalate to manager"
+          >
+            <ArrowUpCircle className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              onSnooze?.(item.id)
+              onClose()
+            }}
+            title="Snooze for 24 hours"
+          >
+            <Clock3 className="w-4 h-4" />
+          </Button>
+        </div>
+
         <Button
-          className="w-full"
-          size="sm"
-          variant="destructive"
-          onClick={() => onMarkComplete?.(item.id)}
-        >
-          <AlertCircle className="w-4 h-4 mr-2" />
-          Take Action
-        </Button>
-        <Button
-          variant="outline"
-          className="w-full"
+          variant="ghost"
+          className="w-full text-muted-foreground"
           size="sm"
           onClick={() => onMarkComplete?.(item.id)}
         >
@@ -821,6 +868,23 @@ export function DashboardView({ clients, onClientClick, onOpenClientDetail, onSe
     setSelectedTaskId(null)
     setSelectedAlertId(null)
     setSelectedPerfId(null)
+  }
+
+  // Handler for escalating items to manager
+  const handleEscalate = (itemId: string) => {
+    // TODO: Integrate with actual escalation API/workflow
+    console.log(`[Dashboard] Escalating item ${itemId} to manager`)
+    // For now, mark as handled and close drawer
+    setCompletedItems(prev => new Set(prev).add(itemId))
+    setSelectedAlertId(null)
+  }
+
+  // Handler for snoozing items (24 hours)
+  const handleSnooze = (itemId: string) => {
+    // TODO: Integrate with actual snooze API (store snooze expiry)
+    console.log(`[Dashboard] Snoozing item ${itemId} for 24 hours`)
+    // For now, just close the drawer (item remains visible)
+    setSelectedAlertId(null)
   }
 
   // Dashboard store - fetches KPIs from API
@@ -1192,6 +1256,8 @@ export function DashboardView({ clients, onClientClick, onOpenClientDetail, onSe
                     onClose={() => setSelectedAlertId(null)}
                     onMarkComplete={handleMarkComplete}
                     onSendToAI={onSendToAI}
+                    onEscalate={handleEscalate}
+                    onSnooze={handleSnooze}
                   />
                 </motion.div>
               )}
