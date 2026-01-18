@@ -350,7 +350,7 @@ describe('Complete Slack OAuth Flow', () => {
       expect(tokenResponse.access_token).toBeDefined()
       expect(tokenResponse.access_token.startsWith('xoxb-')).toBe(true)
       // Note: Slack standard flow doesn't provide refresh_token
-      expect(tokenResponse.refresh_token).toBeUndefined()
+      expect((tokenResponse as Record<string, unknown>).refresh_token).toBeUndefined()
     })
 
     it('should store Slack token in user_oauth_credential with type=slack', () => {
