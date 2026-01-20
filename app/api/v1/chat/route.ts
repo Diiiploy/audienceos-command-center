@@ -7,8 +7,12 @@ import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permi
 import { createRouteHandlerClient } from '@/lib/supabase';
 import { getGeminiRAG } from '@/lib/rag';
 import { getMemoryInjector } from '@/lib/memory';
+import { checkRateLimitDistributed } from '@/lib/security';
 import type { Citation } from '@/lib/chat/types';
 import type { SupabaseClient } from '@supabase/supabase-js';
+
+// Rate limit config for chat: 10 requests per minute per user
+const CHAT_RATE_LIMIT = { maxRequests: 10, windowMs: 60000 };
 
 // CRITICAL: Gemini 3 ONLY per project requirements
 const GEMINI_MODEL = 'gemini-3-flash-preview';
@@ -24,14 +28,37 @@ const GEMINI_MODEL = 'gemini-3-flash-preview';
 export const POST = withPermission({ resource: 'ai-features', action: 'write' })(
   async (request: AuthenticatedRequest) => {
   try {
-    // 1. Parse request body
-    const body = await request.json();
-    const { message, sessionId, stream = false } = body;
-
     // SECURITY FIX: Use authenticated user context, NOT request body
     // This prevents cross-agency data access via spoofed agencyId/userId
     const agencyId = request.user.agencyId;
     const userId = request.user.id;
+
+    // 0. Rate limiting check (10 req/min per user)
+    // Uses user ID as identifier for per-user limits (not IP)
+    const rateLimitResult = await checkRateLimitDistributed(
+      `chat:${userId}`,
+      CHAT_RATE_LIMIT
+    );
+
+    if (!rateLimitResult.allowed) {
+      console.warn(`[Chat API] Rate limit exceeded for user ${userId}`);
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait a moment before sending another message.' },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': String(CHAT_RATE_LIMIT.maxRequests),
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': String(Math.ceil(rateLimitResult.resetTime / 1000)),
+            'Retry-After': String(Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)),
+          },
+        }
+      );
+    }
+
+    // 1. Parse request body
+    const body = await request.json();
+    const { message, sessionId, stream = false } = body;
 
     if (!message) {
       return NextResponse.json(
