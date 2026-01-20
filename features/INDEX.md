@@ -96,15 +96,19 @@
 
 ## What's Missing for Production
 
+**Current Production Readiness: 65-70%** (audited 2026-01-20)
+
 | Category | Status | Notes |
 |----------|--------|-------|
 | **Database** | ✅ Done | Supabase seeded (1 agency, 4 users, 20 clients), RLS configured |
 | **Auth** | ✅ Done | Real Supabase auth works. Login page exists. Credentials fixed for all API calls (2026-01-05). |
 | **Settings Wire-up** | ✅ Done | SET-006 to SET-009 complete. All CRUD operations functional (2026-01-05) |
-| **Third-party APIs** | ⏳ Pending | Gmail, Slack, Google Ads, Meta (OAuth handlers exist, need testing) |
-| **Testing** | ⏳ Pending | Unit tests (14), E2E tests (3), more tests in progress |
+| **Third-party APIs** | 🚧 In Progress | Gmail OAuth works (2026-01-20), Slack needs app setup |
+| **Testing** | ✅ Improved | Unit tests (1,393), E2E tests (16/17), Coverage 51.45% |
 | **Monitoring** | ⏳ Pending | Sentry integration needed |
 | **Multi-Org Roles** | 🔄 Phase 4 | Client Assignment UI complete (2026-01-12). 4 phases done (RLS, Middleware, Routes, UI). Next: E2E testing |
+| **Security Hardening** | 🔴 Needed | 27 routes missing rate limits, env fallbacks, 100+ console.log statements. See CTO-ACTION-PLAN.md |
+| **Feature Blockers** | 🔴 Needed | 9 TODO comments block core features (pickers, reply sending, stage transitions) |
 
 ---
 
