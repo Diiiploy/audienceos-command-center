@@ -49,9 +49,17 @@ lib/chat/functions/
 └── google-workspace.ts   # Gmail, Calendar, Drive
 ```
 
-### Next Step: Wire Context into Chat Route
+### Final Step Complete: Context Wired into Chat Route ✅
 
-The context modules are built but not yet wired into the chat route's system prompt. This is the final integration step.
+**Commit:** `21777d8`
+
+The context modules are now fully wired into the chat route:
+- `buildSystemPrompt()` combines all 3 context layers (app structure, cartridges, chat history)
+- `handleCasualRoute` and `handleDashboardRoute` use rich system prompt
+- `persistChatMessages()` saves conversation to database
+- Build passes, 1,459 tests passing
+
+**HGC Transplant: FULLY COMPLETE**
 
 ---
 
