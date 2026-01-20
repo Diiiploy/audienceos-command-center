@@ -168,23 +168,34 @@ export function LinearSidebar({
       transition={transition}
       className="bg-sidebar border-r border-sidebar-border flex flex-col h-screen"
     >
-      {/* Header - TEMPORARY: Kaizen branding for demo (2026-01-14) - see RUNBOOK.md */}
+      {/* Header - AudienceOS branding (restored 2026-01-20) */}
       <div className="h-[52px] px-[15px] flex items-center justify-center">
         <div className="flex items-center justify-between w-full">
           <div className={cn("flex items-center", collapsed && "justify-center w-full")}>
             <AnimatePresence mode="wait" initial={false}>
               {!collapsed ? (
-                <motion.span
+                <motion.div
                   key="full-logo"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={fadeTransition}
-                  className="text-[17px] tracking-tight font-medium"
-                  style={{ color: '#B91C1C' }}
+                  className="flex items-center gap-0"
+                  style={{ fontFamily: 'var(--font-poppins), Poppins, sans-serif' }}
                 >
-                  kaizen
-                </motion.span>
+                  <span className="text-[17px] font-semibold tracking-tight text-white">audience</span>
+                  <span
+                    className="text-[17px] font-light tracking-tight"
+                    style={{
+                      background: "linear-gradient(90deg, #a855f7 0%, #ec4899 50%, #06b6d4 100%)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      backgroundClip: "text",
+                    }}
+                  >
+                    OS
+                  </span>
+                </motion.div>
               ) : (
                 <motion.span
                   key="short-logo"
@@ -192,10 +203,15 @@ export function LinearSidebar({
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={fadeTransition}
-                  className="text-[15px] font-medium"
-                  style={{ color: '#B91C1C' }}
+                  className="text-[15px] font-semibold"
+                  style={{
+                    background: "linear-gradient(90deg, #a855f7 0%, #ec4899 50%, #06b6d4 100%)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text",
+                  }}
                 >
-                  K
+                  A
                 </motion.span>
               )}
             </AnimatePresence>
