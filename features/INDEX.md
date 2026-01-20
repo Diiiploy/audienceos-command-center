@@ -49,8 +49,8 @@ AudienceOS selected as foundation for unified platform with RevOS. Integration p
 | knowledge-base | ✅ Complete | [knowledge-base.md](knowledge-base.md) | 85% | Documents loading fixed 2026-01-05 (auth credentials) |
 | automations | ✅ Complete | [automations.md](automations.md) | 90% | Workflows loading fixed 2026-01-05 (auth credentials) |
 | settings | ✅ Complete | [settings.md](settings.md) | 98% | SET-001 to SET-009 complete. All APIs wired + auth fixed 2026-01-05. |
-| ai-intelligence-layer (HGC) | ✅ Complete | [ai-intelligence-layer.md](ai-intelligence-layer.md) | 95% | **E2E VERIFIED 2026-01-09**: AI Chat responds correctly to queries. Function calling works. Gemini 3 operational. |
-| audienceos-chat | ✅ Complete | [audienceos-chat.md](audienceos-chat.md) | 95% | **E2E VERIFIED 2026-01-09**: Chat tested with "How many clients at risk?" - got intelligent response with client details. Gemini 3 confirmed. |
+| ai-intelligence-layer (HGC) | ✅ Complete | [ai-intelligence-layer.md](ai-intelligence-layer.md) | 98% | **CONTEXT LAYER COMPLETE 2026-01-20**: All 7 blockers fixed (59 tests). Rate limiting, memory storage, app self-awareness, cartridge context, chat history, OAuth provider, Google Workspace functions. Commits: 612e157→2120d7f. |
+| audienceos-chat | ✅ Complete | [audienceos-chat.md](audienceos-chat.md) | 98% | **HGC TRANSPLANT 2026-01-20**: Full context layer built. 10 function executors (6 core + 4 Google Workspace). Mem0 memory storage wired. Next: Wire context into system prompt. |
 | send-to-ai-integration | ✅ Complete | [send-to-ai-integration.md](send-to-ai-integration.md) | 100% | Contextual AI prompts from dashboard. Global chat opener. Task & client integration. Commit 3131525 (2026-01-06). |
 | dashboard-redesign | ✅ Complete | [dashboard-redesign.md](dashboard-redesign.md) | 95% | Linear design system merged. All features now fully functional. |
 

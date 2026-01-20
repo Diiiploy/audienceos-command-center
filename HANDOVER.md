@@ -5,33 +5,53 @@
 
 ---
 
-## Active Task: HGC Transplant Completion
+## Completed Task: HGC Transplant - All 7 Blockers ✅
 
-**Status:** IN PROGRESS - Audit complete, planning implementation
+**Status:** COMPLETE
 **Priority:** HIGH
-**Started:** 2026-01-20
+**Completed:** 2026-01-20
 
 ### Summary
 
-Completing the HGC (Holy Grail Chat) transplant into AudienceOS. The current implementation is ~80% complete but has gaps.
+All 7 HGC (Holy Grail Chat) context layer blockers have been fixed, tested, and committed.
 
-### Audit Findings
+### Blockers Completed
 
-| Area | Current | Missing | Action |
-|------|---------|---------|--------|
-| SmartRouter | ✅ Complete | - | Keep |
-| Function executors | 6 of 10 | Gmail, Calendar, Drive, OAuth check | Port from HGC |
-| Memory (Mem0) | Retrieval ✅ | Storage ❌ | Add `addMemory()` call |
-| Context injection | ❌ | Page/client context | Port from HGC |
-| Rate limiting | ❌ | Chat route unprotected | Add rate limiter |
+| # | Blocker | Implementation | Tests | Commit |
+|---|---------|----------------|-------|--------|
+| 1 | Rate Limiting | `app/api/v1/chat/route.ts` | ✅ | `612e157` |
+| 2 | Memory Storage | `app/api/v1/chat/route.ts` (fire-and-forget) | 5 tests | `e0141e6` |
+| 3 | App Self-Awareness | `lib/chat/context/app-structure.ts` | 13 tests | `5d8ec9d` |
+| 4 | Cartridge Context | `lib/chat/context/cartridge-loader.ts` | 14 tests | `becda7d` |
+| 5 | Chat History | `lib/chat/context/chat-history.ts` | 9 tests | `53c8b54` |
+| 6 | OAuth Provider | `lib/chat/functions/oauth-provider.ts` | 9 tests | `aa5cd31` |
+| 7 | Google Workspace | `lib/chat/functions/google-workspace.ts` | 9 tests | `2120d7f` |
 
-### Blocker
+### Key Architecture Decisions
 
-**Diiiploy-Gateway** - Google Workspace functions require multi-tenant OAuth gateway. Spec exists (`docs/04-technical/DIIIPLOY-GATEWAY.md`) but not deployed.
+- **Multi-tenant OAuth:** Direct Google APIs with user tokens (not diiiploy-gateway single-tenant)
+- **Dual-scoped memory:** `{agencyId}:{userId}` format in Mem0
+- **Fire-and-forget:** Memory storage is non-blocking
+- **Graceful degradation:** Functions return "not connected" when integrations missing
+- **5-minute cache TTL:** Cartridge context cached for performance
 
-### Next Steps
+### Files Created (7 new modules)
 
-See `features/hgc-transplant.md` for detailed implementation plan.
+```
+lib/chat/context/
+├── app-structure.ts      # App navigation awareness
+├── cartridge-loader.ts   # Brand/style/instructions
+├── chat-history.ts       # Session persistence
+└── index.ts              # Exports
+
+lib/chat/functions/
+├── oauth-provider.ts     # Token decryption for functions
+└── google-workspace.ts   # Gmail, Calendar, Drive
+```
+
+### Next Step: Wire Context into Chat Route
+
+The context modules are built but not yet wired into the chat route's system prompt. This is the final integration step.
 
 ---
 
