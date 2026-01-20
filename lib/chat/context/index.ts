@@ -1,0 +1,15 @@
+/**
+ * Chat Context Module
+ *
+ * Provides app awareness and context injection for the chat system.
+ */
+
+export {
+  APP_STRUCTURE,
+  buildAppContext,
+  generateAppContextPrompt,
+  getPageByPath,
+  getNavigablePages,
+  type AppPage,
+  type AppContext,
+} from './app-structure';
