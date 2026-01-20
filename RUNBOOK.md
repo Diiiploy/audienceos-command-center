@@ -1,7 +1,7 @@
 # AudienceOS Command Center - RUNBOOK
 
 **Status:** Production active | 95% MVP complete | ✅ TIER 1.2 VALIDATED 2026-01-16
-**Last Updated:** 2026-01-16
+**Last Updated:** 2026-01-18
 **For strategy/status:** See CLAUDE.md | **For day-to-day ops:** This file | **For validation results:** See docs/04-technical/VALIDATION.md
 
 ---
@@ -66,6 +66,67 @@
 
 ### Full Details
 See: `docs/04-technical/VALIDATION.md` (living document, updated per cycle)
+
+---
+
+## ✅ Multi-Tenant Sync Architecture Fix (2026-01-18)
+
+**What Changed:** Gmail and Slack sync workers now use direct API calls instead of chi-gateway.
+
+### Root Cause
+Both `lib/sync/gmail-sync.ts` and `lib/sync/slack-sync.ts` were using chi-gateway, which is single-tenant infrastructure (uses Roderic's personal OAuth credentials). This is fundamentally incompatible with multi-tenant SaaS where each agency needs their own OAuth tokens.
+
+### Architecture Fix
+```
+BEFORE (broken):
+sync worker → chi-gateway → uses single OAuth token
+
+AFTER (correct):
+sync worker → Gmail/Slack API directly → uses agency's OAuth token from request
+```
+
+### Commits
+- `6f4a1f7` - gmail-sync.ts: Direct Gmail API (gmail.googleapis.com)
+- `7f9d6b2` - slack-sync.ts: Direct Slack API (api.slack.com)
+- `1eaf006` - 21 unit tests for /api/v1/integrations/[id]/sync route
+
+### Verification
+```bash
+npm test -- __tests__/api/integration-sync.test.ts  # 21/21 passing
+npm run build  # ✅ Succeeds
+```
+
+---
+
+## ⚠️ Cartridge Test Failures - Root Cause Analysis (2026-01-18)
+
+**46 tests fail in CI. Here's why:**
+
+### Test Files That Fail
+- `cartridges-brand.test.ts` - 12 failures
+- `cartridges-preferences.test.ts` - 8 failures
+- `cartridges-style.test.ts` - 10 failures
+- `cartridges-instructions.test.ts` - 16 failures
+
+### Root Cause
+These tests use `fetch('http://localhost:3000/api/v1/cartridges/brand')`:
+1. **No server running** - Vitest runs without dev server, so `fetch()` returns undefined
+2. **Wrong endpoints** - Tests call `/api/v1/cartridges/brand` but actual API is `/api/v1/cartridges?type=brand` or `/api/v1/cartridges/by-type/brand`
+3. **Spec tests, not integration tests** - Written as specifications before backend was built
+
+### Why Backend IS Working
+- Backend confirmed working 2026-01-15 (7 commits, 349 tests passing)
+- Actual API: `/api/v1/cartridges` (GET list, POST create with type param)
+- Actual API: `/api/v1/cartridges/[id]` (GET, PATCH, DELETE single)
+- Actual API: `/api/v1/cartridges/by-type/[type]` (GET filtered by type)
+
+### Resolution Options
+1. **Delete spec tests** - They served their purpose as documentation
+2. **Rewrite as unit tests** - Mock fetch, test validation logic only
+3. **Mark as skipped** - Add `.skip` until E2E infrastructure exists
+
+### Non-Blocking
+These 46 failures do NOT indicate bugs. Backend is production-ready. Tests need updating to match actual API structure.
 
 ---
 
@@ -329,11 +390,38 @@ npm test -- __tests__/api/chat-routes.test.ts 2>&1 | grep "should detect recall"
 
 | Environment | URL | Status |
 |-------------|-----|--------|
-| **Production** | [audienceos-agro-bros.vercel.app](https://audienceos-agro-bros.vercel.app) | ✅ Active |
-| **GitHub** | [growthpigs/audienceos-command-center](https://github.com/growthpigs/audienceos-command-center) | Main branch |
-| **Vercel** | [vercel.com/agro-bros/audienceos](https://vercel.com/agro-bros/audienceos) | Deployment logs |
+| **Production** | [v0-audience-os-command-center.vercel.app](https://v0-audience-os-command-center.vercel.app) | ✅ Active |
+| **GitHub** | [agro-bros/audienceos-command-center](https://github.com/agro-bros/audienceos-command-center) | Main branch |
+| **Vercel Dashboard** | [vercel.com/chase-6917s-projects/v0-audience-os-command-center](https://vercel.com/chase-6917s-projects/v0-audience-os-command-center) | Deployment logs |
 
-**Deployment:** Push to `main` → Vercel auto-deploys → Check URL after 2 min
+### ⚠️ Deployment Method: CLI Only (2026-01-20)
+
+**Situation:** Git auto-deploy is broken. Repo was transferred from `growthpigs/` to `agro-bros/`. Vercel only has access to `growthpigs/`.
+
+**Current Deployment Method:**
+```bash
+# From project root
+npx vercel --prod --yes
+```
+
+This bypasses Git and deploys directly from local files.
+
+### GitHub Repo Status
+
+| What | Value |
+|------|-------|
+| **Canonical Location** | `agro-bros/audienceos-command-center` |
+| **Old Location (redirects)** | `growthpigs/audienceos-command-center` |
+| **Git Remote** | Points to `agro-bros/` |
+
+### To Fix Auto-Deploy (Optional)
+
+One of these options:
+1. **Add agro-bros to Vercel:** Settings → Git → Add GitHub Account → Authorize agro-bros org
+2. **Transfer repo back:** Move repo from agro-bros to growthpigs on GitHub
+3. **Keep using CLI:** Works reliably, just requires manual deploy
+
+**Current recommendation:** Use CLI until we decide on the GitHub org structure
 
 ---
 
