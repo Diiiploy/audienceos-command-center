@@ -13,3 +13,15 @@ export {
   type AppPage,
   type AppContext,
 } from './app-structure';
+
+export {
+  loadCartridgeContext,
+  generateCartridgeContextPrompt,
+  hasCartridgeContext,
+  invalidateCartridgeCache,
+  clearCartridgeCache,
+  type BrandCartridge,
+  type StyleCartridge,
+  type InstructionCartridge,
+  type CartridgeContext,
+} from './cartridge-loader';
