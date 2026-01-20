@@ -7,6 +7,7 @@ import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permi
 import { createRouteHandlerClient } from '@/lib/supabase';
 import { getGeminiRAG } from '@/lib/rag';
 import { getMemoryInjector } from '@/lib/memory';
+import { initializeMem0Service } from '@/lib/memory/mem0-service';
 import { checkRateLimitDistributed } from '@/lib/security';
 import type { Citation } from '@/lib/chat/types';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -110,6 +111,12 @@ export const POST = withPermission({ resource: 'ai-features', action: 'write' })
       // Use basic Gemini response for other routes (may include web grounding citations)
       responseContent = await handleCasualRoute(apiKey, message, route, citations);
     }
+
+    // 4b. Store conversation in memory (fire-and-forget, don't block response)
+    // Memory is dual-scoped: per-user AND per-agency via scoped userId
+    storeConversationMemory(agencyId, userId, sessionId, message, responseContent, route).catch(
+      (err) => console.warn('[Chat API] Memory storage failed (non-blocking):', err)
+    );
 
     // 5. Return response (streaming or JSON)
     if (stream === true) {
@@ -527,6 +534,42 @@ function insertInlineCitations(
   }
 
   return result;
+}
+
+/**
+ * Store conversation in memory for cross-session recall
+ * Fire-and-forget: should not block the chat response
+ * Dual-scoped: stores with both agencyId and userId via scoped userId format
+ */
+async function storeConversationMemory(
+  agencyId: string,
+  userId: string,
+  sessionId: string | undefined,
+  userMessage: string,
+  assistantResponse: string,
+  route: string
+): Promise<void> {
+  try {
+    const mem0Service = initializeMem0Service();
+
+    // Create a conversation summary for memory storage
+    const conversationContent = `User: "${userMessage}"\nAssistant: "${assistantResponse.substring(0, 500)}${assistantResponse.length > 500 ? '...' : ''}"`;
+
+    await mem0Service.addMemory({
+      content: conversationContent,
+      agencyId,
+      userId,
+      sessionId: sessionId || `session-${Date.now()}`,
+      type: 'conversation',
+      topic: route,
+      importance: route === 'memory' ? 'high' : 'medium', // Memory recalls are high importance
+    });
+
+    console.log(`[Chat API] Memory stored for user ${userId} (route: ${route})`);
+  } catch (error) {
+    // Don't throw - memory storage is non-critical
+    console.warn('[Chat API] Memory storage error:', error);
+  }
 }
 
 /**
