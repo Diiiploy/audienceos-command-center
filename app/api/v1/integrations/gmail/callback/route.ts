@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL
     const redirectUri = `${appUrl}/api/v1/integrations/gmail/callback`
 
-    console.log('[Gmail Callback] Exchanging authorization code for tokens', { userId })
+    // Token exchange in progress - do not log userId
 
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
@@ -105,7 +105,6 @@ export async function GET(request: NextRequest) {
 
     if (!tokens.access_token) {
       console.error('[Gmail Callback] Token exchange failed', {
-        userId,
         error: tokens.error || 'unknown',
       })
       const redirectUrl = new URL('/settings/integrations', request.url)
@@ -113,12 +112,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(redirectUrl.toString())
     }
 
-    console.log('[Gmail Callback] Token exchange successful', { userId })
+    // Token exchange successful
 
     // Step 7: Encrypt tokens before storage
     const accessTokenEncrypted = encryptToken(tokens.access_token)
     if (!accessTokenEncrypted) {
-      console.error('[Gmail Callback] Failed to encrypt access token', { userId })
+      console.error('[Gmail Callback] Failed to encrypt access token')
       const redirectUrl = new URL('/settings/integrations', request.url)
       redirectUrl.searchParams.set('error', 'encryption_failed')
       return NextResponse.redirect(redirectUrl.toString())
@@ -147,13 +146,13 @@ export async function GET(request: NextRequest) {
       )
 
     if (insertError) {
-      console.error('[Gmail Callback] Database storage failed', { userId, error: insertError })
+      console.error('[Gmail Callback] Database storage failed', { error: insertError.message })
       const redirectUrl = new URL('/settings/integrations', request.url)
       redirectUrl.searchParams.set('error', 'storage_failed')
       return NextResponse.redirect(redirectUrl.toString())
     }
 
-    console.log('[Gmail Callback] Credentials stored successfully', { userId })
+    // Credentials stored successfully
 
     // Step 9: Trigger initial sync (async, don't wait for response)
     // This allows immediate email thread fetching in the background

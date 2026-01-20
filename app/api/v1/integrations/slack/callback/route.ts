@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL
     const redirectUri = `${appUrl}/api/v1/integrations/slack/callback`
 
-    console.log('[Slack Callback] Exchanging authorization code for token', { userId })
+    // Token exchange in progress - do not log userId
 
     const tokenResponse = await fetch('https://slack.com/api/oauth.v2.access', {
       method: 'POST',
@@ -105,7 +105,6 @@ export async function GET(request: NextRequest) {
     // Slack returns {ok: false, error: string} on failure
     if (!tokens.ok || !tokens.access_token) {
       console.error('[Slack Callback] Token exchange failed', {
-        userId,
         error: tokens.error || 'unknown',
       })
       const redirectUrl = new URL('/settings/integrations', request.url)
@@ -113,12 +112,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(redirectUrl.toString())
     }
 
-    console.log('[Slack Callback] Token exchange successful', { userId })
+    // Token exchange successful
 
     // Step 7: Encrypt token before storage
     const accessTokenEncrypted = encryptToken(tokens.access_token)
     if (!accessTokenEncrypted) {
-      console.error('[Slack Callback] Failed to encrypt access token', { userId })
+      console.error('[Slack Callback] Failed to encrypt access token')
       const redirectUrl = new URL('/settings/integrations', request.url)
       redirectUrl.searchParams.set('error', 'encryption_failed')
       return NextResponse.redirect(redirectUrl.toString())
@@ -144,13 +143,13 @@ export async function GET(request: NextRequest) {
       )
 
     if (insertError) {
-      console.error('[Slack Callback] Database storage failed', { userId, error: insertError })
+      console.error('[Slack Callback] Database storage failed', { error: insertError.message })
       const redirectUrl = new URL('/settings/integrations', request.url)
       redirectUrl.searchParams.set('error', 'storage_failed')
       return NextResponse.redirect(redirectUrl.toString())
     }
 
-    console.log('[Slack Callback] Credentials stored successfully', { userId })
+    // Credentials stored successfully
 
     // Step 9: Trigger initial sync (async, don't wait for response)
     // This allows immediate channel fetching in the background
