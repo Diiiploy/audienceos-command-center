@@ -1,29 +1,22 @@
 /**
  * Cryptographic Utilities
  * Handles OAuth state signing, token encryption, and secure key derivation
+ *
+ * Security: All secrets are validated via lib/env.ts at startup.
+ * In production, missing secrets will throw before this module loads.
  */
 
 import { createHmac, createCipheriv, createDecipheriv, randomBytes } from 'crypto'
 import type { IntegrationProvider } from '@/types/database'
+import { serverEnv } from '@/lib/env'
 
 // =============================================================================
 // CONFIGURATION
 // =============================================================================
 
-// Security: In production, these MUST be set. Never use fallbacks.
-const IS_PRODUCTION = process.env.NODE_ENV === 'production'
-const OAUTH_SECRET = process.env.OAUTH_STATE_SECRET || process.env.NEXTAUTH_SECRET || ''
-const TOKEN_ENCRYPTION_KEY = process.env.TOKEN_ENCRYPTION_KEY || ''
-
-// Validate critical secrets at module load in production
-if (IS_PRODUCTION) {
-  if (!OAUTH_SECRET) {
-    throw new Error('[SECURITY] OAUTH_STATE_SECRET is required in production. Set it in environment variables.')
-  }
-  if (!TOKEN_ENCRYPTION_KEY) {
-    throw new Error('[SECURITY] TOKEN_ENCRYPTION_KEY is required in production. Set it in environment variables.')
-  }
-}
+// Secrets are validated by lib/env.ts - no fallbacks needed here
+const OAUTH_SECRET = serverEnv.oauthStateSecret
+const TOKEN_ENCRYPTION_KEY = serverEnv.tokenEncryptionKey
 
 // Algorithm constants
 const HMAC_ALGORITHM = 'sha256'
@@ -46,20 +39,11 @@ export interface OAuthStatePayload {
  * Format: base64(payload).base64(hmac_signature)
  */
 export function signOAuthState(payload: OAuthStatePayload): string {
-  if (!OAUTH_SECRET) {
-    if (IS_PRODUCTION) {
-      throw new Error('[SECURITY] Cannot sign OAuth state without OAUTH_STATE_SECRET in production')
-    }
-    // Development only: warn but allow with a dev-only key
-    console.warn('[crypto] OAUTH_STATE_SECRET not set - using development fallback (NOT FOR PRODUCTION)')
-  }
-
   const payloadStr = JSON.stringify(payload)
   const payloadB64 = Buffer.from(payloadStr).toString('base64url')
 
-  // Create HMAC signature - use secret or dev-only fallback (never in prod due to check above)
-  const signingKey = OAUTH_SECRET || 'dev-only-insecure-key-not-for-production'
-  const hmac = createHmac(HMAC_ALGORITHM, signingKey)
+  // OAUTH_SECRET is guaranteed by lib/env.ts validation
+  const hmac = createHmac(HMAC_ALGORITHM, OAUTH_SECRET)
   hmac.update(payloadB64)
   const signature = hmac.digest('base64url')
 
@@ -79,9 +63,8 @@ export function verifyOAuthState(signedState: string): OAuthStatePayload | null 
 
     const [payloadB64, providedSignature] = parts
 
-    // Recalculate signature - use same key logic as signOAuthState
-    const signingKey = OAUTH_SECRET || 'dev-only-insecure-key-not-for-production'
-    const hmac = createHmac(HMAC_ALGORITHM, signingKey)
+    // OAUTH_SECRET is guaranteed by lib/env.ts validation
+    const hmac = createHmac(HMAC_ALGORITHM, OAUTH_SECRET)
     hmac.update(payloadB64)
     const expectedSignature = hmac.digest('base64url')
 
@@ -124,14 +107,7 @@ interface EncryptedToken {
  * Returns encrypted data with IV and auth tag for storage
  */
 export function encryptToken(plaintext: string): EncryptedToken | null {
-  if (!TOKEN_ENCRYPTION_KEY) {
-    if (IS_PRODUCTION) {
-      throw new Error('[SECURITY] Cannot encrypt tokens without TOKEN_ENCRYPTION_KEY in production')
-    }
-    console.warn('[crypto] TOKEN_ENCRYPTION_KEY not set - tokens will be stored unencrypted (DEV ONLY)')
-    return null
-  }
-
+  // TOKEN_ENCRYPTION_KEY is guaranteed by lib/env.ts validation
   try {
     // Derive 32-byte key from the secret
     const key = deriveKey(TOKEN_ENCRYPTION_KEY)
@@ -151,8 +127,8 @@ export function encryptToken(plaintext: string): EncryptedToken | null {
       data: encrypted,
       tag: authTag.toString('base64'),
     }
-  } catch (error) {
-    console.error('[crypto] Encryption failed:', error)
+  } catch {
+    // Encryption failed - return null, caller handles error
     return null
   }
 }
@@ -162,14 +138,7 @@ export function encryptToken(plaintext: string): EncryptedToken | null {
  * Returns null if decryption fails (wrong key, tampered data, etc.)
  */
 export function decryptToken(encrypted: EncryptedToken): string | null {
-  if (!TOKEN_ENCRYPTION_KEY) {
-    if (IS_PRODUCTION) {
-      throw new Error('[SECURITY] Cannot decrypt tokens without TOKEN_ENCRYPTION_KEY in production')
-    }
-    console.warn('[crypto] TOKEN_ENCRYPTION_KEY not set - cannot decrypt (DEV ONLY)')
-    return null
-  }
-
+  // TOKEN_ENCRYPTION_KEY is guaranteed by lib/env.ts validation
   try {
     const key = deriveKey(TOKEN_ENCRYPTION_KEY)
     const iv = Buffer.from(encrypted.iv, 'base64')
@@ -184,8 +153,8 @@ export function decryptToken(encrypted: EncryptedToken): string | null {
     decrypted += decipher.final('utf8')
 
     return decrypted
-  } catch (error) {
-    console.error('[crypto] Decryption failed:', error)
+  } catch {
+    // Decryption failed - return null, caller handles error
     return null
   }
 }

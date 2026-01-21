@@ -1,95 +1,150 @@
 # Active Tasks
 
-## ✅ COMPLETED: Week 1 Security Hardening - Phase 1 (2026-01-20)
+## 🎯 CURRENT PRIORITY: RevOS Integration into AudienceOS
 
-**Branch:** `security-hardening` → MERGED TO `main`
-**Status:** Phase 1 COMPLETE - merged to main
-
-### Completed:
-- ✅ `lib/crypto.ts` - Production guards, removed insecure fallback keys
-- ✅ `lib/env.ts` - NEW centralized env validation module (202 lines)
-- ✅ Gmail/Slack/LinkedIn callbacks - Removed userId from all console logs
-- ✅ `get-clients.ts`, `get-alerts.ts`, `get-agency-stats.ts`, `get-recent-communications.ts` - Throw in production instead of mock data
-- ✅ 11 files cleaned of PII exposure (reduced userId logs from 43 to ~19)
-- ✅ Unit tests for lib/env.ts (217 lines)
-- ✅ Lint passes (0 errors, 239 warnings)
-
-### Commits (merged to main):
-- `86f5c08` - security: Week 1 hardening - crypto, env, console logs
-- `b2002b1` - security: add production guards to chat function mock data fallbacks
-- `1cacc4d` - security: remove userId/PII from console.log statements
-- `8e75d20` - test: add unit tests for lib/env.ts environment validation
-- `435a8c7` - merge: Week 1 security hardening to main
-
-### Exit Criteria (Week 1) - Progress:
-- [x] Zero hardcoded fallback keys (DONE)
-- [x] Centralized env validation in use (DONE - lib/env.ts)
-- [~] Zero userId/integrationId in production logs (PARTIAL - reduced by 50%+)
-- [ ] All OAuth routes protected with RBAC (FUTURE)
-
-### Remaining Work (Week 1 continued):
-- Apply `withPermission(member)` to 9 OAuth routes
-- Add rate limiting to unprotected auth routes (security.ts already exists)
+**Goal:** Unify RevOS + AudienceOS into single platform
+**Plan:** `audienceos-unified-platform/docs/05-planning/CTO-DECISION-2026-01-20.md`
+**Worktree:** `/Users/rodericandrews/_PAI/projects/audienceos-unified-platform`
+**Branch:** `feature/unified-platform`
+**Confidence:** 4/10 (Red Team audit 2026-01-21 - security blockers)
+**Foundation:** AudienceOS codebase + Supabase
 
 ---
 
-## ✅ COMPLETED: Gmail/Slack Integration Fix (2026-01-20)
+## 🚨 BLOCKING: Week 1 Security (Must Complete First)
 
-**Status:** DEPLOYED TO PRODUCTION
+**Status:** 1/6 EXIT CRITERIA MET
 
-**Problem Identified:**
-- UI showed "0 connected" despite database having integrations with `is_connected: TRUE`
-- Root cause: UI read from diiiploy-gateway (single-tenant) instead of Supabase `integration` table
-- Gateway returned `warning` status which UI didn't handle (only mapped `ok` → connected)
+Per CTO Decision 2026-01-20: "Week 1 is security hardening. No exceptions."
 
-**Fix Applied:**
-1. ✅ Rewrote `integrations-hub.tsx` to fetch from `/api/v1/integrations` (Supabase)
-2. ✅ Updated `allIntegrations` builder to use `is_connected` from DB response
-3. ✅ Removed gateway health dependency for integration status
-4. ✅ Added human-readable last sync time formatting
-5. ✅ Added type safety to API response
+| Exit Criteria | Required | Actual | Status |
+|---------------|----------|--------|--------|
+| `lib/env.ts` with validation | Yes | EXISTS | ✅ |
+| `lib/logger.ts` structured logging | Yes | MISSING | ❌ |
+| Console statements in app/api + lib/crypto.ts | 0 | 266 | ❌ |
+| crypto.ts fallbacks removed | Yes | Still has `\|\| ''` | ❌ |
+| Rate limiting on chat/sync/OAuth | Yes | MISSING | ❌ |
+| Token refresh (oauth-utils.ts) | Yes | MISSING | ❌ |
 
-**Commits:**
-- `9e87678` - "fix(integrations): read from Supabase instead of diiiploy-gateway"
-- `579daf8` - "fix(integrations): add type safety to API response"
-
-**Deployment:**
-- Vercel Git connection was broken (repo transferred from `growthpigs/` to `agro-bros/`)
-- Deployed via Vercel CLI: `npx vercel --prod`
-- Production URL: https://v0-audience-os-command-center.vercel.app
-- Build completed successfully at 09:24 UTC
-
-**Verification:**
-- ✅ Build passes (0 TypeScript errors)
-- ✅ 103/103 integration tests pass
-- ✅ Production site loads correctly
-- ✅ Integration status reads from Supabase (shows "0 connected" for users without integrations)
-- ✅ User-specific integration status (Brent CEO shows his status, Trevor will see his)
+**Tasks:**
+- [ ] FIX-1: Remove crypto.ts fallbacks → Verify: `npm run build` fails if env missing
+- [ ] FIX-2: Create `lib/logger.ts` with Pino → Verify: `npm test` imports work
+- [ ] FIX-3: Replace console statements → Verify: `grep` count < 10
+- [ ] FIX-4: Add rate limiting → Verify: Browser 429 on rapid requests
+- [ ] FIX-5: Create oauth-utils.ts → Verify: Token refresh works
 
 ---
 
-## ⚠️ Remaining Issue: Vercel Git Connection
+### Phase 0: Database Schema Prep (1-2 days)
 
-**Problem:** Vercel project was connected to `growthpigs/audienceos-command-center` but repo was transferred to `agro-bros/audienceos-command-center`. Auto-deployments are broken.
+**Status:** BLOCKED on Week 1 Security
 
-**Current State:**
-- Manual deployments via `npx vercel --prod` work
-- Git webhooks don't trigger deployments automatically
+**Tasks:**
+- [ ] Create migration: `supabase/migrations/025_add_revos_tables.sql`
+- [ ] Create migration: `supabase/migrations/026_unify_cartridges.sql`
+- [ ] Update `lib/memory/mem0-service.ts` to 3-part format
+- [ ] Apply migrations to AudienceOS Supabase (`ebxshdqfaqupnvpghodi`)
+- [ ] Generate TypeScript types from new schema
 
-**Options to Fix:**
-1. Add `agro-bros` GitHub org to Vercel (requires GitHub OAuth)
-2. Transfer repo back to `growthpigs` (requires GitHub admin access)
-3. Continue using CLI deployments
+### Phase 1: Core Integration (2-3 days)
+
+**Status:** BLOCKED on Phase 0
+
+**Tasks:**
+- [ ] Port `lib/chips/` (11 chip implementations)
+- [ ] Port `lib/console/marketing-console.ts`
+- [ ] Port `lib/console/workflow-executor.ts`
+- [ ] Port `lib/cartridges/linkedin-cartridge.ts`
+
+### Phase 2: HGC AgentKit Adapter (1-2 days)
+
+**Status:** BLOCKED on Phase 1
+
+- [ ] Create `agentkit-adapter.ts` in HGC monorepo
+- [ ] Add `aiProvider` parameter to HGC instance
+
+### Phase 3: App Switcher (1 day) ✅ COMPLETE
+
+**Status:** DONE (2026-01-21)
+**Branch:** `feature/unified-platform`
+**Preview:** https://v0-audience-os-command-center-3ljtuj9jf.vercel.app
+
+- [x] Create `components/app-switcher.tsx` (142 lines)
+- [x] Create `stores/app-store.ts` with Zustand persist
+- [x] Add to layout with hydration fix
+
+### Phase 4: Route Structure (1 day)
+
+**Status:** BLOCKED on Phase 2
+
+- [ ] Implement query param routing (`?app=revos` / `?app=audiences`)
+
+### Phase 5: Sidebar Conditional Rendering (1 day) ✅ COMPLETE
+
+**Status:** DONE (2026-01-21)
+
+- [x] Update `components/linear/sidebar.tsx` for app context
+- [x] AudienceOS nav: Dashboard, Pipeline, Clients, Onboarding, Support, Intelligence
+- [x] RevOS nav: Dashboard, Campaigns, Content, Outreach, Cartridges, Analytics
 
 ---
 
-## Next Priority: Test Trevor's Login
+## Outstanding Issues
 
-After Trevor logs in at https://v0-audience-os-command-center.vercel.app:
-- His integrations should show correct connected/disconnected status
-- The 5 integrations with `is_connected: TRUE` should appear as "Connected"
+### Vercel Git Connection (Low Priority)
+
+**Problem:** Auto-deploy broken after repo transfer from `growthpigs/` to `agro-bros/`
+**Workaround:** Manual deploy via `npx vercel --prod`
 
 ---
 
-## Previous Sessions (Archived)
-See git history and HANDOVER.md for previous session details.
+## ✅ Completed (Archived)
+
+<details>
+<summary>App Switcher + Sidebar (2026-01-21)</summary>
+
+- ✅ `components/app-switcher.tsx` - Dropdown with gradient branding
+- ✅ `stores/app-store.ts` - Zustand with localStorage persist
+- ✅ `components/linear/sidebar.tsx` - Conditional nav based on app
+- ✅ Preview deployment working
+- Commits: `6e7ade3`, `a890082`, `71fdeda`
+</details>
+
+<details>
+<summary>Week 1 Security Hardening - Phase 1 PARTIAL (2026-01-20)</summary>
+
+- ✅ `lib/env.ts` - Centralized env validation
+- ⚠️ `lib/crypto.ts` - Still has fallbacks (needs fix)
+- ⚠️ Console logs reduced (43 → 19 in some files, but 266 total remain)
+- ✅ Unit tests for lib/env.ts
+- ✅ Lint passes
+- Commits: `86f5c08`, `b2002b1`, `1cacc4d`, `8e75d20`, `435a8c7`
+</details>
+
+<details>
+<summary>Gmail/Slack Integration Fix (2026-01-20)</summary>
+
+- ✅ Rewrote `integrations-hub.tsx` to use Supabase
+- ✅ Fixed "0 connected" display issue
+- ✅ Deployed to production
+- Commits: `9e87678`, `579daf8`
+</details>
+
+<details>
+<summary>RBAC 403 Fix (2026-01-20)</summary>
+
+- ✅ Fixed RLS blocking permission queries
+- ✅ Used service_role client for RBAC lookups
+- Commit: `553179c`
+</details>
+
+<details>
+<summary>Knowledge Base Fix (2026-01-20)</summary>
+
+- ✅ Auto-upload to Gemini File API on document creation
+- ✅ Fixed "No documents found" error
+</details>
+
+---
+
+**Last Updated:** 2026-01-21 (Red Team Audit)
