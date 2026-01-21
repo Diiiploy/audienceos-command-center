@@ -2,7 +2,7 @@
 
 import React from "react"
 import { motion, AnimatePresence } from "motion/react"
-import { ChevronDown, Check } from "lucide-react"
+import { ChevronDown, Check, ExternalLink } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAppStore, APP_CONFIGS, type AppId } from "@/stores/app-store"
 import {
@@ -17,16 +17,9 @@ interface AppSwitcherProps {
 }
 
 export function AppSwitcher({ collapsed }: AppSwitcherProps) {
-  const { activeApp, setActiveApp } = useAppStore()
-  // Derive config directly to ensure it updates with activeApp
-  // Use fallback to audienceos to handle initial hydration state
-  const safeActiveApp = activeApp || 'audienceos'
-  const activeConfig = APP_CONFIGS[safeActiveApp]
-
-  // Early return if config is somehow undefined (shouldn't happen but defensive)
-  if (!activeConfig) {
-    return null
-  }
+  const { setActiveApp } = useAppStore()
+  // This deployment is always AudienceOS - the switcher just links to other apps
+  const activeConfig = APP_CONFIGS['audienceos']
 
   return (
     <DropdownMenu>
@@ -48,35 +41,17 @@ export function AppSwitcher({ collapsed }: AppSwitcherProps) {
                 className="flex items-center gap-1.5"
                 style={{ fontFamily: 'var(--font-poppins), Poppins, sans-serif' }}
               >
-                {safeActiveApp === 'audienceos' ? (
-                  <>
-                    <span className="text-[17px] font-semibold tracking-tight text-foreground dark:text-white">
-                      audience
-                    </span>
-                    <span
-                      className="text-[17px] font-light tracking-tight bg-clip-text text-transparent"
-                      style={{
-                        backgroundImage: activeConfig.gradient,
-                      }}
-                    >
-                      OS
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-[17px] font-semibold tracking-tight text-foreground dark:text-white">
-                      rev
-                    </span>
-                    <span
-                      className="text-[17px] font-light tracking-tight bg-clip-text text-transparent"
-                      style={{
-                        backgroundImage: activeConfig.gradient,
-                      }}
-                    >
-                      OS
-                    </span>
-                  </>
-                )}
+                <span className="text-[17px] font-semibold tracking-tight text-foreground dark:text-white">
+                  audience
+                </span>
+                <span
+                  className="text-[17px] font-light tracking-tight bg-clip-text text-transparent"
+                  style={{
+                    backgroundImage: activeConfig.gradient,
+                  }}
+                >
+                  OS
+                </span>
                 <ChevronDown className="w-3.5 h-3.5 text-muted-foreground ml-0.5" />
               </motion.div>
             ) : (
@@ -105,12 +80,22 @@ export function AppSwitcher({ collapsed }: AppSwitcherProps) {
       >
         {(Object.keys(APP_CONFIGS) as AppId[]).map((appId) => {
           const config = APP_CONFIGS[appId]
-          const isActive = safeActiveApp === appId
+          const isActive = config.isNative // Show as active if this is the native app
+
+          const handleClick = () => {
+            if (config.url) {
+              // External app - redirect to its deployment
+              window.location.href = config.url
+            } else {
+              // Native app - just set active (already here)
+              setActiveApp(appId)
+            }
+          }
 
           return (
             <DropdownMenuItem
               key={appId}
-              onClick={() => setActiveApp(appId)}
+              onClick={handleClick}
               className={cn(
                 "flex items-center gap-3 cursor-pointer",
                 isActive && "bg-primary/5"
@@ -135,6 +120,9 @@ export function AppSwitcher({ collapsed }: AppSwitcherProps) {
                   </span>
                   {isActive && (
                     <Check className="w-3.5 h-3.5 text-primary" />
+                  )}
+                  {config.url && (
+                    <ExternalLink className="w-3 h-3 text-muted-foreground" />
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground truncate">

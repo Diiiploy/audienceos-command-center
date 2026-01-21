@@ -17,6 +17,10 @@ export interface AppConfig {
   description: string
   gradient: string
   icon: string
+  /** External URL for this app (if separate deployment) */
+  url?: string
+  /** Whether this is the current deployment's native app */
+  isNative: boolean
 }
 
 export const APP_CONFIGS: Record<AppId, AppConfig> = {
@@ -27,6 +31,7 @@ export const APP_CONFIGS: Record<AppId, AppConfig> = {
     description: 'Client management & operations',
     gradient: 'linear-gradient(90deg, #a855f7 0%, #ec4899 50%, #06b6d4 100%)',
     icon: '👥',
+    isNative: true, // This deployment IS AudienceOS
   },
   revos: {
     id: 'revos',
@@ -35,6 +40,8 @@ export const APP_CONFIGS: Record<AppId, AppConfig> = {
     description: 'Marketing automation & campaigns',
     gradient: 'linear-gradient(90deg, #f97316 0%, #eab308 50%, #22c55e 100%)',
     icon: '📈',
+    url: 'https://bravo-revos.vercel.app', // RevOS lives at separate deployment
+    isNative: false,
   },
 }
 

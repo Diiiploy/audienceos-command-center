@@ -5,18 +5,21 @@
 
 ---
 
-## Session 2026-01-21: Unified Platform - App Switcher
+## Session 2026-01-21: Unified Platform - Phase 1 Complete
 
 **Branch:** `feature/unified-platform`
 **Worktree:** `/Users/rodericandrews/_PAI/projects/audienceos-unified-platform`
-**Preview URL:** https://v0-audience-os-command-center-3ljtuj9jf.vercel.app
+**Preview URL:** https://v0-audience-os-command-center-vithewpoa.vercel.app
 
 ### What Was Built
+
+**Phase 1 (UI Shell) - COMPLETE:**
 
 1. **App Switcher Component** (`components/app-switcher.tsx`)
    - Dropdown to switch between AudienceOS and RevOS
    - Gradient branding for each app
    - Persists selection to localStorage
+   - Fixed hydration issues with `safeActiveApp` pattern
 
 2. **App Store** (`stores/app-store.ts`)
    - Zustand store with `persist` middleware
@@ -28,12 +31,31 @@
    - AudienceOS: Dashboard, Pipeline, Clients, Operations, Resources
    - RevOS: Dashboard, Campaigns, Content, Marketing
 
+4. **RevOS Stub Pages** (`components/views/revos/`)
+   - CampaignsHub, ContentHub, OutreachHub, CartridgesHub, AnalyticsHub
+   - All pages show "Coming Soon" with RevOS branding
+   - Routes wired: `/campaigns`, `/content`, `/outreach`, `/cartridges`, `/analytics`
+
+### Phase 2 (Real RevOS) - PENDING
+
+Real RevOS functionality requires:
+- Schema migration (~2-3 days)
+- Component porting (~4-6 days)
+- API endpoints (~2-3 days)
+- HGC adapter (~2-3 days)
+- **Total: ~12-15 days**
+
+See `features/UNIFIED-PLATFORM.md` for full breakdown.
+
 ### Commits
 
 | Hash | Description |
 |------|-------------|
-| `6e7ade3` | feat(unified): add app switcher for AudienceOS/RevOS navigation |
+| `170d905` | fix(app-switcher): add defensive handling for hydration state |
+| `17b958e` | feat(revos): add RevOS stub pages and route integration |
+| `71fdeda` | fix(app-switcher): use Tailwind classes for gradient text |
 | `a890082` | fix(hydration): add skipHydration to app-store and rehydrate on client |
+| `6e7ade3` | feat(unified): add app switcher for AudienceOS/RevOS navigation |
 
 ### Vercel Environment Setup
 
@@ -46,9 +68,11 @@ Preview env vars added to `rodericandrews-4022s-projects`:
 - `RESEND_API_KEY` / `RESEND_FROM_EMAIL`
 - `DIIIPLOY_GATEWAY_URL` / `DIIIPLOY_GATEWAY_API_KEY`
 
-### Email Sent
+### Known Issues
 
-Sent support request to `support@vercel.com` about lost "Agro Bros" workspace access.
+1. **RevOS is stubs only** - Pages show "Coming Soon", not real functionality
+2. **Google OAuth on Preview** - Preview URLs not registered in GCP
+3. **Agro Bros Vercel Access** - Support ticket sent
 
 ---
 

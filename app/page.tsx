@@ -144,8 +144,7 @@ import { AutomationsHub } from "@/components/views/automations-hub"
 import { DashboardView } from "@/components/dashboard-view"
 import { SettingsView } from "@/components/settings-view"
 import { ClientDetailView } from "@/components/views/client-detail-view"
-// RevOS views
-import { CampaignsHub, ContentHub, OutreachHub, RevOSCartridgesHub, AnalyticsHub } from "@/components/views/revos"
+// Note: RevOS views live at separate deployment (bravo-revos.vercel.app)
 
 // Valid filter keys for URL params
 const FILTER_KEYS = ["stage", "health", "owner", "tier"] as const
@@ -158,11 +157,9 @@ function CommandCenterContent() {
   // Initialize activeView from URL pathname or default to dashboard
   // Supports both /dashboard style paths and legacy ?view= params
   const [activeView, setActiveView] = useState<LinearView>(() => {
+    // Note: RevOS views live at separate deployment (bravo-revos.vercel.app)
     const validViews: LinearView[] = [
-      // AudienceOS views
-      "dashboard", "pipeline", "clients", "client", "onboarding", "tickets", "intelligence", "knowledge", "automations", "integrations", "settings",
-      // RevOS views
-      "campaigns", "content", "outreach", "cartridges", "analytics"
+      "dashboard", "pipeline", "clients", "client", "onboarding", "tickets", "intelligence", "knowledge", "automations", "integrations", "settings"
     ]
 
     // First check pathname (new style: /onboarding)
@@ -234,11 +231,9 @@ function CommandCenterContent() {
   // Sync activeView from URL pathname or query param after hydration
   // This handles direct URL navigation (e.g., /settings or ?view=settings)
   useEffect(() => {
+    // Note: RevOS views live at separate deployment (bravo-revos.vercel.app)
     const validViews: LinearView[] = [
-      // AudienceOS views
-      "dashboard", "pipeline", "clients", "client", "onboarding", "tickets", "intelligence", "knowledge", "automations", "integrations", "settings",
-      // RevOS views
-      "campaigns", "content", "outreach", "cartridges", "analytics"
+      "dashboard", "pipeline", "clients", "client", "onboarding", "tickets", "intelligence", "knowledge", "automations", "integrations", "settings"
     ]
 
     // First check pathname (new style: /onboarding)
@@ -605,21 +600,8 @@ function CommandCenterContent() {
           />
         )
 
-      // ============ REVOS VIEWS ============
-      case "campaigns":
-        return <CampaignsHub />
-
-      case "content":
-        return <ContentHub />
-
-      case "outreach":
-        return <OutreachHub />
-
-      case "cartridges":
-        return <RevOSCartridgesHub />
-
-      case "analytics":
-        return <AnalyticsHub />
+      // Note: RevOS views (campaigns, content, outreach, cartridges, analytics)
+      // live at separate deployment: bravo-revos.vercel.app
 
       default:
         return (
