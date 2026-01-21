@@ -44,7 +44,7 @@ END $$;
 --   3. Unified querying across cartridge types
 --   4. Client-level scoping (optional)
 
-CREATE TABLE cartridge (
+CREATE TABLE IF NOT EXISTS cartridge (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   agency_id UUID NOT NULL REFERENCES agency(id) ON DELETE CASCADE,
   client_id UUID REFERENCES client(id) ON DELETE SET NULL,
@@ -101,16 +101,16 @@ CREATE TABLE cartridge (
   )
 );
 
-CREATE INDEX idx_cartridge_agency ON cartridge(agency_id);
-CREATE INDEX idx_cartridge_client ON cartridge(client_id);
-CREATE INDEX idx_cartridge_user ON cartridge(user_id);
-CREATE INDEX idx_cartridge_tier ON cartridge(tier);
-CREATE INDEX idx_cartridge_type ON cartridge(type);
-CREATE INDEX idx_cartridge_active ON cartridge(is_active) WHERE is_active = true;
-CREATE INDEX idx_cartridge_parent ON cartridge(parent_cartridge_id);
+CREATE INDEX IF NOT EXISTS idx_cartridge_agency ON cartridge(agency_id);
+CREATE INDEX IF NOT EXISTS idx_cartridge_client ON cartridge(client_id);
+CREATE INDEX IF NOT EXISTS idx_cartridge_user ON cartridge(user_id);
+CREATE INDEX IF NOT EXISTS idx_cartridge_tier ON cartridge(tier);
+CREATE INDEX IF NOT EXISTS idx_cartridge_type ON cartridge(type);
+CREATE INDEX IF NOT EXISTS idx_cartridge_active ON cartridge(is_active) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_cartridge_parent ON cartridge(parent_cartridge_id);
 
 -- Unique name per scope
-CREATE UNIQUE INDEX idx_cartridge_unique_name ON cartridge(
+CREATE UNIQUE INDEX IF NOT EXISTS idx_cartridge_unique_name ON cartridge(
   agency_id,
   COALESCE(client_id, '00000000-0000-0000-0000-000000000000'),
   COALESCE(user_id, '00000000-0000-0000-0000-000000000000'),
@@ -122,6 +122,7 @@ CREATE UNIQUE INDEX idx_cartridge_unique_name ON cartridge(
 ALTER TABLE cartridge ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
+DROP POLICY IF EXISTS "cartridge_select" ON cartridge;
 CREATE POLICY "cartridge_select" ON cartridge FOR SELECT
   TO authenticated
   USING (
@@ -131,6 +132,7 @@ CREATE POLICY "cartridge_select" ON cartridge FOR SELECT
     OR agency_id = (auth.jwt() ->> 'agency_id')::uuid
   );
 
+DROP POLICY IF EXISTS "cartridge_insert" ON cartridge;
 CREATE POLICY "cartridge_insert" ON cartridge FOR INSERT
   TO authenticated
   WITH CHECK (
@@ -139,6 +141,7 @@ CREATE POLICY "cartridge_insert" ON cartridge FOR INSERT
     AND agency_id = (auth.jwt() ->> 'agency_id')::uuid
   );
 
+DROP POLICY IF EXISTS "cartridge_update" ON cartridge;
 CREATE POLICY "cartridge_update" ON cartridge FOR UPDATE
   TO authenticated
   USING (
@@ -150,6 +153,7 @@ CREATE POLICY "cartridge_update" ON cartridge FOR UPDATE
     AND agency_id = (auth.jwt() ->> 'agency_id')::uuid
   );
 
+DROP POLICY IF EXISTS "cartridge_delete" ON cartridge;
 CREATE POLICY "cartridge_delete" ON cartridge FOR DELETE
   TO authenticated
   USING (
@@ -295,6 +299,7 @@ $$;
 -- TRIGGER: Auto-update timestamps
 -- ============================================================================
 
+DROP TRIGGER IF EXISTS update_cartridge_updated_at ON cartridge;
 CREATE TRIGGER update_cartridge_updated_at BEFORE UPDATE ON cartridge
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 

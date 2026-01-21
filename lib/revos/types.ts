@@ -151,12 +151,24 @@ export interface CampaignMetrics {
   conversions: number;
 }
 
-export interface CampaignInsert
-  extends Omit<Campaign, 'id' | 'created_at' | 'updated_at' | 'metrics' | 'status' | 'settings'> {
+export interface CampaignInsert {
+  agency_id: string;
+  name: string;
+  trigger_word: string;
+  // Optional fields (nullable in DB)
   id?: string;
-  metrics?: Partial<CampaignMetrics>;
-  status?: CampaignStatus;
+  client_id?: string | null;
+  description?: string | null;
+  lead_magnet_id?: string | null;
+  post_template?: string | null;
+  dm_template_step1?: string | null;
+  dm_template_step2?: string | null;
+  dm_template_step3?: string | null;
   settings?: Partial<CampaignSettings>;
+  status?: CampaignStatus;
+  starts_at?: string | null;
+  ends_at?: string | null;
+  metrics?: Partial<CampaignMetrics>;
 }
 
 export interface CampaignUpdate extends Partial<CampaignInsert> {}

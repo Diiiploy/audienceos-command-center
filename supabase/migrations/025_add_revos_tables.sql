@@ -104,7 +104,7 @@ END $$;
 -- 1. LINKEDIN_ACCOUNT (UniPile-connected LinkedIn accounts)
 -- ============================================================================
 
-CREATE TABLE linkedin_account (
+CREATE TABLE IF NOT EXISTS linkedin_account (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   agency_id UUID NOT NULL REFERENCES agency(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
@@ -136,13 +136,14 @@ CREATE TABLE linkedin_account (
   UNIQUE(agency_id, user_id, account_name)
 );
 
-CREATE INDEX idx_linkedin_account_agency ON linkedin_account(agency_id);
-CREATE INDEX idx_linkedin_account_user ON linkedin_account(user_id);
-CREATE INDEX idx_linkedin_account_status ON linkedin_account(status);
-CREATE INDEX idx_linkedin_account_unipile ON linkedin_account(unipile_account_id);
+CREATE INDEX IF NOT EXISTS idx_linkedin_account_agency ON linkedin_account(agency_id);
+CREATE INDEX IF NOT EXISTS idx_linkedin_account_user ON linkedin_account(user_id);
+CREATE INDEX IF NOT EXISTS idx_linkedin_account_status ON linkedin_account(status);
+CREATE INDEX IF NOT EXISTS idx_linkedin_account_unipile ON linkedin_account(unipile_account_id);
 
 ALTER TABLE linkedin_account ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "linkedin_account_rls" ON linkedin_account;
 CREATE POLICY "linkedin_account_rls" ON linkedin_account FOR ALL
   TO authenticated
   USING (agency_id = (auth.jwt() ->> 'agency_id')::uuid);
@@ -152,7 +153,7 @@ CREATE POLICY "linkedin_account_rls" ON linkedin_account FOR ALL
 -- 2. LEAD_MAGNET (Downloadable content for campaigns)
 -- ============================================================================
 
-CREATE TABLE lead_magnet (
+CREATE TABLE IF NOT EXISTS lead_magnet (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   agency_id UUID NOT NULL REFERENCES agency(id) ON DELETE CASCADE,
   client_id UUID REFERENCES client(id) ON DELETE SET NULL,
@@ -175,11 +176,12 @@ CREATE TABLE lead_magnet (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_lead_magnet_agency ON lead_magnet(agency_id);
-CREATE INDEX idx_lead_magnet_client ON lead_magnet(client_id);
+CREATE INDEX IF NOT EXISTS idx_lead_magnet_agency ON lead_magnet(agency_id);
+CREATE INDEX IF NOT EXISTS idx_lead_magnet_client ON lead_magnet(client_id);
 
 ALTER TABLE lead_magnet ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "lead_magnet_rls" ON lead_magnet;
 CREATE POLICY "lead_magnet_rls" ON lead_magnet FOR ALL
   TO authenticated
   USING (agency_id = (auth.jwt() ->> 'agency_id')::uuid);
@@ -189,7 +191,7 @@ CREATE POLICY "lead_magnet_rls" ON lead_magnet FOR ALL
 -- 3. CAMPAIGN (Marketing campaigns with trigger words)
 -- ============================================================================
 
-CREATE TABLE campaign (
+CREATE TABLE IF NOT EXISTS campaign (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   agency_id UUID NOT NULL REFERENCES agency(id) ON DELETE CASCADE,
   client_id UUID REFERENCES client(id) ON DELETE SET NULL,
@@ -232,13 +234,14 @@ CREATE TABLE campaign (
   UNIQUE(agency_id, name)
 );
 
-CREATE INDEX idx_campaign_agency ON campaign(agency_id);
-CREATE INDEX idx_campaign_client ON campaign(client_id);
-CREATE INDEX idx_campaign_status ON campaign(status);
-CREATE INDEX idx_campaign_trigger ON campaign(trigger_word);
+CREATE INDEX IF NOT EXISTS idx_campaign_agency ON campaign(agency_id);
+CREATE INDEX IF NOT EXISTS idx_campaign_client ON campaign(client_id);
+CREATE INDEX IF NOT EXISTS idx_campaign_status ON campaign(status);
+CREATE INDEX IF NOT EXISTS idx_campaign_trigger ON campaign(trigger_word);
 
 ALTER TABLE campaign ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "campaign_rls" ON campaign;
 CREATE POLICY "campaign_rls" ON campaign FOR ALL
   TO authenticated
   USING (agency_id = (auth.jwt() ->> 'agency_id')::uuid);
@@ -248,7 +251,7 @@ CREATE POLICY "campaign_rls" ON campaign FOR ALL
 -- 4. POST (LinkedIn posts)
 -- ============================================================================
 
-CREATE TABLE post (
+CREATE TABLE IF NOT EXISTS post (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   agency_id UUID NOT NULL REFERENCES agency(id) ON DELETE CASCADE,
   campaign_id UUID REFERENCES campaign(id) ON DELETE SET NULL,
@@ -281,14 +284,15 @@ CREATE TABLE post (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_post_agency ON post(agency_id);
-CREATE INDEX idx_post_campaign ON post(campaign_id);
-CREATE INDEX idx_post_linkedin_account ON post(linkedin_account_id);
-CREATE INDEX idx_post_status ON post(status);
-CREATE INDEX idx_post_scheduled ON post(scheduled_for) WHERE status = 'scheduled';
+CREATE INDEX IF NOT EXISTS idx_post_agency ON post(agency_id);
+CREATE INDEX IF NOT EXISTS idx_post_campaign ON post(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_post_linkedin_account ON post(linkedin_account_id);
+CREATE INDEX IF NOT EXISTS idx_post_status ON post(status);
+CREATE INDEX IF NOT EXISTS idx_post_scheduled ON post(scheduled_for) WHERE status = 'scheduled';
 
 ALTER TABLE post ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "post_rls" ON post;
 CREATE POLICY "post_rls" ON post FOR ALL
   TO authenticated
   USING (agency_id = (auth.jwt() ->> 'agency_id')::uuid);
@@ -298,7 +302,7 @@ CREATE POLICY "post_rls" ON post FOR ALL
 -- 5. COMMENT (Post comments for trigger word detection)
 -- ============================================================================
 
-CREATE TABLE comment (
+CREATE TABLE IF NOT EXISTS comment (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   agency_id UUID NOT NULL REFERENCES agency(id) ON DELETE CASCADE,
   post_id UUID NOT NULL REFERENCES post(id) ON DELETE CASCADE,
@@ -326,13 +330,14 @@ CREATE TABLE comment (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_comment_agency ON comment(agency_id);
-CREATE INDEX idx_comment_post ON comment(post_id);
-CREATE INDEX idx_comment_trigger ON comment(has_trigger_word) WHERE has_trigger_word = true;
-CREATE INDEX idx_comment_author ON comment(author_linkedin_id);
+CREATE INDEX IF NOT EXISTS idx_comment_agency ON comment(agency_id);
+CREATE INDEX IF NOT EXISTS idx_comment_post ON comment(post_id);
+CREATE INDEX IF NOT EXISTS idx_comment_trigger ON comment(has_trigger_word) WHERE has_trigger_word = true;
+CREATE INDEX IF NOT EXISTS idx_comment_author ON comment(author_linkedin_id);
 
 ALTER TABLE comment ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "comment_rls" ON comment;
 CREATE POLICY "comment_rls" ON comment FOR ALL
   TO authenticated
   USING (agency_id = (auth.jwt() ->> 'agency_id')::uuid);
@@ -342,7 +347,7 @@ CREATE POLICY "comment_rls" ON comment FOR ALL
 -- 6. LEAD (Captured leads from campaigns)
 -- ============================================================================
 
-CREATE TABLE lead (
+CREATE TABLE IF NOT EXISTS lead (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   agency_id UUID NOT NULL REFERENCES agency(id) ON DELETE CASCADE,
   campaign_id UUID REFERENCES campaign(id) ON DELETE SET NULL,
@@ -379,15 +384,16 @@ CREATE TABLE lead (
   UNIQUE(agency_id, campaign_id, linkedin_id)
 );
 
-CREATE INDEX idx_lead_agency ON lead(agency_id);
-CREATE INDEX idx_lead_campaign ON lead(campaign_id);
-CREATE INDEX idx_lead_client ON lead(client_id);
-CREATE INDEX idx_lead_status ON lead(status);
-CREATE INDEX idx_lead_linkedin ON lead(linkedin_id);
-CREATE INDEX idx_lead_email ON lead(email) WHERE email IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_lead_agency ON lead(agency_id);
+CREATE INDEX IF NOT EXISTS idx_lead_campaign ON lead(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_lead_client ON lead(client_id);
+CREATE INDEX IF NOT EXISTS idx_lead_status ON lead(status);
+CREATE INDEX IF NOT EXISTS idx_lead_linkedin ON lead(linkedin_id);
+CREATE INDEX IF NOT EXISTS idx_lead_email ON lead(email) WHERE email IS NOT NULL;
 
 ALTER TABLE lead ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "lead_rls" ON lead;
 CREATE POLICY "lead_rls" ON lead FOR ALL
   TO authenticated
   USING (agency_id = (auth.jwt() ->> 'agency_id')::uuid);
@@ -397,7 +403,7 @@ CREATE POLICY "lead_rls" ON lead FOR ALL
 -- 7. WEBHOOK_CONFIG (Outbound webhook configurations)
 -- ============================================================================
 
-CREATE TABLE webhook_config (
+CREATE TABLE IF NOT EXISTS webhook_config (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   agency_id UUID NOT NULL REFERENCES agency(id) ON DELETE CASCADE,
   client_id UUID REFERENCES client(id) ON DELETE SET NULL,
@@ -426,12 +432,13 @@ CREATE TABLE webhook_config (
   UNIQUE(agency_id, name)
 );
 
-CREATE INDEX idx_webhook_config_agency ON webhook_config(agency_id);
-CREATE INDEX idx_webhook_config_client ON webhook_config(client_id);
-CREATE INDEX idx_webhook_config_active ON webhook_config(is_active) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_webhook_config_agency ON webhook_config(agency_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_config_client ON webhook_config(client_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_config_active ON webhook_config(is_active) WHERE is_active = true;
 
 ALTER TABLE webhook_config ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "webhook_config_rls" ON webhook_config;
 CREATE POLICY "webhook_config_rls" ON webhook_config FOR ALL
   TO authenticated
   USING (agency_id = (auth.jwt() ->> 'agency_id')::uuid);
@@ -441,7 +448,7 @@ CREATE POLICY "webhook_config_rls" ON webhook_config FOR ALL
 -- 8. WEBHOOK_DELIVERY (Webhook delivery tracking and retry)
 -- ============================================================================
 
-CREATE TABLE webhook_delivery (
+CREATE TABLE IF NOT EXISTS webhook_delivery (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   agency_id UUID NOT NULL REFERENCES agency(id) ON DELETE CASCADE,
   webhook_config_id UUID NOT NULL REFERENCES webhook_config(id) ON DELETE CASCADE,
@@ -467,13 +474,14 @@ CREATE TABLE webhook_delivery (
   delivered_at TIMESTAMPTZ
 );
 
-CREATE INDEX idx_webhook_delivery_agency ON webhook_delivery(agency_id);
-CREATE INDEX idx_webhook_delivery_config ON webhook_delivery(webhook_config_id);
-CREATE INDEX idx_webhook_delivery_status ON webhook_delivery(status);
-CREATE INDEX idx_webhook_delivery_retry ON webhook_delivery(next_retry_at) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_webhook_delivery_agency ON webhook_delivery(agency_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_delivery_config ON webhook_delivery(webhook_config_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_delivery_status ON webhook_delivery(status);
+CREATE INDEX IF NOT EXISTS idx_webhook_delivery_retry ON webhook_delivery(next_retry_at) WHERE status = 'pending';
 
 ALTER TABLE webhook_delivery ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "webhook_delivery_rls" ON webhook_delivery;
 CREATE POLICY "webhook_delivery_rls" ON webhook_delivery FOR ALL
   TO authenticated
   USING (agency_id = (auth.jwt() ->> 'agency_id')::uuid);
@@ -483,7 +491,7 @@ CREATE POLICY "webhook_delivery_rls" ON webhook_delivery FOR ALL
 -- 9. POD (Engagement pods)
 -- ============================================================================
 
-CREATE TABLE pod (
+CREATE TABLE IF NOT EXISTS pod (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   agency_id UUID NOT NULL REFERENCES agency(id) ON DELETE CASCADE,
   client_id UUID REFERENCES client(id) ON DELETE SET NULL,
@@ -512,12 +520,13 @@ CREATE TABLE pod (
   UNIQUE(agency_id, name)
 );
 
-CREATE INDEX idx_pod_agency ON pod(agency_id);
-CREATE INDEX idx_pod_client ON pod(client_id);
-CREATE INDEX idx_pod_status ON pod(status);
+CREATE INDEX IF NOT EXISTS idx_pod_agency ON pod(agency_id);
+CREATE INDEX IF NOT EXISTS idx_pod_client ON pod(client_id);
+CREATE INDEX IF NOT EXISTS idx_pod_status ON pod(status);
 
 ALTER TABLE pod ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "pod_rls" ON pod;
 CREATE POLICY "pod_rls" ON pod FOR ALL
   TO authenticated
   USING (agency_id = (auth.jwt() ->> 'agency_id')::uuid);
@@ -527,7 +536,7 @@ CREATE POLICY "pod_rls" ON pod FOR ALL
 -- 10. POD_MEMBER (Pod membership)
 -- ============================================================================
 
-CREATE TABLE pod_member (
+CREATE TABLE IF NOT EXISTS pod_member (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   agency_id UUID NOT NULL REFERENCES agency(id) ON DELETE CASCADE,
   pod_id UUID NOT NULL REFERENCES pod(id) ON DELETE CASCADE,
@@ -545,13 +554,14 @@ CREATE TABLE pod_member (
   UNIQUE(pod_id, user_id)
 );
 
-CREATE INDEX idx_pod_member_agency ON pod_member(agency_id);
-CREATE INDEX idx_pod_member_pod ON pod_member(pod_id);
-CREATE INDEX idx_pod_member_user ON pod_member(user_id);
-CREATE INDEX idx_pod_member_linkedin ON pod_member(linkedin_account_id);
+CREATE INDEX IF NOT EXISTS idx_pod_member_agency ON pod_member(agency_id);
+CREATE INDEX IF NOT EXISTS idx_pod_member_pod ON pod_member(pod_id);
+CREATE INDEX IF NOT EXISTS idx_pod_member_user ON pod_member(user_id);
+CREATE INDEX IF NOT EXISTS idx_pod_member_linkedin ON pod_member(linkedin_account_id);
 
 ALTER TABLE pod_member ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "pod_member_rls" ON pod_member;
 CREATE POLICY "pod_member_rls" ON pod_member FOR ALL
   TO authenticated
   USING (agency_id = (auth.jwt() ->> 'agency_id')::uuid);
@@ -561,7 +571,7 @@ CREATE POLICY "pod_member_rls" ON pod_member FOR ALL
 -- 11. POD_ACTIVITY (Scheduled pod engagements)
 -- ============================================================================
 
-CREATE TABLE pod_activity (
+CREATE TABLE IF NOT EXISTS pod_activity (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   agency_id UUID NOT NULL REFERENCES agency(id) ON DELETE CASCADE,
   pod_id UUID NOT NULL REFERENCES pod(id) ON DELETE CASCADE,
@@ -585,14 +595,15 @@ CREATE TABLE pod_activity (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_pod_activity_agency ON pod_activity(agency_id);
-CREATE INDEX idx_pod_activity_pod ON pod_activity(pod_id);
-CREATE INDEX idx_pod_activity_member ON pod_activity(member_id);
-CREATE INDEX idx_pod_activity_scheduled ON pod_activity(scheduled_for) WHERE status = 'pending';
-CREATE INDEX idx_pod_activity_status ON pod_activity(status);
+CREATE INDEX IF NOT EXISTS idx_pod_activity_agency ON pod_activity(agency_id);
+CREATE INDEX IF NOT EXISTS idx_pod_activity_pod ON pod_activity(pod_id);
+CREATE INDEX IF NOT EXISTS idx_pod_activity_member ON pod_activity(member_id);
+CREATE INDEX IF NOT EXISTS idx_pod_activity_scheduled ON pod_activity(scheduled_for) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_pod_activity_status ON pod_activity(status);
 
 ALTER TABLE pod_activity ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "pod_activity_rls" ON pod_activity;
 CREATE POLICY "pod_activity_rls" ON pod_activity FOR ALL
   TO authenticated
   USING (agency_id = (auth.jwt() ->> 'agency_id')::uuid);
@@ -602,24 +613,31 @@ CREATE POLICY "pod_activity_rls" ON pod_activity FOR ALL
 -- AUTO-UPDATE TIMESTAMPS
 -- ============================================================================
 
+DROP TRIGGER IF EXISTS update_linkedin_account_updated_at ON linkedin_account;
 CREATE TRIGGER update_linkedin_account_updated_at BEFORE UPDATE ON linkedin_account
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_lead_magnet_updated_at ON lead_magnet;
 CREATE TRIGGER update_lead_magnet_updated_at BEFORE UPDATE ON lead_magnet
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_campaign_updated_at ON campaign;
 CREATE TRIGGER update_campaign_updated_at BEFORE UPDATE ON campaign
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_post_updated_at ON post;
 CREATE TRIGGER update_post_updated_at BEFORE UPDATE ON post
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_lead_updated_at ON lead;
 CREATE TRIGGER update_lead_updated_at BEFORE UPDATE ON lead
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_webhook_config_updated_at ON webhook_config;
 CREATE TRIGGER update_webhook_config_updated_at BEFORE UPDATE ON webhook_config
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_pod_updated_at ON pod;
 CREATE TRIGGER update_pod_updated_at BEFORE UPDATE ON pod
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
