@@ -41,6 +41,9 @@ next-env.d.ts
 # Claude Configs
 .claude/
 
+# Personal AI Assistant Configs (each dev maintains their own)
+.chi-cto/
+
 # Git Creds
 .git-credentials
 .env.local.vercel
