@@ -100,7 +100,7 @@ async function applyMigration() {
   if (!success) {
     console.log('\n❌ Migration failed via REST API approach');
     console.log('\n📋 Manual Steps Required:');
-    console.log('1. Go to: https://supabase.com/dashboard/project/ebxshdqfaqupnvpghodi/sql/new');
+    console.log('1. Go to: https://supabase.com/dashboard/project/qzkirjjrcblkqvhvalue/sql/new');
     console.log('2. Paste the contents of: supabase/migrations/20260106_rbac_fixed.sql');
     console.log('3. Click "Run" to execute');
     console.log('\nThe SQL is already in your clipboard (from previous step).');

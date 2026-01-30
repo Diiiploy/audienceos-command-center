@@ -71,9 +71,9 @@ If RLS policies on `role` or `role_permission` tables block access, the join ret
 ### Issue #4: Wrong Supabase Project
 
 **Evidence found:**
-- **Local `.env.local`:** `ebxshdqfaqupnvpghodi` (audienceos-cc-fresh)
+- **Local `.env.local`:** `qzkirjjrcblkqvhvalue` (audienceos-cc-fresh)
 - **Vercel `.env.local.vercel`:** `qzkirjjrcblkqvhvalue` (command_center)
-- **Session docs say:** "Use command_center, NOT ebxshdqfaqupnvpghodi"
+- **Session docs say:** "Use command_center, NOT qzkirjjrcblkqvhvalue"
 
 If migrations were applied to one project but app points to another, the database state doesn't match expectations.
 

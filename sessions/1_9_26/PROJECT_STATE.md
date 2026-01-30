@@ -14,7 +14,7 @@
 3. CLAUDE.md: Local-only file (not tracked by git)
 
 ## What Is Deprecated
-- Old Supabase project `audienceos-cc-fresh` (ebxshdqfaqupnvpghodi) - DO NOT USE
+- Old Supabase project `audienceos-cc-fresh` (qzkirjjrcblkqvhvalue) - DO NOT USE
 - References to `trevor/oauth-signup` branch (renamed to `trevor/oauth-backend`)
 - Any documentation with old Google OAuth credentials
 

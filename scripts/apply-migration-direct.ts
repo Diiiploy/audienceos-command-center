@@ -18,7 +18,7 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
   process.exit(1);
 }
 
-// Extract project ref from URL (ebxshdqfaqupnvpghodi)
+// Extract project ref from URL (qzkirjjrcblkqvhvalue)
 const projectRef = SUPABASE_URL.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
 if (!projectRef) {
   console.error('❌ Could not extract project ref from URL');

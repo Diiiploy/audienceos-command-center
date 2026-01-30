@@ -76,7 +76,7 @@ async function verifyPolicies() {
   console.log('\n⚠️  MANUAL VERIFICATION REQUIRED\n');
   console.log('Since pg_policies view is not accessible via Supabase client,');
   console.log('please verify policies in Supabase Dashboard:\n');
-  console.log('1. Go to: https://supabase.com/dashboard/project/ebxshdqfaqupnvpghodi');
+  console.log('1. Go to: https://supabase.com/dashboard/project/qzkirjjrcblkqvhvalue');
   console.log('2. Navigate to: Database → Policies');
   console.log('3. Check tables: client, communication, ticket');
   console.log('4. Verify all 12 policies exist (4 per table)\n');

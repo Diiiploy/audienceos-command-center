@@ -40,7 +40,7 @@
 
 ```bash
 # 1. Apply migrations to production Supabase
-supabase link --project-ref ebxshdqfaqupnvpghodi
+supabase link --project-ref qzkirjjrcblkqvhvalue
 supabase db push
 
 # 2. Verify RLS policies work
@@ -136,7 +136,7 @@ function buildScopedUserId(agencyId: string, userId: string, clientId?: string |
 ```
 
 ### 3. Supabase Credentials
-- **Project Ref:** `ebxshdqfaqupnvpghodi`
+- **Project Ref:** `qzkirjjrcblkqvhvalue`
 - **Production:** Uses env vars `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
 
 ### 4. Deployment
@@ -175,7 +175,7 @@ npm run build
 npm test
 
 # Link Supabase
-supabase link --project-ref ebxshdqfaqupnvpghodi
+supabase link --project-ref qzkirjjrcblkqvhvalue
 
 # Push migrations
 supabase db push

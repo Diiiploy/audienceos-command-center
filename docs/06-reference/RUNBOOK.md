@@ -178,9 +178,9 @@ supabase db push --linked
 | Property | Value |
 |----------|-------|
 | **Project Name** | `audienceos-cc-fresh` |
-| **Project ID** | `ebxshdqfaqupnvpghodi` |
+| **Project ID** | `qzkirjjrcblkqvhvalue` |
 | **Organization** | Badaboost |
-| **URL** | `https://ebxshdqfaqupnvpghodi.supabase.co` |
+| **URL** | `https://qzkirjjrcblkqvhvalue.supabase.co` |
 
 ### Schema Status: Applied ✅
 
@@ -223,7 +223,7 @@ All tables have Row-Level Security with `auth.jwt() ->> 'agency_id'` isolation.
 ### Regenerate Types (If Schema Changes)
 
 ```bash
-supabase gen types typescript --project-id ebxshdqfaqupnvpghodi > types/database.ts
+supabase gen types typescript --project-id qzkirjjrcblkqvhvalue > types/database.ts
 ```
 
 ---

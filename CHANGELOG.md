@@ -21,7 +21,7 @@ All notable changes to the AudienceOS Command Center project are documented here
 ### Key Decisions
 | Decision | Value |
 |----------|-------|
-| Primary Database | AudienceOS (ebxshdqfaqupnvpghodi) |
+| Primary Database | AudienceOS (qzkirjjrcblkqvhvalue) |
 | Table Naming | Singular (user, client) |
 | Mem0 Format | 3-part (agencyId::clientId::userId) |
 | AI Backend | HGC Monorepo + AgentKit Adapter |

@@ -110,7 +110,7 @@ psql -h <host> -U postgres -d postgres -f supabase/migrations/20260106_seed_rbac
 #### Option 2: Supabase Dashboard
 
 1. Go to https://supabase.com/dashboard
-2. Select project: `ebxshdqfaqupnvpghodi` (AudienceOS)
+2. Select project: `qzkirjjrcblkqvhvalue` (AudienceOS)
 3. Go to SQL Editor
 4. Copy/paste `20260106_multi_org_roles.sql` → Run
 5. Copy/paste `20260106_seed_rbac_data.sql` → Run

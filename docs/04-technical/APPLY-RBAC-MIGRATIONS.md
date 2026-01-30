@@ -20,7 +20,7 @@ $ npx tsx scripts/check-rbac-tables.ts
 
 1. **Open SQL Editor:**
    ```
-   https://supabase.com/dashboard/project/ebxshdqfaqupnvpghodi/sql/new
+   https://supabase.com/dashboard/project/qzkirjjrcblkqvhvalue/sql/new
    ```
 
 2. **Paste SQL from clipboard:**
@@ -45,7 +45,7 @@ $ npx tsx scripts/check-rbac-tables.ts
 brew install postgresql
 
 # Apply migrations
-psql "postgresql://postgres:[PASSWORD]@db.ebxshdqfaqupnvpghodi.supabase.co:5432/postgres" \
+psql "postgresql://postgres:[PASSWORD]@db.qzkirjjrcblkqvhvalue.supabase.co:5432/postgres" \
   -f /tmp/rbac_migrations.sql
 ```
 
@@ -54,7 +54,7 @@ psql "postgresql://postgres:[PASSWORD]@db.ebxshdqfaqupnvpghodi.supabase.co:5432/
 ### Step 1: Regenerate Types
 
 ```bash
-npx supabase gen types typescript --project-id ebxshdqfaqupnvpghodi > types/database.ts
+npx supabase gen types typescript --project-id qzkirjjrcblkqvhvalue > types/database.ts
 ```
 
 ### Step 2: Verify Build

@@ -33,7 +33,7 @@ Migrations created but NOT applied to Supabase database.
 **Types regenerated:**
 ```bash
 SUPABASE_ACCESS_TOKEN="[token]" npx supabase gen types typescript \
-  --project-id ebxshdqfaqupnvpghodi > types/database.ts
+  --project-id qzkirjjrcblkqvhvalue > types/database.ts
 # Output: 1691 lines including all RBAC tables
 ```
 

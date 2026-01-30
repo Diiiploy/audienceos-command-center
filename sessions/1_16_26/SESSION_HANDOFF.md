@@ -81,7 +81,7 @@
 
 ## What NOT To Do
 
-- Do not use old Supabase project `ebxshdqfaqupnvpghodi`
+- Do not use old Supabase project `qzkirjjrcblkqvhvalue`
 - Do not commit secrets to documentation
 - Do not modify `/auth/callback` route without testing
 - Do not pull CLAUDE.md from git (it's local-only now)

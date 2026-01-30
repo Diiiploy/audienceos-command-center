@@ -355,7 +355,7 @@ mcp__chi-gateway__sheets_append({
 
 ```bash
 # Verify actual user table columns (don't assume which fields exist)
-curl "https://ebxshdqfaqupnvpghodi.supabase.co/rest/v1/user?select=*&limit=1" \
+curl "https://qzkirjjrcblkqvhvalue.supabase.co/rest/v1/user?select=*&limit=1" \
   -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
   | jq 'keys'
@@ -368,7 +368,7 @@ curl "https://ebxshdqfaqupnvpghodi.supabase.co/rest/v1/user?select=*&limit=1" \
 ```bash
 # Test if auth profile endpoint returns correct fields
 # This validates: REST API query selects correct columns, JOIN works, no HTTP 400
-curl -i "https://ebxshdqfaqupnvpghodi.supabase.co/rest/v1/user?id=eq.YOUR_USER_ID&select=id,agency_id,first_name,last_name,email,avatar_url,role_id,role_info:role_id(name,hierarchy_level)" \
+curl -i "https://qzkirjjrcblkqvhvalue.supabase.co/rest/v1/user?id=eq.YOUR_USER_ID&select=id,agency_id,first_name,last_name,email,avatar_url,role_id,role_info:role_id(name,hierarchy_level)" \
   -H "apikey: $ANON_KEY" \
   -H "Authorization: Bearer $ACCESS_TOKEN"
 # Expected:
@@ -398,7 +398,7 @@ curl -i "https://audienceos-agro-bros.vercel.app/api/v1/settings/users" \
 ```bash
 # Test that role hierarchy is enforced (Owner can do everything)
 # Step 1: List current user's permissions
-curl "https://ebxshdqfaqupnvpghodi.supabase.co/rest/v1/user_role?user_id=eq.YOUR_USER_ID&select=role_id,role_info:role_id(name,hierarchy_level)" \
+curl "https://qzkirjjrcblkqvhvalue.supabase.co/rest/v1/user_role?user_id=eq.YOUR_USER_ID&select=role_id,role_info:role_id(name,hierarchy_level)" \
   -H "apikey: $ANON_KEY"
 # Should show: hierarchy_level: 1 (Owner = highest access)
 
@@ -602,7 +602,7 @@ curl -X POST https://audienceos-agro-bros.vercel.app/api/v1/cartridges/voice \
 echo "🔍 Checking if voice_cartridges table exists..."
 # Use Supabase UI at https://supabase.com/dashboard/project/[project-id]/editor
 # Or query via API:
-curl -X GET https://ebxshdqfaqupnvpghodi.supabase.co/rest/v1/voice_cartridges \
+curl -X GET https://qzkirjjrcblkqvhvalue.supabase.co/rest/v1/voice_cartridges \
   -H "apikey: $SUPABASE_KEY" \
   -H "Authorization: Bearer $SUPABASE_TOKEN" 2>/dev/null | jq '.error'
 
@@ -798,7 +798,7 @@ rm -rf .next && npm run dev
 cp .env.example .env.local
 
 # Fill in actual values:
-NEXT_PUBLIC_SUPABASE_URL=https://ebxshdqfaqupnvpghodi.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://qzkirjjrcblkqvhvalue.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
 GOOGLE_AI_API_KEY=AIza...
@@ -956,7 +956,7 @@ Use subdomain: `audienceos.diiiploy.io`
 
 ## 💾 Database Info
 
-**Supabase Project:** `audienceos-cc-fresh` (Project ID: `ebxshdqfaqupnvpghodi`)
+**Supabase Project:** `audienceos-cc-fresh` (Project ID: `qzkirjjrcblkqvhvalue`)
 **Connection:** Secure (SSL required), RLS enabled on all tables
 
 ### Key Tables

@@ -63,7 +63,7 @@
   - ❌ NO database migrations create this user
   - ✅ `working/active-tasks.md` mentions "e2e.test2@gmail.com" as credentials
   - ✅ `working/active-tasks.md` states "Verified: Full login → dashboard with real user profile 'E2E Tester'"
-  - ❌ BUT: No proof user exists in PRODUCTION database (ebxshdqfaqupnvpghodi.supabase.co)
+  - ❌ BUT: No proof user exists in PRODUCTION database (qzkirjjrcblkqvhvalue.supabase.co)
 - **Critical Question:** Was this user created manually? Does it exist in production or only local?
 - **How to Verify:**
   ```sql
@@ -124,7 +124,7 @@
   ```bash
   # Test direct API access (need to get access_token from login first)
   curl -X GET \
-    "https://ebxshdqfaqupnvpghodi.supabase.co/rest/v1/user?id=eq.{USER_ID}&select=*" \
+    "https://qzkirjjrcblkqvhvalue.supabase.co/rest/v1/user?id=eq.{USER_ID}&select=*" \
     -H "apikey: {ANON_KEY}" \
     -H "Authorization: Bearer {ACCESS_TOKEN}"
   ```
@@ -259,7 +259,7 @@ Plan proposes:
 
 #### ⚠️ SECURITY: Production Credentials in .env.local
 `.env.local` contains REAL production keys:
-- NEXT_PUBLIC_SUPABASE_URL (ebxshdqfaqupnvpghodi.supabase.co)
+- NEXT_PUBLIC_SUPABASE_URL (qzkirjjrcblkqvhvalue.supabase.co)
 - SUPABASE_SERVICE_ROLE_KEY (exposed in readable file)
 - OAUTH_STATE_SECRET, TOKEN_ENCRYPTION_KEY
 

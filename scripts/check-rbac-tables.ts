@@ -57,7 +57,7 @@ async function checkTables() {
     console.log('  2. Paste migrations from clipboard');
     console.log('  3. Run this script again to verify');
   } else {
-    console.log('  1. Generate types: npx supabase gen types typescript --project-id ebxshdqfaqupnvpghodi > types/database.ts');
+    console.log('  1. Generate types: npx supabase gen types typescript --project-id qzkirjjrcblkqvhvalue > types/database.ts');
     console.log('  2. Run build: npm run build');
   }
 

@@ -31,7 +31,7 @@ console.log('   2. psql with database password');
 console.log('   3. Supabase Management API (requires personal access token)');
 console.log('');
 console.log('📋 To apply via Dashboard:');
-console.log('   1. Open: https://supabase.com/dashboard/project/ebxshdqfaqupnvpghodi/sql/new');
+console.log('   1. Open: https://supabase.com/dashboard/project/qzkirjjrcblkqvhvalue/sql/new');
 console.log('   2. Paste SQL from /tmp/rbac_migrations.sql');
 console.log('   3. Click "Run"');
 console.log('');
@@ -41,7 +41,7 @@ console.log('');
 // Open the dashboard
 console.log('🌐 Opening Supabase Dashboard...');
 const { spawn } = require('child_process');
-spawn('open', ['https://supabase.com/dashboard/project/ebxshdqfaqupnvpghodi/sql/new']);
+spawn('open', ['https://supabase.com/dashboard/project/qzkirjjrcblkqvhvalue/sql/new']);
 
 // Also copy SQL to clipboard again
 const { execSync } = require('child_process');

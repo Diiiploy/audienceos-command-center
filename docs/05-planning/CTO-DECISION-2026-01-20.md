@@ -16,7 +16,7 @@ CC2's unified platform plan is **approved** with one critical modification: **Se
 
 | Decision | Value | Rationale |
 |----------|-------|-----------|
-| Primary Database | AudienceOS (ebxshdqfaqupnvpghodi) | Cleaner schema, RBAC, tests |
+| Primary Database | AudienceOS (qzkirjjrcblkqvhvalue) | Cleaner schema, RBAC, tests |
 | Table Naming | Singular (user, client) | SQL convention, consistency |
 | Mem0 Format | 3-part (agencyId::clientId::userId) | Better multi-tenant scoping |
 | AI Backend | HGC Monorepo + AgentKit Adapter | Best of both systems |

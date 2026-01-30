@@ -266,7 +266,7 @@ After Phase 1 validation:
 **To apply this migration to Supabase:**
 
 **Option A: Via Supabase Dashboard**
-1. Go to Supabase Dashboard → project `ebxshdqfaqupnvpghodi`
+1. Go to Supabase Dashboard → project `qzkirjjrcblkqvhvalue`
 2. SQL Editor → New Query
 3. Copy-paste entire content of `supabase/migrations/009_rbac_schema.sql`
 4. Click "Run" button

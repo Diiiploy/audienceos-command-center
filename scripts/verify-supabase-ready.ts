@@ -109,7 +109,7 @@ async function main() {
     console.log('✅ DATABASE READY FOR MIGRATIONS');
     console.log('   All new tables are ready to be created');
     console.log('\nTo apply migrations:');
-    console.log('   supabase link --project-ref ebxshdqfaqupnvpghodi');
+    console.log('   supabase link --project-ref qzkirjjrcblkqvhvalue');
     console.log('   supabase db push');
     process.exit(0);
   } else {

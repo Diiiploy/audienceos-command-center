@@ -30,7 +30,7 @@ Attempted automated methods:
 ### Option 1: Browser (Recommended)
 
 The migration SQL is already in your clipboard and the browser was opened to:
-https://supabase.com/dashboard/project/ebxshdqfaqupnvpghodi/sql/new
+https://supabase.com/dashboard/project/qzkirjjrcblkqvhvalue/sql/new
 
 **Steps:**
 1. **Paste** the SQL from clipboard (Cmd+V)
@@ -45,7 +45,7 @@ https://supabase.com/dashboard/project/ebxshdqfaqupnvpghodi/sql/new
 cat supabase/migrations/20260106_rbac_fixed.sql | pbcopy
 
 # Open browser
-open "https://supabase.com/dashboard/project/ebxshdqfaqupnvpghodi/sql/new"
+open "https://supabase.com/dashboard/project/qzkirjjrcblkqvhvalue/sql/new"
 
 # Paste and run
 ```
@@ -135,7 +135,7 @@ Once verified, the next steps are:
 
 ### If verification fails:
 1. Check Supabase SQL Editor for error messages
-2. Ensure you're logged into the correct project (ebxshdqfaqupnvpghodi)
+2. Ensure you're logged into the correct project (qzkirjjrcblkqvhvalue)
 3. Try running individual sections of the migration file
 4. Check for conflicts with existing tables/policies
 

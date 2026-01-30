@@ -18,7 +18,7 @@ Implements database-level client-scoped access restrictions for Member role user
 
 ### Option 1: Supabase Dashboard (RECOMMENDED)
 
-1. Go to [Supabase Dashboard](https://supabase.com/dashboard/project/ebxshdqfaqupnvpghodi)
+1. Go to [Supabase Dashboard](https://supabase.com/dashboard/project/qzkirjjrcblkqvhvalue)
 2. Navigate to: **SQL Editor**
 3. Click: **New Query**
 4. Copy the entire contents of `20260108_client_scoped_rls.sql`
@@ -35,7 +35,7 @@ supabase db push
 ### Option 3: Direct psql (if you have DB password)
 
 ```bash
-psql -h db.ebxshdqfaqupnvpghodi.supabase.co \
+psql -h db.qzkirjjrcblkqvhvalue.supabase.co \
   -U postgres \
   -d postgres \
   -f supabase/migrations/20260108_client_scoped_rls.sql
@@ -47,7 +47,7 @@ Run the verification script after applying:
 
 ```bash
 cd /Users/rodericandrews/_PAI/projects/command_center_audience_OS
-NEXT_PUBLIC_SUPABASE_URL="https://ebxshdqfaqupnvpghodi.supabase.co" \
+NEXT_PUBLIC_SUPABASE_URL="https://qzkirjjrcblkqvhvalue.supabase.co" \
 SUPABASE_SERVICE_ROLE_KEY="<key>" \
 npx tsx scripts/verify-rls-policies-applied.ts
 ```

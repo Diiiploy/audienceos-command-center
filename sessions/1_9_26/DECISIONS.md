@@ -2,7 +2,7 @@
 
 ## 2026-01-09 – New Supabase Project Adopted
 
-**Decision:** Use `command_center` (qzkirjjrcblkqvhvalue) instead of `audienceos-cc-fresh` (ebxshdqfaqupnvpghodi)
+**Decision:** Use `command_center` (qzkirjjrcblkqvhvalue) instead of `audienceos-cc-fresh` (qzkirjjrcblkqvhvalue)
 
 **Reason:**
 - Fresh project discovered via MCP with no tables

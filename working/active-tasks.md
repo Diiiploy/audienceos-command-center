@@ -62,7 +62,7 @@ Per CTO Decision 2026-01-20: "Week 1 is security hardening. No exceptions."
 **Migration Instructions:**
 ```bash
 # Link project (if not already linked)
-supabase link --project-ref ebxshdqfaqupnvpghodi
+supabase link --project-ref qzkirjjrcblkqvhvalue
 
 # Push migrations
 supabase db push

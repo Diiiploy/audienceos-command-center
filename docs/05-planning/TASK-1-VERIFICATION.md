@@ -106,7 +106,7 @@ Since direct PostgreSQL access via CLI is limited, apply the migration manually 
 
 1. **Go to Supabase Dashboard**
    - URL: https://app.supabase.com/
-   - Project: audienceos-cc-fresh (ebxshdqfaqupnvpghodi)
+   - Project: audienceos-cc-fresh (qzkirjjrcblkqvhvalue)
 
 2. **Navigate to SQL Editor**
    - Click "SQL Editor" in left sidebar

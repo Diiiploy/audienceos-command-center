@@ -137,7 +137,7 @@ Once Vercel shows ✅ "Valid Configuration", the domain is ready.
 
 ### Part 2: Supabase (5 minutes)
 
-**Project:** `audienceos-cc-fresh` (Project ID: ebxshdqfaqupnvpghodi)
+**Project:** `audienceos-cc-fresh` (Project ID: qzkirjjrcblkqvhvalue)
 
 #### 1. **Enable Google Provider**
 

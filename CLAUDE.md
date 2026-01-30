@@ -43,7 +43,7 @@ npm test           # Run tests
 
 - **Production:** https://audienceos-agro-bros.vercel.app
 - **GitHub:** growthpigs/audienceos-command-center
-- **Supabase:** ebxshdqfaqupnvpghodi
+- **Supabase:** qzkirjjrcblkqvhvalue
 - **Vercel:** agro-bros/audienceos
 
 ---

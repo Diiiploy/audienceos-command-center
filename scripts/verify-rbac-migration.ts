@@ -151,7 +151,7 @@ async function verifyMigration() {
   } else {
     console.log('\n❌ Migration verification failed');
     console.log('\nThe migration needs to be applied. Please:');
-    console.log('1. Go to: https://supabase.com/dashboard/project/ebxshdqfaqupnvpghodi/sql/new');
+    console.log('1. Go to: https://supabase.com/dashboard/project/qzkirjjrcblkqvhvalue/sql/new');
     console.log('2. Paste the contents of: supabase/migrations/20260106_rbac_fixed.sql');
     console.log('3. Execute the SQL');
     console.log('4. Run this verification script again');

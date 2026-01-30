@@ -80,7 +80,7 @@ Must complete ALL blockers before writing any new tests.
 
 **File:** Create `scripts/verify-test-user.sql`
 ```sql
--- Run in Supabase SQL Editor (production: ebxshdqfaqupnvpghodi)
+-- Run in Supabase SQL Editor (production: qzkirjjrcblkqvhvalue)
 SELECT
   u.id,
   u.email,

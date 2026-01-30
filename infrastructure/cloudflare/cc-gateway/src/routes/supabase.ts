@@ -1,5 +1,5 @@
 // Supabase routes for chi-gateway
-// Project: audienceos-cc-fresh (ebxshdqfaqupnvpghodi)
+// Project: audienceos-cc-fresh (qzkirjjrcblkqvhvalue)
 // Updated: 2026-01-02 - Switched from old War Room schema to AudienceOS Command Center
 
 import { Env } from '../index';
