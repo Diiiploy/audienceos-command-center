@@ -37,11 +37,11 @@ function SettingRow({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex items-start justify-between py-4 border-b border-gray-100 last:border-0">
+    <div className="flex items-start justify-between py-4 border-b border-border last:border-0">
       <div className="flex-1 pr-8">
-        <h4 className="text-sm font-medium text-gray-900">{label}</h4>
+        <h4 className="text-sm font-medium text-foreground">{label}</h4>
         {description && (
-          <p className="text-sm text-gray-500 mt-0.5">{description}</p>
+          <p className="text-sm text-muted-foreground mt-0.5">{description}</p>
         )}
       </div>
       <div className="flex-shrink-0">{children}</div>
@@ -195,15 +195,15 @@ export function AgencyProfileSection() {
     <div>
       {/* Page Header - Linear Style */}
       <header className="mb-8">
-        <h1 className="text-2xl font-semibold text-gray-900 mb-2">General</h1>
-        <p className="text-gray-600">Manage your agency settings and preferences.</p>
+        <h1 className="text-2xl font-semibold text-foreground mb-2">General</h1>
+        <p className="text-muted-foreground">Manage your agency settings and preferences.</p>
       </header>
 
       {/* Settings Sections */}
       <div className="space-y-8">
         {/* Agency Information */}
         <section>
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">Agency Information</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-4">Agency Information</h3>
 
           <SettingRow
             label="Agency name"
@@ -213,7 +213,7 @@ export function AgencyProfileSection() {
               value={formData.name || ""}
               onChange={(e) => handleInputChange("name", e.target.value)}
               disabled={!isAdmin}
-              className="w-64 bg-white border-gray-300"
+              className="w-64 bg-background border-input"
             />
           </SettingRow>
 
@@ -225,7 +225,7 @@ export function AgencyProfileSection() {
               value={formData.slug || ""}
               onChange={(e) => handleInputChange("slug", e.target.value)}
               disabled={!isAdmin}
-              className="w-64 bg-white border-gray-300"
+              className="w-64 bg-background border-input"
             />
           </SettingRow>
 
@@ -238,14 +238,14 @@ export function AgencyProfileSection() {
               onChange={(e) => handleInputChange("domain", e.target.value)}
               disabled={!isAdmin}
               placeholder="youragency.com"
-              className="w-64 bg-white border-gray-300"
+              className="w-64 bg-background border-input"
             />
           </SettingRow>
         </section>
 
         {/* Timezone & Hours */}
         <section>
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">Timezone & Business Hours</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-4">Timezone & Business Hours</h3>
 
           <SettingRow
             label="Timezone"
@@ -256,7 +256,7 @@ export function AgencyProfileSection() {
               onValueChange={(value) => handleInputChange("timezone", value)}
               disabled={!isAdmin}
             >
-              <SelectTrigger className="w-64 bg-white border-gray-300">
+              <SelectTrigger className="w-64 bg-background border-input">
                 <SelectValue placeholder="Select timezone" />
               </SelectTrigger>
               <SelectContent>
@@ -278,7 +278,7 @@ export function AgencyProfileSection() {
               value={formData.business_hours?.start || "09:00"}
               onChange={(e) => handleBusinessHoursChange("start", e.target.value)}
               disabled={!isAdmin}
-              className="w-32 bg-white border-gray-300"
+              className="w-32 bg-background border-input"
             />
           </SettingRow>
 
@@ -291,14 +291,14 @@ export function AgencyProfileSection() {
               value={formData.business_hours?.end || "17:00"}
               onChange={(e) => handleBusinessHoursChange("end", e.target.value)}
               disabled={!isAdmin}
-              className="w-32 bg-white border-gray-300"
+              className="w-32 bg-background border-input"
             />
           </SettingRow>
         </section>
 
         {/* Preferences */}
         <section>
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">Preferences</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-4">Preferences</h3>
 
           <SettingRow
             label="Auto-save changes"
@@ -324,7 +324,7 @@ export function AgencyProfileSection() {
 
       {/* Action Buttons */}
       {isAdmin && !autoSave && (
-        <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-gray-200">
+        <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-border">
           <Button
             variant="outline"
             onClick={() => {
