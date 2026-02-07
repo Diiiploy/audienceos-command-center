@@ -31,24 +31,57 @@ function getSupabaseProjectRef(): string | null {
  * IMPORTANT: We specifically look for the cookie matching the current project
  * to avoid using stale cookies from old/different Supabase projects.
  * Fixed 2026-01-11 after cookie collision caused 401 errors.
+ *
+ * CHUNKED COOKIES: Supabase SSR splits large sessions across multiple cookies
+ * with suffixes .0, .1, .2, etc. when data exceeds 4KB. We must reassemble them.
+ * Fixed 2026-02-05 after chunked cookies caused "No session cookie found" errors.
  */
 function getSessionFromCookie(): { access_token: string; refresh_token: string; user: User } | null {
   if (typeof document === 'undefined') return null
 
   const projectRef = getSupabaseProjectRef()
+  if (!projectRef) return null
+
   const cookies = document.cookie.split(';').map(c => c.trim())
+  const cookieBaseName = `sb-${projectRef}-auth-token`
 
-  // Look for the specific cookie matching current project
-  // This prevents using stale cookies from other Supabase projects
-  const expectedCookieName = projectRef ? `sb-${projectRef}-auth-token=` : null
-  const authCookie = expectedCookieName
-    ? cookies.find(c => c.startsWith(expectedCookieName))
-    : cookies.find(c => c.startsWith('sb-') && c.includes('-auth-token='))
+  // First, try to find non-chunked cookie (legacy format)
+  const nonChunkedCookie = cookies.find(c => c.startsWith(`${cookieBaseName}=`))
 
-  if (!authCookie) return null
+  let cookieValue: string | null = null
+
+  if (nonChunkedCookie) {
+    // Non-chunked: single cookie contains entire session
+    cookieValue = nonChunkedCookie.split('=').slice(1).join('=')
+  } else {
+    // Chunked: look for .0, .1, .2, etc. and reassemble
+    const chunks: { index: number; value: string }[] = []
+
+    for (const cookie of cookies) {
+      // Match pattern: sb-{ref}-auth-token.{N}=value
+      const chunkMatch = cookie.match(new RegExp(`^${cookieBaseName}\\.(\\d+)=(.+)$`))
+      if (chunkMatch) {
+        chunks.push({
+          index: parseInt(chunkMatch[1], 10),
+          value: chunkMatch[2]
+        })
+      }
+    }
+
+    if (chunks.length > 0) {
+      // Sort by index and concatenate
+      chunks.sort((a, b) => a.index - b.index)
+      cookieValue = chunks.map(c => c.value).join('')
+      console.log(`[AUTH] Reassembled ${chunks.length} cookie chunks`)
+    }
+  }
+
+  if (!cookieValue) {
+    console.warn('[AUTH] No session cookie found')
+    return null
+  }
 
   try {
-    let cookieValue = authCookie.split('=').slice(1).join('=')
     cookieValue = decodeURIComponent(cookieValue)
 
     // Strip 'base64-' prefix if present
