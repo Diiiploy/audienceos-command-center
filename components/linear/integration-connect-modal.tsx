@@ -38,33 +38,10 @@ const providerCredentials: Record<IntegrationProvider, {
 }> = {
   slack: {
     title: 'Connect Slack',
-    description: 'Enter your Slack app credentials to enable workspace integration.',
+    description: 'Connect your Slack workspace with one click. Uses OAuth for secure access — no credentials needed.',
     helpUrl: 'https://api.slack.com/apps',
-    helpLabel: 'Get credentials from Slack API',
-    fields: [
-      {
-        key: 'client_id',
-        label: 'Client ID',
-        placeholder: 'Enter your Slack Client ID',
-        helpText: 'Found in your Slack app settings under "Basic Information"',
-        required: true,
-      },
-      {
-        key: 'client_secret',
-        label: 'Client Secret',
-        placeholder: 'Enter your Slack Client Secret',
-        type: 'password',
-        required: true,
-      },
-      {
-        key: 'signing_secret',
-        label: 'Signing Secret',
-        placeholder: 'Enter your Slack Signing Secret',
-        helpText: 'Used to verify requests from Slack',
-        type: 'password',
-        required: true,
-      },
-    ],
+    helpLabel: 'Slack API documentation',
+    fields: [], // Slack now uses Gateway OAuth, same as Gmail
   },
   gmail: {
     title: 'Connect Google Workspace',
@@ -292,7 +269,7 @@ export function IntegrationConnectModal({
               ) : (
                 <>
                   <ExternalLink className="w-4 h-4 mr-2" />
-                  Connect with Google
+                  {provider === 'slack' ? 'Connect with Slack' : 'Connect with Google'}
                 </>
               )}
             </Button>

@@ -8,7 +8,7 @@
  * Cost: ~$0.02 per enrichment (domain metrics + competitors call)
  */
 
-const DIIIPLOY_GATEWAY = process.env.DIIIPLOY_GATEWAY_URL || 'https://diiiploy-gateway.roderic-andrews.workers.dev'
+const DIIIPLOY_GATEWAY = process.env.DIIIPLOY_GATEWAY_URL || 'https://diiiploy-gateway.diiiploy.workers.dev'
 
 export interface SEOSummary {
   total_keywords: number

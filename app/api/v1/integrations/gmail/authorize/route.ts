@@ -9,18 +9,13 @@ const OAUTH_RATE_LIMIT = { maxRequests: 3, windowMs: 60000 }
 
 /**
  * GET /api/v1/integrations/gmail/authorize
- * Initiates Gmail OAuth flow by generating state parameter and redirecting to Google consent screen.
+ * Redirects to diiiploy-gateway OAuth flow.
  *
- * SECURITY:
- * - State parameter prevents CSRF attacks
- * - State expires after 5 minutes
- * - Requires user to be authenticated (checks Supabase session)
- *
- * FLOW:
- * 1. Verify user is authenticated
- * 2. Generate CSRF state with userId + timestamp
- * 3. Build OAuth URL with state
- * 4. Redirect to Google OAuth consent screen
+ * The gateway handles the full Google OAuth lifecycle:
+ * 1. Redirects user to Google consent screen
+ * 2. Receives callback and exchanges code for tokens
+ * 3. Stores encrypted tokens in KV (gateway is source of truth)
+ * 4. Redirects back to command center settings page
  */
 export async function GET(request: NextRequest) {
   // Rate limit check (3 per minute per IP)
@@ -30,7 +25,7 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = await createRouteHandlerClient(cookies)
 
-    // Step 1: Verify user is authenticated
+    // Verify user is authenticated
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
       integrationLogger.warn({ provider: 'gmail' }, 'Unauthorized access attempt')
@@ -40,50 +35,20 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Step 2: Verify environment variables are configured
-    const clientId = process.env.GOOGLE_CLIENT_ID
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL
+    // Redirect to diiiploy-gateway OAuth endpoint
+    const gatewayUrl = process.env.DIIIPLOY_GATEWAY_URL || 'https://diiiploy-gateway.diiiploy.workers.dev'
+    const tenantId = process.env.DIIIPLOY_TENANT_ID
 
-    if (!clientId || !appUrl) {
-      console.error('[Gmail Authorize] Missing OAuth configuration', {
-        hasClientId: !!clientId,
-        hasAppUrl: !!appUrl,
-      })
+    if (!tenantId) {
+      integrationLogger.error({}, 'DIIIPLOY_TENANT_ID not configured')
       return NextResponse.json(
-        {
-          error: 'OAuth configuration missing',
-          message: 'Server is not configured for Gmail authorization',
-        },
+        { error: 'Gateway not configured', message: 'DIIIPLOY_TENANT_ID is not set' },
         { status: 500 }
       )
     }
 
-    // Step 3: Generate state for CSRF protection
-    const state = Buffer.from(
-      JSON.stringify({
-        userId: user.id,
-        timestamp: Date.now(),
-      })
-    ).toString('base64')
-
-    // Step 4: Build OAuth URL with all required parameters
-    const redirectUri = `${appUrl}/api/v1/integrations/gmail/callback`
-    const scopes = [
-      'https://www.googleapis.com/auth/gmail.readonly',
-      'https://www.googleapis.com/auth/gmail.send',
-    ]
-
-    const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth')
-    authUrl.searchParams.append('client_id', clientId)
-    authUrl.searchParams.append('redirect_uri', redirectUri)
-    authUrl.searchParams.append('response_type', 'code')
-    authUrl.searchParams.append('scope', scopes.join(' '))
-    authUrl.searchParams.append('state', state)
-    authUrl.searchParams.append('access_type', 'offline')
-    authUrl.searchParams.append('prompt', 'consent')
-
-    // Step 5: Redirect to Google consent screen
-    return NextResponse.redirect(authUrl.toString())
+    const authorizeUrl = `${gatewayUrl}/oauth/google/authorize?tenant_id=${tenantId}`
+    return NextResponse.redirect(authorizeUrl)
   } catch (error) {
     integrationLogger.error({ err: error, provider: 'gmail' }, 'OAuth authorization failed')
     return NextResponse.json(

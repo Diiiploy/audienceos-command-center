@@ -10,7 +10,7 @@
  * This follows the "agency model" where diiiploy-gateway is the single source of truth
  * for OAuth tokens - the app only reads status, never stores tokens.
  *
- * @see https://diiiploy-gateway.roderic-andrews.workers.dev/health/full
+ * @see https://diiiploy-gateway.diiiploy.workers.dev/health/full
  */
 
 // Diiiploy-gateway health response types
@@ -125,7 +125,7 @@ const SERVICE_METADATA: Record<string, { name: string; icon: string; description
 /**
  * CRITICAL: AudienceOS uses diiiploy-gateway, NOT chi-gateway!
  */
-const DIIIPLOY_GATEWAY_URL = 'https://diiiploy-gateway.roderic-andrews.workers.dev'
+const DIIIPLOY_GATEWAY_URL = process.env.DIIIPLOY_GATEWAY_URL || 'https://diiiploy-gateway.diiiploy.workers.dev'
 
 /**
  * Fetch full health status from diiiploy-gateway

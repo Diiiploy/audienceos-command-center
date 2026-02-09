@@ -15,7 +15,8 @@
  * Supabase (multi-tenant) to properly show each agency's integrations.
  */
 
-import React, { useState, useMemo, useEffect } from "react"
+import React, { useState, useMemo, useEffect, useCallback } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { VerticalPageLayout, VerticalSection } from "@/components/linear/vertical-section"
 import { Search, Check, AlertCircle, Clock, ExternalLink, Settings2, RefreshCw } from "lucide-react"
@@ -274,7 +275,7 @@ function IntegrationCardSkeleton() {
 }
 
 // Providers that can be connected from the UI (credential or OAuth-based)
-const credentialBasedProviders: IntegrationProvider[] = ['slack', 'gmail', 'google_ads', 'meta_ads']
+const credentialBasedProviders: IntegrationProvider[] = ['google_ads', 'meta_ads']
 
 export function IntegrationsHub() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -284,6 +285,37 @@ export function IntegrationsHub() {
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [dbIntegrations, setDbIntegrations] = useState<DbIntegration[]>([])
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
+  // Handle gateway OAuth redirect: ?connected=google&email=...
+  const handleGatewayCallback = useCallback(async () => {
+    const connectedProvider = searchParams.get('connected')
+    const email = searchParams.get('email')
+
+    if (!connectedProvider || connectedProvider === 'false') return
+
+    try {
+      const res = await fetch('/api/v1/integrations/gateway-callback', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: connectedProvider, email }),
+      })
+
+      if (res.ok) {
+        const providerNames: Record<string, string> = { google: 'Google Workspace', slack: 'Slack', gmail: 'Google Workspace' }
+        toast.success(`${providerNames[connectedProvider] || connectedProvider} connected successfully!`)
+      } else {
+        toast.error('Failed to sync connection status')
+      }
+    } catch {
+      toast.error('Failed to sync connection status')
+    }
+
+    // Clean URL params
+    router.replace('/integrations', { scroll: false })
+  }, [searchParams, router])
 
   // Fetch integration status from Supabase via /api/v1/integrations
   const fetchIntegrationStatus = async () => {
@@ -308,8 +340,12 @@ export function IntegrationsHub() {
   }
 
   useEffect(() => {
-    fetchIntegrationStatus()
-  }, [])
+    const init = async () => {
+      await handleGatewayCallback()
+      await fetchIntegrationStatus()
+    }
+    init()
+  }, [handleGatewayCallback])
 
   // Handle refresh button click
   const handleRefresh = () => {
@@ -318,16 +354,23 @@ export function IntegrationsHub() {
     toast.success('Refreshing integration status...')
   }
 
-  // Handle Connect button click - Agency model: credential-based only
+  // Handle Connect button click - OAuth or credential-based
   async function handleConnect(provider: string) {
-    // Only credential-based providers can be connected from the UI
+    // Credential-based providers open the credential modal
     if (credentialBasedProviders.includes(provider as IntegrationProvider)) {
       setConnectingProvider(provider as IntegrationProvider)
       return
     }
 
-    // For Google Workspace (gmail), show agency model message
-    toast.info('Google Workspace is managed centrally. Contact your administrator to connect.')
+    // OAuth-based providers (Slack, Gmail) open the connect modal which triggers OAuth
+    const oauthProviders: IntegrationProvider[] = ['slack', 'gmail']
+    if (oauthProviders.includes(provider as IntegrationProvider)) {
+      setConnectingProvider(provider as IntegrationProvider)
+      return
+    }
+
+    // Future integrations not yet available
+    toast.info('This integration is not yet available.')
   }
 
   // Handle successful credential connection

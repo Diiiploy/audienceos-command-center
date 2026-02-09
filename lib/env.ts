@@ -135,6 +135,7 @@ export const serverEnv = {
   diiiploy: {
     url: optional('DIIIPLOY_GATEWAY_URL'),
     apiKey: optional('DIIIPLOY_GATEWAY_API_KEY'),
+    tenantId: optional('DIIIPLOY_TENANT_ID'),
   },
 
   // Monitoring

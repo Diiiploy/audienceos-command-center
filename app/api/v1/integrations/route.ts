@@ -92,7 +92,7 @@ export const POST = withPermission({ resource: 'integrations', action: 'manage' 
 
     // Credential-based providers (Slack, Google Ads, Meta Ads)
     // These use manual token entry instead of OAuth flow
-    const credentialProviders = ['slack', 'google_ads', 'meta_ads']
+    const credentialProviders = ['google_ads', 'meta_ads']
 
     // Only block reconnection for credential-based providers
     // OAuth providers (gmail) can reconnect to refresh tokens
@@ -106,7 +106,6 @@ export const POST = withPermission({ resource: 'integrations', action: 'manage' 
     if (credentialProviders.includes(provider) && credentials) {
       // Validate required credentials for each provider
       const requiredFields: Record<string, string[]> = {
-        slack: ['client_id', 'client_secret', 'signing_secret'],
         google_ads: ['developer_token', 'customer_id'],
         meta_ads: ['app_id', 'app_secret', 'access_token'],
       }
@@ -189,6 +188,23 @@ export const POST = withPermission({ resource: 'integrations', action: 'manage' 
 
 // Generate OAuth authorization URL for each provider
 function generateOAuthUrl(provider: IntegrationProvider, integrationId: string): string {
+  // Google Workspace and Slack OAuth go through diiiploy-gateway (source of truth for tokens)
+  const gatewayOAuthProviders: Record<string, string> = {
+    gmail: 'google',
+    slack: 'slack',
+  }
+
+  if (provider in gatewayOAuthProviders) {
+    const gatewayUrl = process.env.DIIIPLOY_GATEWAY_URL || 'https://diiiploy-gateway.diiiploy.workers.dev'
+    const tenantId = process.env.DIIIPLOY_TENANT_ID
+    if (!tenantId) {
+      console.error(`[Integrations] DIIIPLOY_TENANT_ID not configured — cannot initiate ${provider} OAuth`)
+      return ''
+    }
+    const gatewayProvider = gatewayOAuthProviders[provider]
+    return `${gatewayUrl}/oauth/${gatewayProvider}/authorize?tenant_id=${tenantId}`
+  }
+
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
   const redirectUri = `${baseUrl}/api/v1/oauth/callback`
 
@@ -200,41 +216,6 @@ function generateOAuthUrl(provider: IntegrationProvider, integrationId: string):
   })
 
   switch (provider) {
-    case 'slack':
-      return `https://slack.com/oauth/v2/authorize?${new URLSearchParams({
-        client_id: process.env.SLACK_CLIENT_ID || '',
-        scope: 'channels:read,channels:history,chat:write,users:read,team:read',
-        redirect_uri: redirectUri,
-        state,
-      })}`
-
-    case 'gmail':
-      // Full Google Workspace scopes: Gmail, Calendar, Drive, Sheets, Docs
-      return `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
-        client_id: process.env.GOOGLE_CLIENT_ID || '',
-        scope: [
-          // Gmail
-          'https://www.googleapis.com/auth/gmail.readonly',
-          'https://www.googleapis.com/auth/gmail.send',
-          'https://www.googleapis.com/auth/gmail.modify',
-          // Calendar
-          'https://www.googleapis.com/auth/calendar',
-          'https://www.googleapis.com/auth/calendar.events',
-          // Drive
-          'https://www.googleapis.com/auth/drive',
-          'https://www.googleapis.com/auth/drive.file',
-          // Sheets
-          'https://www.googleapis.com/auth/spreadsheets',
-          // Docs
-          'https://www.googleapis.com/auth/documents',
-        ].join(' '),
-        redirect_uri: redirectUri,
-        state,
-        response_type: 'code',
-        access_type: 'offline',
-        prompt: 'consent',
-      })}`
-
     case 'google_ads':
       return `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
         client_id: process.env.GOOGLE_ADS_CLIENT_ID || '',

@@ -1,7 +1,7 @@
 # AudienceOS Command Center
 
 **What:** Multi-tenant client management platform with AI chat, integrations hub, and marketing automation.
-**Stack:** Next.js 15 + Supabase + Gemini 3 + Mem0 + Diiiploy-Gateway
+**Stack:** Next.js 15 + Supabase + Gemini 3 + Mem0
 **Status:** MVP 95% Frontend, 60% Full-Stack
 
 ---
@@ -10,7 +10,6 @@
 
 - Multi-tenant SaaS - agencies manage multiple clients
 - HGC = Holy Grail Chat = floating AI assistant (context gaps, see audit)
-- Diiiploy-Gateway = MCP-based integration layer (Gmail, Calendar, Drive, etc.)
 - Training Cartridges: Backend fixed 2026-01-15
 
 ---
@@ -41,10 +40,10 @@ npm test           # Run tests
 
 ## Project IDs
 
-- **Production:** https://audienceos-agro-bros.vercel.app
-- **GitHub:** growthpigs/audienceos-command-center
+- **Production:** https://v0-audience-os-command-center.vercel.app/
+- **GitHub:** Diiiploy/audienceos-command-center
 - **Supabase:** qzkirjjrcblkqvhvalue
-- **Vercel:** agro-bros/audienceos
+- **Vercel:** chase-6917s-projects/v0-audience-os-command-center
 
 ---
 

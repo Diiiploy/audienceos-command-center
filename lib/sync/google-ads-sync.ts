@@ -9,7 +9,7 @@
 import type { SyncResult, AdPerformanceRecord, SyncJobConfig } from './types'
 
 const DIIIPLOY_GATEWAY_URL = process.env.DIIIPLOY_GATEWAY_URL ||
-  'https://diiiploy-gateway.roderic-andrews.workers.dev'
+  'https://diiiploy-gateway.diiiploy.workers.dev'
 const DIIIPLOY_GATEWAY_API_KEY = process.env.DIIIPLOY_GATEWAY_API_KEY || ''
 
 // Google Ads API Response Types (from diiiploy-gateway)

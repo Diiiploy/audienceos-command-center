@@ -4,6 +4,7 @@ import { createRouteHandlerClient } from '@/lib/supabase'
 import { withRateLimit, withCsrfProtection, sanitizeString, sanitizeEmail, sanitizeSearchPattern, createErrorResponse } from '@/lib/security'
 import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission'
 import type { HealthStatus } from '@/types/database'
+import { createSlackChannelForClient } from '@/lib/integrations/slack-channel-service'
 
 // Valid values for enums
 const VALID_STAGES = ['Lead', 'Onboarding', 'Installation', 'Audit', 'Live', 'Needs Support', 'Off-boarding']
@@ -148,6 +149,33 @@ export const POST = withPermission({ resource: 'clients', action: 'write' })(
 
     if (error) {
       return createErrorResponse(500, 'Failed to create client')
+    }
+
+    // Auto-create Slack channel if configured (fire-and-forget)
+    try {
+      const { data: slackIntegration } = await supabase
+        .from('integration')
+        .select('config')
+        .eq('agency_id', agencyId)
+        .eq('provider', 'slack')
+        .eq('is_connected', true)
+        .maybeSingle()
+
+      const config = slackIntegration?.config as Record<string, unknown> | null
+      if (config?.auto_create_channel === true) {
+        // Fire-and-forget: don't block client creation on channel creation
+        createSlackChannelForClient({
+          agencyId,
+          clientId: client.id,
+          clientName: client.name,
+          isPrivate: config.channel_visibility === 'private',
+          supabase,
+        }).catch((err) => {
+          console.error('[clients/POST] Auto-create Slack channel failed:', err)
+        })
+      }
+    } catch {
+      // Non-fatal: Slack auto-create failure should never block client creation
     }
 
       return NextResponse.json({ data: client }, { status: 201 })
