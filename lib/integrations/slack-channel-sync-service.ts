@@ -86,7 +86,7 @@ export async function syncChannel(
         'Authorization': `Bearer ${GATEWAY_API_KEY}`,
         'X-Tenant-ID': TENANT_ID,
       },
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(30000),
     })
 
     const data = await response.json() as {
