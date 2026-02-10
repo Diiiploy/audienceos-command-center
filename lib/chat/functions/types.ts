@@ -72,7 +72,7 @@ export interface AlertSummary {
  */
 export interface CommunicationSummary {
   id: string;
-  type: 'email' | 'call' | 'meeting' | 'note';
+  type: 'email' | 'call' | 'meeting' | 'note' | 'slack';
   subject?: string;
   summary?: string;
   from?: string;

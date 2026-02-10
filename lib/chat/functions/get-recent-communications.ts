@@ -87,11 +87,12 @@ const MOCK_COMMUNICATIONS: Record<string, CommunicationSummary[]> = {
 /**
  * Map platform enum to CommunicationSummary type
  */
-function mapPlatformToType(platform: string): 'email' | 'call' | 'meeting' | 'note' {
+function mapPlatformToType(platform: string): 'email' | 'call' | 'meeting' | 'note' | 'slack' {
   switch (platform) {
     case 'gmail':
-    case 'slack':
       return 'email';
+    case 'slack':
+      return 'slack';
     default:
       return 'email';
   }
