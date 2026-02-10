@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useAuth } from "@/hooks/use-auth"
 import {
   UserPlus,
   Search,
@@ -94,8 +95,6 @@ function MemberProfile({ member, onBack, onUpdate }: MemberProfileProps) {
   const [lastName, setLastName] = useState(member.last_name)
   const [initialNickname] = useState(member.nickname ?? member.first_name.toLowerCase())
   const [nickname, setNickname] = useState(initialNickname)
-  const [initialRole] = useState(member.role)
-  const [role, setRole] = useState(member.role)
   const [isSaving, setIsSaving] = useState(false)
 
   const fullName = member.full_name ?? `${member.first_name} ${member.last_name}`
@@ -104,8 +103,7 @@ function MemberProfile({ member, onBack, onUpdate }: MemberProfileProps) {
   const hasChanges =
     firstName !== member.first_name ||
     lastName !== member.last_name ||
-    nickname !== initialNickname ||
-    role !== initialRole
+    nickname !== initialNickname
 
   const handleSave = async () => {
     setIsSaving(true)
@@ -115,7 +113,6 @@ function MemberProfile({ member, onBack, onUpdate }: MemberProfileProps) {
       if (firstName !== member.first_name) patch.first_name = firstName
       if (lastName !== member.last_name) patch.last_name = lastName
       if (nickname !== initialNickname) patch.nickname = nickname || null
-      if (role !== initialRole) patch.role = role
 
       if (Object.keys(patch).length === 0) return
 
@@ -219,25 +216,20 @@ function MemberProfile({ member, onBack, onUpdate }: MemberProfileProps) {
           />
         </div>
 
-        {/* Role */}
+        {/* Role - display only, changed via members list */}
         <div className="p-4 flex items-center justify-between">
           <div>
             <Label className="text-sm font-medium">Role</Label>
             <p className="text-sm text-muted-foreground">
-              Permissions level in workspace
+              Managed from the members list
             </p>
           </div>
-          <Select value={role} onValueChange={(v) => setRole(v as "owner" | "admin" | "manager" | "member")}>
-            <SelectTrigger className="w-[280px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="owner">Owner</SelectItem>
-              <SelectItem value="admin">Admin</SelectItem>
-              <SelectItem value="manager">Manager</SelectItem>
-              <SelectItem value="member">Member</SelectItem>
-            </SelectContent>
-          </Select>
+          <Badge
+            variant={member.role === "owner" || member.role === "admin" ? "default" : "secondary"}
+            className="capitalize text-sm px-3 py-1"
+          >
+            {member.role}
+          </Badge>
         </div>
       </div>
 
@@ -316,10 +308,128 @@ function MemberProfile({ member, onBack, onUpdate }: MemberProfileProps) {
 }
 
 // ============================================================================
+// Role Hierarchy Helpers
+// ============================================================================
+
+const ROLE_HIERARCHY: Record<string, number> = {
+  owner: 1,
+  admin: 2,
+  manager: 3,
+  member: 4,
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  owner: "Owner",
+  admin: "Admin",
+  manager: "Manager",
+  member: "Member",
+}
+
+/** Check if currentUser can change targetMember's role */
+function canChangeRole(currentRole: string, targetRole: string, targetId: string, currentId: string): boolean {
+  if (targetId === currentId) return false // Can't change own role
+  const currentLevel = ROLE_HIERARCHY[currentRole] ?? 99
+  const targetLevel = ROLE_HIERARCHY[targetRole] ?? 99
+  return currentLevel <= targetLevel && currentLevel <= 3 // Members (4) can't change anyone
+}
+
+/** Get roles that currentUser is allowed to assign */
+function getAssignableRoles(currentRole: string): string[] {
+  const currentLevel = ROLE_HIERARCHY[currentRole] ?? 99
+  return Object.entries(ROLE_HIERARCHY)
+    .filter(([, level]) => level >= currentLevel)
+    .map(([role]) => role)
+}
+
+// ============================================================================
+// Change Role Dialog
+// ============================================================================
+
+interface ChangeRoleDialogProps {
+  member: TeamMember | null
+  currentUserRole: string
+  onClose: () => void
+  onSuccess: (updated: TeamMember) => void
+}
+
+function ChangeRoleDialog({ member, currentUserRole, onClose, onSuccess }: ChangeRoleDialogProps) {
+  const [newRole, setNewRole] = useState("")
+  const [isSaving, setIsSaving] = useState(false)
+
+  const assignableRoles = getAssignableRoles(currentUserRole)
+
+  // Reset when member changes
+  useEffect(() => {
+    if (member) setNewRole(member.role)
+  }, [member])
+
+  const handleSave = async () => {
+    if (!member || newRole === member.role) return
+    setIsSaving(true)
+    try {
+      const response = await fetchWithCsrf(`/api/v1/settings/users/${member.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ role: newRole }),
+      })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update role')
+      }
+      const { data: updated } = await response.json()
+      toast.success(`${member.first_name}'s role updated to ${ROLE_LABELS[newRole]}`)
+      onSuccess({ ...member, ...updated })
+      onClose()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update role')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <AlertDialog open={!!member} onOpenChange={() => onClose()}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Change role</AlertDialogTitle>
+          <AlertDialogDescription>
+            Select a new role for {member?.first_name} {member?.last_name}.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="py-4">
+          <Select value={newRole} onValueChange={setNewRole}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select role" />
+            </SelectTrigger>
+            <SelectContent>
+              {assignableRoles.map((role) => (
+                <SelectItem key={role} value={role}>
+                  {ROLE_LABELS[role]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isSaving}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleSave}
+            disabled={isSaving || newRole === member?.role}
+          >
+            {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Update Role
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
+
+// ============================================================================
 // Main Team Members Section
 // ============================================================================
 
 export function TeamMembersSection() {
+  const { profile } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
   const [inviteLinkEnabled, setInviteLinkEnabled] = useState(false)
@@ -328,12 +438,16 @@ export function TeamMembersSection() {
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null)
   const [memberToRemove, setMemberToRemove] = useState<TeamMember | null>(null)
   const [memberForClientAccess, setMemberForClientAccess] = useState<TeamMember | null>(null)
+  const [memberToChangeRole, setMemberToChangeRole] = useState<TeamMember | null>(null)
   const [isRemoving, setIsRemoving] = useState(false)
 
   // API state
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Derive current user's role from team members list
+  const currentUserRole = teamMembers.find(m => m.id === profile?.id)?.role ?? "member"
 
   // Fetch team members from API
   const fetchMembers = useCallback(async () => {
@@ -595,7 +709,16 @@ export function TeamMembersSection() {
                   <DropdownMenuItem onClick={() => setSelectedMember(member)}>
                     Edit profile
                   </DropdownMenuItem>
-                  <DropdownMenuItem>Change role</DropdownMenuItem>
+                  {canChangeRole(currentUserRole, member.role, member.id, profile?.id ?? "") && (
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setMemberToChangeRole(member)
+                      }}
+                    >
+                      Change role
+                    </DropdownMenuItem>
+                  )}
                   {/* Show "Manage Client Access" only for Members (hierarchy_level=4) */}
                   {member.hierarchy_level === RoleHierarchyLevel.MEMBER && (
                     <DropdownMenuItem
@@ -658,6 +781,14 @@ export function TeamMembersSection() {
         onSuccess={() => {
           // Could refresh member list if showing client count badges
         }}
+      />
+
+      {/* Change Role Dialog */}
+      <ChangeRoleDialog
+        member={memberToChangeRole}
+        currentUserRole={currentUserRole}
+        onClose={() => setMemberToChangeRole(null)}
+        onSuccess={handleMemberUpdate}
       />
 
       {/* Remove Member Confirmation Dialog */}
