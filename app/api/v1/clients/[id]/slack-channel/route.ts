@@ -14,6 +14,10 @@ import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permi
 import { createSlackChannelForClient } from '@/lib/integrations/slack-channel-service'
 import { syncChannel } from '@/lib/integrations/slack-channel-sync-service'
 
+const GATEWAY_URL = process.env.DIIIPLOY_GATEWAY_URL || 'https://diiiploy-gateway.diiiploy.workers.dev'
+const GATEWAY_API_KEY = process.env.DIIIPLOY_GATEWAY_API_KEY || ''
+const TENANT_ID = process.env.DIIIPLOY_TENANT_ID || ''
+
 // DELETE /api/v1/clients/[id]/slack-channel?linkId=uuid
 export const DELETE = withPermission({ resource: 'clients', action: 'write' })(
   async (request: AuthenticatedRequest, { params }: { params: Promise<{ id: string }> }) => {
@@ -137,6 +141,23 @@ export const POST = withPermission({ resource: 'clients', action: 'write' })(
         const label = (typeof body.label === 'string' && body.label.length <= 50)
           ? body.label
           : null
+
+        // Invite bot to the channel so it can read history
+        try {
+          await fetch(`${GATEWAY_URL}/slack/channels/invite`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${GATEWAY_API_KEY}`,
+              'X-Tenant-ID': TENANT_ID,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ channel: slackChannelId }),
+            signal: AbortSignal.timeout(5000),
+          })
+        } catch {
+          // Non-fatal: bot may already be in channel, or channel may be public
+          console.warn(`[slack-channel] Bot invite failed for ${slackChannelId} (non-fatal)`)
+        }
 
         // Check for duplicate: same channel already linked to THIS client
         const { data: existingLink } = await supabase
