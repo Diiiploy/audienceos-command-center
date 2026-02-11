@@ -67,10 +67,9 @@ export const GET = withPermission({ resource: 'clients', action: 'read' })(
           serviceSupabase
         )
         results.push({
-          channel: ch.slack_channel_name,
-          channelId: ch.slack_channel_id,
-          previousMessageCount: ch.message_count,
           ...result,
+          channel: ch.slack_channel_name,
+          previousMessageCount: ch.message_count,
         })
       }
 
