@@ -2,7 +2,23 @@
  * Memory System Types
  *
  * Types for cross-session memory using Mem0.
+ * Uses mem0's native entity model: app_id (tenant), user_id, agent_id, run_id.
  */
+
+/**
+ * Mem0 entity parameters for scoping.
+ * Maps to mem0's native entity model:
+ *   - appId → app_id (tenant/agency isolation)
+ *   - userId → user_id (person)
+ *   - agentId → agent_id (AI role)
+ *   - runId → run_id (session)
+ */
+export interface Mem0EntityParams {
+  userId: string;       // Required — the actual user ID
+  appId?: string;       // Agency ID for tenant isolation
+  agentId?: string;     // AI role identifier
+  runId?: string;       // Session/thread ID
+}
 
 /**
  * Memory entry from Mem0
@@ -17,12 +33,7 @@ export interface Memory {
 }
 
 /**
- * Memory metadata for scoping
- *
- * 3-PART SCOPING: agencyId::clientId::userId
- *   - agencyId: Required - tenant isolation
- *   - clientId: Optional - client-specific memories
- *   - userId: Required - user attribution
+ * Memory metadata — stored natively in mem0 (not encoded in content)
  */
 export interface MemoryMetadata {
   agencyId: string;
@@ -40,11 +51,24 @@ export interface MemoryMetadata {
  */
 export type MemoryType =
   | 'conversation' // General conversation context
-  | 'decision' // Decisions made
-  | 'preference' // User preferences
-  | 'project' // Ongoing project context
-  | 'insight' // Learned insights about the user/agency
-  | 'task'; // Tasks or action items
+  | 'decision'     // Decisions made
+  | 'preference'   // User preferences
+  | 'project'      // Ongoing project context
+  | 'insight'      // Learned insights about the user/agency
+  | 'task';        // Tasks or action items
+
+/**
+ * Memory expiration days by type.
+ * null = never expires (permanent).
+ */
+export const EXPIRATION_DAYS: Record<MemoryType, number | null> = {
+  conversation: 30,   // Chat summaries expire after 30 days
+  decision: null,      // Decisions persist permanently
+  preference: null,    // Preferences persist permanently
+  project: 90,         // Project context expires after 90 days
+  insight: null,       // Insights persist permanently
+  task: 14,            // Tasks expire after 14 days
+};
 
 /**
  * Memory search request
@@ -57,6 +81,8 @@ export interface MemorySearchRequest {
   limit?: number;
   minScore?: number;
   types?: MemoryType[];
+  categories?: string[];
+  filters?: Record<string, unknown>;
 }
 
 /**
@@ -73,6 +99,7 @@ export interface MemorySearchResult {
  */
 export interface MemoryAddRequest {
   content: string;
+  messages?: Array<{ role: string; content: string; name?: string }>;
   agencyId: string;
   clientId?: string;
   userId: string;

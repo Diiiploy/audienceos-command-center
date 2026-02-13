@@ -1,9 +1,14 @@
 /**
  * Mem0 Service
  *
- * Integrates with Mem0 MCP for cross-session memory.
- * Provides tenant + user scoped memory operations.
- * Full CRUD: add, search, list, get, update, delete, history, entities.
+ * Integrates with Mem0 via diiiploy-gateway for cross-session memory.
+ * Uses mem0's native entity model for multi-tenant isolation:
+ *   - app_id  = agencyId (tenant isolation)
+ *   - user_id = userId (person)
+ *   - run_id  = sessionId (session scoping)
+ *   - metadata.clientId = clientId (client-level filtering)
+ *
+ * Full CRUD: add, search, list, get, update, delete, history, entities, configure.
  */
 
 import type {
@@ -18,199 +23,230 @@ import type {
   MemoryHistoryEntry,
   MemoryEntity,
 } from './types';
+import { EXPIRATION_DAYS } from './types';
 
 /**
- * Mem0 MCP interface (matches diiiploy-gateway's 9 MCP tools)
+ * Mem0 MCP interface (matches diiiploy-gateway's 10 MCP tools)
  * CRITICAL: AudienceOS uses DIIIPLOY-GATEWAY, NOT chi-gateway!
  */
 interface Mem0MCPClient {
-  addMemory: (params: { content: string; userId: string }) => Promise<{ id: string }>;
+  addMemory: (params: {
+    content?: string;
+    messages?: Array<{ role: string; content: string; name?: string }>;
+    userId: string;
+    appId?: string;
+    agentId?: string;
+    runId?: string;
+    metadata?: Record<string, unknown>;
+    expirationDate?: string;
+    categories?: string[];
+    infer?: boolean;
+  }) => Promise<{ id: string }>;
+
   searchMemories: (params: {
     query: string;
-    userId: string;
+    userId?: string;
+    appId?: string;
+    agentId?: string;
+    runId?: string;
     topK?: number;
-  }) => Promise<Array<{ id: string; content: string; score?: number }>>;
+    filters?: Record<string, unknown>;
+    categories?: string[];
+  }) => Promise<Array<{ id: string; memory: string; score?: number; metadata?: Record<string, unknown> }>>;
+
   getMemory: (params: { memoryId: string }) => Promise<{
-    id: string; memory: string; user_id?: string; created_at?: string; updated_at?: string;
+    id: string; memory: string; user_id?: string; metadata?: Record<string, unknown>;
+    created_at?: string; updated_at?: string;
   }>;
+
   listMemories: (params: {
-    userId?: string; page?: number; pageSize?: number;
-  }) => Promise<{ results: Array<{ id: string; memory: string; user_id?: string; created_at?: string; updated_at?: string }>; count?: number }>;
+    userId?: string; appId?: string; agentId?: string; runId?: string;
+    page?: number; pageSize?: number;
+  }) => Promise<{ results: Array<{
+    id: string; memory: string; user_id?: string; metadata?: Record<string, unknown>;
+    created_at?: string; updated_at?: string;
+  }>; count?: number }>;
+
   updateMemory: (params: { memoryId: string; content: string }) => Promise<{
     id: string; memory: string;
   }>;
+
   deleteMemory: (params: { memoryId: string }) => Promise<{ success: boolean; deleted: string }>;
-  deleteAllMemories: (params: { userId: string }) => Promise<{ success: boolean; userId: string }>;
+
+  deleteAllMemories: (params: {
+    userId?: string; appId?: string; agentId?: string; runId?: string;
+  }) => Promise<{ success: boolean }>;
+
   getMemoryHistory: (params: { memoryId: string }) => Promise<Array<{
-    id: string; memory_id: string; old_memory?: string; new_memory?: string; event: string; created_at?: string;
+    id: string; memory_id: string; old_memory?: string; new_memory?: string;
+    event: string; created_at?: string;
   }>>;
+
   getEntities: () => Promise<Array<{ type: string; id: string; name?: string; count?: number }>>;
+
+  configureProject: (params: {
+    custom_categories?: Array<Record<string, string>>;
+    custom_instructions?: string;
+  }) => Promise<Record<string, unknown>>;
 }
 
 /**
- * Build scoped user ID for multi-tenant support
+ * Calculate expiration date based on memory type.
+ * Returns ISO 8601 string or undefined (no expiration).
+ */
+function calculateExpiration(type: MemoryType): string | undefined {
+  const ttlDays = EXPIRATION_DAYS[type];
+  if (!ttlDays) return undefined;
+  return new Date(Date.now() + ttlDays * 86400000).toISOString();
+}
+
+/**
+ * Build native metadata object from MemoryAddRequest.
+ * This metadata is stored directly in mem0 for native filtering.
+ */
+function buildNativeMetadata(request: {
+  agencyId?: string;
+  clientId?: string;
+  userId?: string;
+  sessionId?: string;
+  type?: string;
+  topic?: string;
+  entities?: string[];
+  importance?: string;
+}): Record<string, unknown> {
+  const meta: Record<string, unknown> = {};
+  if (request.type) meta.type = request.type;
+  if (request.clientId) meta.clientId = request.clientId;
+  if (request.topic) meta.topic = request.topic;
+  if (request.importance) meta.importance = request.importance;
+  if (request.entities?.length) meta.entities = request.entities;
+  if (request.sessionId) meta.sessionId = request.sessionId;
+  return meta;
+}
+
+/**
+ * Parse memory metadata from mem0 response (native metadata).
+ */
+function parseResponseMetadata(
+  rawMetadata: Record<string, unknown> | undefined,
+  defaults: { agencyId: string; userId: string; clientId?: string }
+): MemoryMetadata {
+  const meta = rawMetadata || {};
+  return {
+    agencyId: defaults.agencyId,
+    clientId: (meta.clientId as string) || defaults.clientId,
+    userId: defaults.userId,
+    sessionId: meta.sessionId as string | undefined,
+    type: (meta.type as MemoryType) || 'conversation',
+    topic: meta.topic as string | undefined,
+    entities: meta.entities as string[] | undefined,
+    importance: (meta.importance as 'low' | 'medium' | 'high') || 'medium',
+  };
+}
+
+/**
+ * Mem0Service - Cross-session memory with native entity scoping
  *
- * 3-PART FORMAT: agencyId::clientId::userId
- *
- * Supports 3 scoping levels:
- *   1. Agency-wide:  agencyId::_::_
- *   2. Client-level: agencyId::clientId::_
- *   3. User-level:   agencyId::clientId::userId
- *
- * Using '::' as separator and '_' for wildcards ensures:
- *   - Clear visual separation
- *   - Safe for Mem0 userId field
- *   - Query patterns work (can search by prefix)
- */
-function buildScopedUserId(
-  agencyId: string,
-  userId: string,
-  clientId?: string | null
-): string {
-  const client = clientId || '_';
-  const user = userId || '_';
-  return `${agencyId}::${client}::${user}`;
-}
-
-/**
- * Build agency-level scope (for agency-wide memories)
- */
-function buildAgencyScopedId(agencyId: string): string {
-  return `${agencyId}::_::_`;
-}
-
-/**
- * Build client-level scope (for client-specific memories)
- */
-function buildClientScopedId(agencyId: string, clientId: string): string {
-  return `${agencyId}::${clientId}::_`;
-}
-
-/**
- * Parse memory content that includes metadata
- */
-function parseMemoryContent(rawContent: string): { content: string; metadata: Partial<MemoryMetadata> } {
-  try {
-    // Check if content has embedded metadata (JSON prefix)
-    if (rawContent.startsWith('{') && rawContent.includes('"content":')) {
-      const parsed = JSON.parse(rawContent);
-      return {
-        content: parsed.content || rawContent,
-        metadata: parsed.metadata || {},
-      };
-    }
-  } catch {
-    // Not JSON, use raw content
-  }
-  return { content: rawContent, metadata: {} };
-}
-
-/**
- * Encode content with metadata for storage
- */
-function encodeMemoryContent(content: string, metadata: Partial<MemoryMetadata>): string {
-  return JSON.stringify({ content, metadata });
-}
-
-/**
- * Mem0Service - Cross-session memory with tenant scoping
+ * Entity mapping:
+ *   app_id  = agencyId (tenant isolation — every query scoped by this)
+ *   user_id = userId (person attribution)
+ *   run_id  = sessionId (session/thread scoping)
+ *   metadata.clientId = clientId (client-level filtering via metadata)
  */
 export class Mem0Service {
   private mcpClient: Mem0MCPClient;
-  private memoryCache: Map<string, Memory[]> = new Map();
-  private cacheTimeout: number = 5 * 60 * 1000; // 5 minutes
 
   constructor(mcpClient: Mem0MCPClient) {
     this.mcpClient = mcpClient;
   }
 
   /**
-   * Add a memory
-   *
-   * 3-PART SCOPING:
-   *   - User memories: agencyId::clientId::userId (most specific)
-   *   - Client memories: agencyId::clientId::_ (client-wide)
-   *   - Agency memories: agencyId::_::_ (agency-wide)
+   * Add a memory with native entity scoping + metadata
    */
   async addMemory(request: MemoryAddRequest): Promise<Memory> {
-    const scopedUserId = buildScopedUserId(
-      request.agencyId,
-      request.userId,
-      request.clientId
-    );
-
-    const metadata: MemoryMetadata = {
-      agencyId: request.agencyId,
-      clientId: request.clientId,
-      userId: request.userId,
-      sessionId: request.sessionId,
-      type: request.type,
-      topic: request.topic,
-      entities: request.entities,
-      importance: request.importance || 'medium',
-    };
-
-    const encodedContent = encodeMemoryContent(request.content, metadata);
+    const metadata = buildNativeMetadata(request);
+    const expirationDate = calculateExpiration(request.type);
 
     const result = await this.mcpClient.addMemory({
-      content: encodedContent,
-      userId: scopedUserId,
+      content: request.content,
+      messages: request.messages,
+      userId: request.userId,
+      appId: request.agencyId,
+      runId: request.sessionId,
+      metadata,
+      expirationDate,
+      infer: true,
     });
 
-    const memory: Memory = {
+    return {
       id: result.id,
       content: request.content,
-      metadata,
+      metadata: {
+        agencyId: request.agencyId,
+        clientId: request.clientId,
+        userId: request.userId,
+        sessionId: request.sessionId,
+        type: request.type,
+        topic: request.topic,
+        entities: request.entities,
+        importance: request.importance || 'medium',
+      },
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-
-    // Invalidate cache
-    this.invalidateCache(scopedUserId);
-
-    return memory;
   }
 
   /**
-   * Search memories
-   *
-   * 3-PART SCOPING: Searches at the most specific level provided:
-   *   - With clientId: searches agencyId::clientId::userId
-   *   - Without clientId: searches agencyId::_::userId
+   * Search memories with native entity + metadata filtering
    */
   async searchMemories(request: MemorySearchRequest): Promise<MemorySearchResult> {
     const startTime = Date.now();
-    const scopedUserId = buildScopedUserId(
-      request.agencyId,
-      request.userId,
-      request.clientId
-    );
 
-    const results = await this.mcpClient.searchMemories({
+    // Build search params using native entity scoping
+    const searchParams: Parameters<Mem0MCPClient['searchMemories']>[0] = {
       query: request.query,
-      userId: scopedUserId,
-    });
+      userId: request.userId,
+      appId: request.agencyId,
+    };
 
-    // Parse and filter results
-    let memories: Memory[] = results.map((result) => {
-      const { content, metadata } = parseMemoryContent(result.content);
-      return {
-        id: result.id,
-        content,
-        metadata: {
-          agencyId: request.agencyId,
-          clientId: request.clientId || metadata.clientId,
-          userId: request.userId,
-          type: (metadata.type as MemoryType) || 'conversation',
-          ...metadata,
-        },
-        score: result.score,
-        createdAt: new Date(), // Mem0 doesn't return dates
-        updatedAt: new Date(),
+    // Client-scoped search uses metadata filter
+    if (request.clientId) {
+      searchParams.filters = {
+        AND: [
+          { app_id: request.agencyId },
+          { user_id: request.userId },
+          { metadata: { clientId: request.clientId } },
+        ],
       };
-    });
+    }
 
-    // Apply filters
+    // Category filter
+    if (request.categories?.length) {
+      searchParams.categories = request.categories;
+    }
+
+    // Custom filters override
+    if (request.filters) {
+      searchParams.filters = request.filters;
+    }
+
+    const results = await this.mcpClient.searchMemories(searchParams);
+
+    // Map results to Memory objects
+    let memories: Memory[] = results.map((result) => ({
+      id: result.id,
+      content: result.memory,
+      metadata: parseResponseMetadata(result.metadata, {
+        agencyId: request.agencyId,
+        userId: request.userId,
+        clientId: request.clientId,
+      }),
+      score: result.score,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
+
+    // Apply client-side filters (minScore, types) as fallback
     if (request.minScore !== undefined) {
       memories = memories.filter((m) => (m.score ?? 0) >= request.minScore!);
     }
@@ -236,16 +272,13 @@ export class Mem0Service {
   async getMemory(memoryId: string): Promise<Memory | null> {
     try {
       const result = await this.mcpClient.getMemory({ memoryId });
-      const { content, metadata } = parseMemoryContent(result.memory);
       return {
         id: result.id,
-        content,
-        metadata: {
-          agencyId: metadata.agencyId || '',
-          userId: metadata.userId || result.user_id || '',
-          type: (metadata.type as MemoryType) || 'conversation',
-          ...metadata,
-        },
+        content: result.memory,
+        metadata: parseResponseMetadata(result.metadata, {
+          agencyId: '',
+          userId: result.user_id || '',
+        }),
         createdAt: result.created_at ? new Date(result.created_at) : new Date(),
         updatedAt: result.updated_at ? new Date(result.updated_at) : new Date(),
       };
@@ -255,7 +288,7 @@ export class Mem0Service {
   }
 
   /**
-   * List all memories for a user (paginated)
+   * List all memories for a user (paginated, entity-scoped)
    */
   async listMemories(
     agencyId: string,
@@ -264,31 +297,30 @@ export class Mem0Service {
     pageSize: number = 50,
     clientId?: string
   ): Promise<MemoryListResponse> {
-    const scopedUserId = buildScopedUserId(agencyId, userId, clientId);
-
     const result = await this.mcpClient.listMemories({
-      userId: scopedUserId,
+      userId,
+      appId: agencyId,
       page,
       pageSize,
     });
 
     const results = result.results || [];
-    const memories: Memory[] = results.map((r) => {
-      const { content, metadata } = parseMemoryContent(r.memory);
-      return {
-        id: r.id,
-        content,
-        metadata: {
-          agencyId: metadata.agencyId || agencyId,
-          clientId: metadata.clientId || clientId,
-          userId: metadata.userId || userId,
-          type: (metadata.type as MemoryType) || 'conversation',
-          ...metadata,
-        },
-        createdAt: r.created_at ? new Date(r.created_at) : new Date(),
-        updatedAt: r.updated_at ? new Date(r.updated_at) : new Date(),
-      };
-    });
+    let memories: Memory[] = results.map((r) => ({
+      id: r.id,
+      content: r.memory,
+      metadata: parseResponseMetadata(r.metadata, {
+        agencyId,
+        userId,
+        clientId,
+      }),
+      createdAt: r.created_at ? new Date(r.created_at) : new Date(),
+      updatedAt: r.updated_at ? new Date(r.updated_at) : new Date(),
+    }));
+
+    // Client-side filter for clientId if specified
+    if (clientId) {
+      memories = memories.filter((m) => m.metadata.clientId === clientId);
+    }
 
     return {
       memories,
@@ -303,24 +335,15 @@ export class Mem0Service {
    */
   async updateMemory(memoryId: string, content: string, metadata?: Partial<MemoryMetadata>): Promise<Memory | null> {
     try {
-      const encodedContent = metadata
-        ? encodeMemoryContent(content, metadata)
-        : content;
-
-      const result = await this.mcpClient.updateMemory({
-        memoryId,
-        content: encodedContent,
-      });
-
-      const parsed = parseMemoryContent(result.memory);
+      const result = await this.mcpClient.updateMemory({ memoryId, content });
       return {
         id: result.id,
-        content: parsed.content,
+        content: result.memory || content,
         metadata: {
-          agencyId: parsed.metadata.agencyId || '',
-          userId: parsed.metadata.userId || '',
-          type: (parsed.metadata.type as MemoryType) || 'conversation',
-          ...parsed.metadata,
+          agencyId: metadata?.agencyId || '',
+          userId: metadata?.userId || '',
+          type: metadata?.type || 'conversation',
+          ...metadata,
         },
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -343,13 +366,42 @@ export class Mem0Service {
   }
 
   /**
-   * Delete all memories for a scope (user/agency/client)
+   * Delete all memories for a scope using native entity params
    */
   async clearMemories(agencyId: string, userId: string, clientId?: string): Promise<boolean> {
-    const scopedUserId = buildScopedUserId(agencyId, userId, clientId);
     try {
-      const result = await this.mcpClient.deleteAllMemories({ userId: scopedUserId });
-      this.invalidateCache(scopedUserId);
+      // Use native entity scoping for deletion
+      const result = await this.mcpClient.deleteAllMemories({
+        userId,
+        appId: agencyId,
+      });
+      return result.success;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Delete all memories for an agency (admin offboarding)
+   */
+  async clearAgencyMemories(agencyId: string): Promise<boolean> {
+    try {
+      const result = await this.mcpClient.deleteAllMemories({ appId: agencyId });
+      return result.success;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Delete session-scoped memories
+   */
+  async clearSessionMemories(userId: string, sessionId: string): Promise<boolean> {
+    try {
+      const result = await this.mcpClient.deleteAllMemories({
+        userId,
+        runId: sessionId,
+      });
       return result.success;
     } catch {
       return false;
@@ -390,6 +442,16 @@ export class Mem0Service {
     } catch {
       return [];
     }
+  }
+
+  /**
+   * Configure mem0 project (custom categories + instructions)
+   */
+  async configureProject(params: {
+    custom_categories?: Array<Record<string, string>>;
+    custom_instructions?: string;
+  }): Promise<Record<string, unknown>> {
+    return this.mcpClient.configureProject(params);
   }
 
   /**
@@ -448,15 +510,13 @@ export class Mem0Service {
       userId,
       limit,
     });
-
-    // Filter to high importance
     return result.memories.filter(
       (m) => m.metadata.importance === 'high'
     );
   }
 
   /**
-   * Store a conversation summary
+   * Store a conversation summary with message context
    */
   async storeConversationSummary(
     agencyId: string,
@@ -464,10 +524,12 @@ export class Mem0Service {
     sessionId: string,
     summary: string,
     topics: string[],
-    clientId?: string
+    clientId?: string,
+    messages?: Array<{ role: string; content: string }>
   ): Promise<Memory> {
     return this.addMemory({
       content: summary,
+      messages,
       agencyId,
       clientId,
       userId,
@@ -542,25 +604,10 @@ export class Mem0Service {
    * Get memory statistics (estimate)
    */
   async getStats(agencyId: string, userId: string, clientId?: string): Promise<MemoryStats> {
-    // Search for all types to estimate counts
-    const types: MemoryType[] = [
-      'conversation',
-      'decision',
-      'preference',
-      'project',
-      'insight',
-      'task',
-    ];
-
+    const types: MemoryType[] = ['conversation', 'decision', 'preference', 'project', 'insight', 'task'];
     const byType: Record<MemoryType, number> = {
-      conversation: 0,
-      decision: 0,
-      preference: 0,
-      project: 0,
-      insight: 0,
-      task: 0,
+      conversation: 0, decision: 0, preference: 0, project: 0, insight: 0, task: 0,
     };
-
     let totalMemories = 0;
 
     for (const type of types) {
@@ -579,15 +626,8 @@ export class Mem0Service {
     return {
       totalMemories,
       byType,
-      byImportance: { low: 0, medium: 0, high: 0 }, // Would need full scan
+      byImportance: { low: 0, medium: 0, high: 0 },
     };
-  }
-
-  /**
-   * Invalidate cache for a user
-   */
-  private invalidateCache(scopedUserId: string): void {
-    this.memoryCache.delete(scopedUserId);
   }
 }
 
@@ -618,7 +658,7 @@ export function resetMem0Service(): void {
 
 /**
  * Diiiploy-gateway HTTP client for Mem0
- * Calls diiiploy-gateway's 9 mem0_* MCP tools via JSON-RPC
+ * Calls diiiploy-gateway's 10 mem0_* MCP tools via JSON-RPC
  * CRITICAL: AudienceOS uses DIIIPLOY-GATEWAY, NOT chi-gateway!
  */
 function createDiiiplopyGatewayMem0Client(): Mem0MCPClient {
@@ -626,7 +666,6 @@ function createDiiiplopyGatewayMem0Client(): Mem0MCPClient {
   const apiKey = process.env.DIIIPLOY_GATEWAY_API_KEY || '';
 
   async function callTool(toolName: string, args: Record<string, unknown>): Promise<any> {
-    // MCP handler lives at /mcp on the gateway
     const mcpUrl = gatewayUrl.replace(/\/$/, '') + '/mcp';
     const response = await fetch(mcpUrl, {
       method: 'POST',
@@ -647,6 +686,18 @@ function createDiiiplopyGatewayMem0Client(): Mem0MCPClient {
     }
 
     const data = await response.json();
+
+    // Check for JSON-RPC error
+    if (data.error) {
+      throw new Error(`Gateway MCP error: ${data.error.message || JSON.stringify(data.error)}`);
+    }
+
+    // Check for tool-level error
+    if (data.result?.isError) {
+      const errorText = data.result?.content?.[0]?.text || 'Unknown tool error';
+      throw new Error(`Mem0 tool error: ${errorText}`);
+    }
+
     const text = data.result?.content?.[0]?.text;
     if (text) {
       return JSON.parse(text);
@@ -662,12 +713,12 @@ function createDiiiplopyGatewayMem0Client(): Mem0MCPClient {
 
     searchMemories: async (params) => {
       const result = await callTool('mem0_search', params);
-      // Mem0 returns { results: [...] } or array directly
-      const results = result.results || result || [];
-      return results.map((r: { id?: string; memory_id?: string; memory?: string; content?: string; score?: number }) => ({
+      const results = Array.isArray(result.results) ? result.results : Array.isArray(result) ? result : [];
+      return results.map((r: any) => ({
         id: r.id || r.memory_id || crypto.randomUUID(),
-        content: r.memory || r.content || '',
+        memory: r.memory || r.content || '',
         score: r.score,
+        metadata: r.metadata,
       }));
     },
 
@@ -677,7 +728,8 @@ function createDiiiplopyGatewayMem0Client(): Mem0MCPClient {
 
     listMemories: async (params) => {
       const result = await callTool('mem0_list', params);
-      return { results: result.results || result || [], count: result.count };
+      const items = Array.isArray(result.results) ? result.results : Array.isArray(result) ? result : [];
+      return { results: items, count: result.count || items.length };
     },
 
     updateMemory: async (params) => {
@@ -700,6 +752,10 @@ function createDiiiplopyGatewayMem0Client(): Mem0MCPClient {
     getEntities: async () => {
       const result = await callTool('mem0_entities', {});
       return result.results || result || [];
+    },
+
+    configureProject: async (params) => {
+      return callTool('mem0_configure', params);
     },
   };
 }

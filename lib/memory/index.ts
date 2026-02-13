@@ -21,10 +21,13 @@ export {
   shouldSummarize,
 } from './conversation-summarizer';
 
+export { EXPIRATION_DAYS } from './types';
+
 export type {
   Memory,
   MemoryMetadata,
   MemoryType,
+  Mem0EntityParams,
   MemorySearchRequest,
   MemorySearchResult,
   MemoryAddRequest,

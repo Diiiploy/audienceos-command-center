@@ -778,7 +778,8 @@ async function persistChatMessages(
 /**
  * Store conversation in memory for cross-session recall
  * Fire-and-forget: should not block the chat response
- * Dual-scoped: stores with both agencyId and userId via scoped userId format
+ * Uses native entity scoping: app_id=agencyId, user_id=userId, run_id=sessionId
+ * Sends full user+assistant message pair for better mem0 inference
  */
 async function storeConversationMemory(
   agencyId: string,
@@ -792,11 +793,15 @@ async function storeConversationMemory(
   try {
     const mem0Service = initializeMem0Service();
 
-    // Create a conversation summary for memory storage
-    const conversationContent = `User: "${userMessage}"\nAssistant: "${assistantResponse.substring(0, 500)}${assistantResponse.length > 500 ? '...' : ''}"`;
+    // Send full conversation pair as message array for better mem0 fact extraction
+    const messages = [
+      { role: 'user', content: userMessage },
+      { role: 'assistant', content: assistantResponse.substring(0, 1000) },
+    ];
 
     await mem0Service.addMemory({
-      content: conversationContent,
+      content: `User: "${userMessage}" → Assistant response about ${route}`,
+      messages,
       agencyId,
       userId,
       clientId,
@@ -805,8 +810,6 @@ async function storeConversationMemory(
       topic: route,
       importance: route === 'memory' ? 'high' : 'medium',
     });
-
-    // Memory stored - do not log userId
   } catch (error) {
     // Don't throw - memory storage is non-critical
     console.warn('[Chat API] Memory storage error:', error);
