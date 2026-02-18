@@ -16,6 +16,7 @@ const VALID_VIEWS = [
   "clients",
   "client",
   "onboarding",
+  "campaigns",
   "tickets",
   "intelligence",
   "knowledge",

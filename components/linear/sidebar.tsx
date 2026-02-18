@@ -16,6 +16,7 @@ import {
   Settings,
   Plus,
   ChevronLeft,
+  Megaphone,
 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -93,6 +94,7 @@ export type LinearView =
   | "clients"
   | "client"
   | "onboarding"
+  | "campaigns"
   | "intelligence"
   | "tickets"
   | "knowledge"
@@ -146,6 +148,7 @@ export function LinearSidebar({
   // Operations group
   const operationsItems = [
     { id: "onboarding" as const, icon: <ClipboardList className="w-5 h-5" />, label: "Onboarding" },
+    { id: "campaigns" as const, icon: <Megaphone className="w-5 h-5" />, label: "Ad Campaigns" },
     { id: "tickets" as const, icon: <Ticket className="w-5 h-5" />, label: "Support" },
     { id: "intelligence" as const, icon: <Sparkles className="w-5 h-5" />, label: "Intelligence" },
   ]

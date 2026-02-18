@@ -144,6 +144,7 @@ import { AutomationsHub } from "@/components/views/automations-hub"
 import { DashboardView } from "@/components/dashboard-view"
 import { SettingsView } from "@/components/settings-view"
 import { ClientDetailView } from "@/components/views/client-detail-view"
+import { CampaignsView } from "@/components/campaigns/campaigns-view"
 
 // Valid filter keys for URL params
 const FILTER_KEYS = ["stage", "health", "owner", "tier"] as const
@@ -156,7 +157,7 @@ function CommandCenterContent() {
   // Initialize activeView from URL pathname or default to dashboard
   // Supports both /dashboard style paths and legacy ?view= params
   const [activeView, setActiveView] = useState<LinearView>(() => {
-    const validViews: LinearView[] = ["dashboard", "pipeline", "clients", "client", "onboarding", "tickets", "intelligence", "knowledge", "automations", "integrations", "settings"]
+    const validViews: LinearView[] = ["dashboard", "pipeline", "clients", "client", "onboarding", "campaigns", "tickets", "intelligence", "knowledge", "automations", "integrations", "settings"]
 
     // First check pathname (new style: /onboarding)
     const pathView = pathname.split('/')[1] // Get first segment after /
@@ -227,7 +228,7 @@ function CommandCenterContent() {
   // Sync activeView from URL pathname or query param after hydration
   // This handles direct URL navigation (e.g., /settings or ?view=settings)
   useEffect(() => {
-    const validViews: LinearView[] = ["dashboard", "pipeline", "clients", "client", "onboarding", "tickets", "intelligence", "knowledge", "automations", "integrations", "settings"]
+    const validViews: LinearView[] = ["dashboard", "pipeline", "clients", "client", "onboarding", "campaigns", "tickets", "intelligence", "knowledge", "automations", "integrations", "settings"]
 
     // First check pathname (new style: /onboarding)
     const pathView = pathname.split('/')[1]
@@ -287,6 +288,7 @@ function CommandCenterContent() {
       { id: "go-dashboard", icon: <LayoutDashboard className="w-4 h-4" />, label: "Go to Dashboard", shortcut: "G D", group: "Navigation", onSelect: () => navigateTo("dashboard") },
       { id: "go-pipeline", icon: <Kanban className="w-4 h-4" />, label: "Go to Pipeline", shortcut: "G P", group: "Navigation", onSelect: () => navigateTo("pipeline") },
       { id: "go-clients", icon: <Users className="w-4 h-4" />, label: "Go to Clients", shortcut: "G C", group: "Navigation", onSelect: () => navigateTo("clients") },
+      { id: "go-campaigns", icon: <Kanban className="w-4 h-4" />, label: "Go to Ad Campaigns", shortcut: "G M", group: "Navigation", onSelect: () => navigateTo("campaigns") },
       { id: "go-tickets", icon: <Ticket className="w-4 h-4" />, label: "Go to Support Tickets", shortcut: "G T", group: "Navigation", onSelect: () => navigateTo("tickets") },
       { id: "go-intelligence", icon: <Brain className="w-4 h-4" />, label: "Go to Intelligence Center", shortcut: "G I", group: "Navigation", onSelect: () => navigateTo("intelligence") },
       { id: "go-knowledge", icon: <FolderOpen className="w-4 h-4" />, label: "Go to Knowledge Base", shortcut: "G K", group: "Navigation", onSelect: () => navigateTo("knowledge") },
@@ -550,6 +552,9 @@ function CommandCenterContent() {
             }}
           />
         )
+
+      case "campaigns":
+        return <CampaignsView />
 
       case "tickets":
         return <SupportTickets />
