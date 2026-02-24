@@ -3,7 +3,7 @@
 
 import Image from "next/image"
 
-export const USE_KAIZEN_BRANDING = true
+export const USE_KAIZEN_BRANDING = false
 
 type LogoVariant = "auth" | "sidebar" | "icon"
 
