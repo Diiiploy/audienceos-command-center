@@ -300,8 +300,8 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
           </TabsContent>
 
           <TabsContent value="comms" className="space-y-4">
-            <SlackChannelLinker clientId={clientId} />
             <ClientEmailContacts clientId={clientId} />
+            <SlackChannelLinker clientId={clientId} />
             {/* Full communications tab content */}
             <Card className="p-6">
               <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
