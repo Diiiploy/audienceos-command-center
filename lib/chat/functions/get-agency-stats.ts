@@ -13,6 +13,7 @@ import type {
   GetAgencyStatsArgs,
   AgencyStats,
 } from './types';
+import { getAccessibleClientIds } from '@/lib/rbac/client-access';
 
 /**
  * Get agency stats using Supabase aggregation
@@ -23,23 +24,34 @@ export async function getAgencyStats(
   rawArgs: Record<string, unknown>
 ): Promise<AgencyStats> {
   const args = rawArgs as unknown as GetAgencyStatsArgs;
-  const { agencyId, supabase } = context;
+  const { agencyId, userId, supabase } = context;
   const period = args.period ?? 'week';
 
   // If Supabase is available, use real aggregation queries
   if (supabase) {
     try {
-      // Get total and active clients
-      const { count: totalClients } = await supabase
+      // Member-scoped access: scope stats to only accessible clients
+      const accessibleClientIds = await getAccessibleClientIds(userId, agencyId, supabase);
+
+      // Get total and active clients (scoped for Members)
+      let totalClientsQuery = supabase
         .from('client')
         .select('id', { count: 'exact', head: true })
         .eq('agency_id', agencyId);
+      if (accessibleClientIds.length > 0) {
+        totalClientsQuery = totalClientsQuery.in('id', accessibleClientIds);
+      }
+      const { count: totalClients } = await totalClientsQuery;
 
-      // Get clients by health status
-      const { data: healthCounts } = await supabase
+      // Get clients by health status (scoped for Members)
+      let healthQuery = supabase
         .from('client')
         .select('health_status')
         .eq('agency_id', agencyId);
+      if (accessibleClientIds.length > 0) {
+        healthQuery = healthQuery.in('id', accessibleClientIds);
+      }
+      const { data: healthCounts } = await healthQuery;
 
       const atRiskClients = (healthCounts || []).filter(
         (c) => c.health_status === 'red' || c.health_status === 'yellow'
@@ -57,23 +69,31 @@ export async function getAgencyStats(
         totalClientCount
       );
 
-      // Get open alerts count
-      const { count: openAlerts } = await supabase
+      // Get open alerts count (scoped for Members)
+      let openAlertsQuery = supabase
         .from('alert')
         .select('id', { count: 'exact', head: true })
         .eq('agency_id', agencyId)
         .eq('status', 'active');
+      if (accessibleClientIds.length > 0) {
+        openAlertsQuery = openAlertsQuery.in('client_id', accessibleClientIds);
+      }
+      const { count: openAlerts } = await openAlertsQuery;
 
-      // Get resolved alerts for period
+      // Get resolved alerts for period (scoped for Members)
       const periodDays = period === 'today' ? 1 : period === 'week' ? 7 : period === 'month' ? 30 : 90;
       const cutoffDate = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000).toISOString();
 
-      const { count: resolvedAlertsThisPeriod } = await supabase
+      let resolvedQuery = supabase
         .from('alert')
         .select('id', { count: 'exact', head: true })
         .eq('agency_id', agencyId)
         .eq('status', 'resolved')
         .gte('created_at', cutoffDate);
+      if (accessibleClientIds.length > 0) {
+        resolvedQuery = resolvedQuery.in('client_id', accessibleClientIds);
+      }
+      const { count: resolvedAlertsThisPeriod } = await resolvedQuery;
 
       return {
         period,

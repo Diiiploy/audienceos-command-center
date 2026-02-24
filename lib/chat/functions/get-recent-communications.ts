@@ -14,6 +14,7 @@ import type {
   CommunicationSummary,
 } from './types';
 import { createClient } from '@/lib/supabase';
+import { getAccessibleClientIds, verifyClientAccess } from '@/lib/rbac/client-access';
 
 /**
  * Mock data for standalone testing (fallback when Supabase unavailable)
@@ -110,7 +111,7 @@ export async function getRecentCommunications(
   rawArgs: Record<string, unknown>
 ): Promise<CommunicationSummary[]> {
   const args = rawArgs as unknown as GetRecentCommunicationsArgs;
-  const { agencyId, supabase } = context;
+  const { agencyId, userId, supabase } = context;
 
   const days = args.days ?? 30;
   const limit = args.limit ?? 10;
@@ -118,6 +119,16 @@ export async function getRecentCommunications(
   // If Supabase is available, use real queries
   if (supabase) {
     try {
+      // Member-scoped access: filter communications to only accessible clients
+      const accessibleClientIds = await getAccessibleClientIds(userId, agencyId, supabase);
+
+      // If a specific client_id was requested, verify access first
+      if (args.client_id && accessibleClientIds.length > 0) {
+        if (!accessibleClientIds.includes(args.client_id)) {
+          return []; // Member doesn't have access to this client
+        }
+      }
+
       const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
       // --- Query 1: Client-scoped communications (original table) ---
@@ -132,9 +143,11 @@ export async function getRecentCommunications(
         .order('received_at', { ascending: false })
         .limit(limit);
 
-      // Scope to client if provided
+      // Scope to client if provided, or restrict to accessible clients for Members
       if (args.client_id) {
         clientQuery = clientQuery.eq('client_id', args.client_id);
+      } else if (accessibleClientIds.length > 0) {
+        clientQuery = clientQuery.in('client_id', accessibleClientIds);
       }
 
       // Platform filter maps to type

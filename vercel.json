@@ -8,6 +8,10 @@
     {
       "path": "/api/cron/slack-sync",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/gmail-sync",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

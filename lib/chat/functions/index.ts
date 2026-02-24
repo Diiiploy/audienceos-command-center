@@ -13,6 +13,9 @@ import { getAlerts } from './get-alerts';
 import { getAgencyStats } from './get-agency-stats';
 import { getRecentCommunications } from './get-recent-communications';
 import { navigateTo } from './navigate-to';
+import { getTickets } from './get-tickets';
+import { createTicket } from './create-ticket';
+import { createClient } from './create-client';
 import { validateFunctionArgs } from './schemas';
 import {
   getEmails,
@@ -166,6 +169,108 @@ export const hgcFunctions = [
       required: ['destination'],
     },
   },
+  {
+    name: 'get_tickets',
+    description: 'Get support tickets. Use when user asks about tickets, tasks, support issues, or open requests.',
+    parameters: {
+      type: 'object',
+      properties: {
+        status: {
+          type: 'string',
+          description: 'Filter by ticket status',
+          enum: ['new', 'in_progress', 'waiting_client', 'resolved'],
+        },
+        priority: {
+          type: 'string',
+          description: 'Filter by priority level',
+          enum: ['low', 'medium', 'high', 'critical'],
+        },
+        client_id: {
+          type: 'string',
+          description: 'Filter tickets for a specific client',
+        },
+        assignee_id: {
+          type: 'string',
+          description: 'Filter by assigned team member',
+        },
+        search: {
+          type: 'string',
+          description: 'Search ticket titles and descriptions',
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum tickets to return (default: 10)',
+        },
+      },
+    },
+  },
+  {
+    name: 'create_ticket',
+    description: 'Create a new support ticket for a client. Use when user wants to file a ticket, create a task, or report an issue for a client.',
+    parameters: {
+      type: 'object',
+      properties: {
+        client_id: {
+          type: 'string',
+          description: 'The UUID of the client',
+        },
+        client_name: {
+          type: 'string',
+          description: 'The name of the client (will search if ID not provided)',
+        },
+        title: {
+          type: 'string',
+          description: 'Ticket title (required)',
+        },
+        description: {
+          type: 'string',
+          description: 'Detailed description of the issue',
+        },
+        category: {
+          type: 'string',
+          description: 'Ticket category',
+          enum: ['technical', 'billing', 'campaign', 'general', 'escalation'],
+        },
+        priority: {
+          type: 'string',
+          description: 'Ticket priority level',
+          enum: ['low', 'medium', 'high', 'critical'],
+        },
+      },
+      required: ['title'],
+    },
+  },
+  {
+    name: 'create_client',
+    description: 'Create a new client record. Use when user wants to add a new client to the system.',
+    parameters: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          description: 'Client name (required)',
+        },
+        contact_name: {
+          type: 'string',
+          description: 'Primary contact person name',
+        },
+        contact_email: {
+          type: 'string',
+          description: 'Primary contact email address',
+        },
+        stage: {
+          type: 'string',
+          description: 'Client lifecycle stage (default: Lead)',
+          enum: ['Lead', 'Onboarding', 'Installation', 'Audit', 'Live', 'Needs Support', 'Off-boarding'],
+        },
+        industry: {
+          type: 'string',
+          description: 'Client industry',
+        },
+      },
+      required: ['name'],
+    },
+  },
   // Google Workspace functions
   {
     name: 'get_emails',
@@ -250,6 +355,9 @@ export const executors: Record<string, FunctionExecutor> = {
   get_recent_communications: getRecentCommunications,
   get_agency_stats: getAgencyStats,
   navigate_to: navigateTo,
+  get_tickets: getTickets,
+  create_ticket: createTicket,
+  create_client: createClient,
   // Google Workspace functions
   get_emails: getEmails,
   get_calendar_events: getCalendarEvents,

@@ -48,6 +48,54 @@ export const functionSchemas = {
     client_id: z.string().min(1).optional(),
     filters: z.object({}).passthrough().optional(),
   }),
+
+  get_tickets: z.object({
+    status: z.enum(['new', 'in_progress', 'waiting_client', 'resolved']).optional(),
+    priority: z.enum(['low', 'medium', 'high', 'critical']).optional(),
+    client_id: z.string().min(1).optional(),
+    assignee_id: z.string().min(1).optional(),
+    search: z.string().optional(),
+    limit: z.number().int().positive().max(100).optional().default(10),
+  }),
+
+  create_ticket: z.object({
+    client_id: z.string().min(1).optional(),
+    client_name: z.string().optional(),
+    title: z.string().min(1),
+    description: z.string().optional(),
+    category: z.enum(['technical', 'billing', 'campaign', 'general', 'escalation']).optional(),
+    priority: z.enum(['low', 'medium', 'high', 'critical']).optional(),
+  }),
+
+  create_client: z.object({
+    name: z.string().min(1),
+    contact_name: z.string().optional(),
+    contact_email: z.string().email().optional(),
+    stage: z.string().optional(),
+    industry: z.string().optional(),
+    notes: z.string().optional(),
+  }),
+
+  // Google Workspace functions (passthrough — validated internally)
+  get_emails: z.object({
+    query: z.string().optional(),
+    maxResults: z.number().optional(),
+    unreadOnly: z.boolean().optional(),
+  }),
+
+  get_calendar_events: z.object({
+    timeMin: z.string().optional(),
+    timeMax: z.string().optional(),
+    maxResults: z.number().optional(),
+  }),
+
+  get_drive_files: z.object({
+    query: z.string().optional(),
+    maxResults: z.number().optional(),
+    mimeType: z.string().optional(),
+  }),
+
+  check_google_connection: z.object({}),
 } as const;
 
 /**

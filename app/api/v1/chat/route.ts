@@ -62,9 +62,29 @@ async function buildSystemPrompt(
 ): Promise<string> {
   const parts: string[] = [];
 
-  // Base identity
-  parts.push(`You are an AI assistant for AudienceOS Command Center.
+  // Load AI config from agency settings (name, tone, length)
+  let aiConfig: { assistant_name?: string; response_tone?: string; response_length?: string } = {};
+  try {
+    const { data: agency } = await supabase
+      .from('agency')
+      .select('ai_config')
+      .eq('id', agencyId)
+      .single();
+    if (agency?.ai_config && typeof agency.ai_config === 'object') {
+      aiConfig = agency.ai_config as typeof aiConfig;
+    }
+  } catch (err) {
+    console.warn('[Chat API] Failed to load ai_config:', err);
+  }
+
+  const assistantName = aiConfig.assistant_name || 'Chi';
+  const responseTone = aiConfig.response_tone || 'professional';
+  const responseLength = aiConfig.response_length || 'detailed';
+
+  // Base identity (incorporating ai_config settings)
+  parts.push(`Your name is ${assistantName}. You are an AI assistant for AudienceOS Command Center.
 You help agency teams manage their clients, view performance data, and navigate the app.
+Respond in a ${responseTone} tone. Keep responses ${responseLength}.
 This query was classified as: ${route}`);
 
   // 1. App structure awareness (always include)

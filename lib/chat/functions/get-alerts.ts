@@ -10,6 +10,7 @@
  */
 
 import type { ExecutorContext, GetAlertsArgs, AlertSummary } from './types';
+import { getAccessibleClientIds } from '@/lib/rbac/client-access';
 
 /**
  * Mock data for standalone testing (fallback when Supabase unavailable)
@@ -86,12 +87,15 @@ export async function getAlerts(
   rawArgs: Record<string, unknown>
 ): Promise<AlertSummary[]> {
   const args = rawArgs as GetAlertsArgs;
-  const { agencyId, supabase } = context;
+  const { agencyId, userId, supabase } = context;
   const limit = args.limit ?? 10;
 
   // If Supabase is available, use real queries
   if (supabase) {
     try {
+      // Member-scoped access: filter alerts to only accessible clients
+      const accessibleClientIds = await getAccessibleClientIds(userId, agencyId, supabase);
+
       // Build alert query with client join
       let query = supabase
         .from('alert')
@@ -102,6 +106,11 @@ export async function getAlerts(
         `)
         .eq('agency_id', agencyId)
         .limit(limit);
+
+      // Restrict to accessible clients for Member-role users
+      if (accessibleClientIds.length > 0) {
+        query = query.in('client_id', accessibleClientIds);
+      }
 
       // Apply filters
       if (args.severity) {

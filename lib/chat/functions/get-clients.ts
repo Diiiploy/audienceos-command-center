@@ -10,6 +10,7 @@
  */
 
 import type { ExecutorContext, GetClientsArgs, GetClientDetailsArgs, ClientSummary, ClientDetails } from './types';
+import { getAccessibleClientIds, verifyClientAccess } from '@/lib/rbac/client-access';
 
 /**
  * Mock data for standalone testing (fallback when Supabase unavailable)
@@ -66,12 +67,15 @@ export async function getClients(
   rawArgs: Record<string, unknown>
 ): Promise<ClientSummary[]> {
   const args = rawArgs as GetClientsArgs;
-  const { agencyId, supabase } = context;
+  const { agencyId, userId, supabase } = context;
   const limit = args.limit ?? 10;
 
   // If Supabase is available, use real queries
   if (supabase) {
     try {
+      // Member-scoped access: filter to only accessible clients
+      const accessibleClientIds = await getAccessibleClientIds(userId, agencyId, supabase);
+
       let query = supabase
         .from('client')
         .select('id, name, stage, health_status, contact_name, contact_email, updated_at')
@@ -79,6 +83,11 @@ export async function getClients(
         .eq('is_active', true)
         .order('updated_at', { ascending: false })
         .limit(limit);
+
+      // Restrict to accessible clients for Member-role users
+      if (accessibleClientIds.length > 0) {
+        query = query.in('id', accessibleClientIds);
+      }
 
       // Apply filters
       if (args.stage) {
@@ -159,11 +168,19 @@ export async function getClientDetails(
   rawArgs: Record<string, unknown>
 ): Promise<ClientDetails | null> {
   const args = rawArgs as GetClientDetailsArgs;
-  const { agencyId, supabase } = context;
+  const { agencyId, userId, supabase } = context;
 
   // If Supabase is available, use real queries
   if (supabase) {
     try {
+      // Member-scoped access: verify user can access this client
+      if (args.client_id) {
+        const hasAccess = await verifyClientAccess(userId, agencyId, args.client_id, supabase);
+        if (!hasAccess) {
+          return null; // Silently return null (same as "not found") to avoid leaking existence
+        }
+      }
+
       let query = supabase
         .from('client')
         .select(`
@@ -191,6 +208,14 @@ export async function getClientDetails(
         }
         console.warn(`[Supabase] get_client_details error: ${error?.message}`);
         throw error;
+      }
+
+      // Verify member can access this client (for name-based lookups where we didn't check upfront)
+      if (!args.client_id && data.id) {
+        const hasAccess = await verifyClientAccess(userId, agencyId, data.id, supabase);
+        if (!hasAccess) {
+          return null;
+        }
       }
 
       // Map to ClientDetails
