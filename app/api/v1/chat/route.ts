@@ -59,11 +59,11 @@ async function buildSystemPrompt(
   sessionId: string | undefined,
   route: string,
   clientId?: string
-): Promise<string> {
+): Promise<{ prompt: string; temperature: number }> {
   const parts: string[] = [];
 
   // Load AI config from agency settings (name, tone, length)
-  let aiConfig: { assistant_name?: string; response_tone?: string; response_length?: string } = {};
+  let aiConfig: { assistant_name?: string; response_tone?: string; response_length?: string; temperature?: number } = {};
   try {
     const { data: agency } = await supabase
       .from('agency')
@@ -147,7 +147,14 @@ Each citation number should reference a source you found.
 Example: "Google Ads typically has higher CTR [1] than Meta Ads in search campaigns [2]."`);
   }
 
-  return parts.join('\n\n');
+  // Temperature: user-configured or route-appropriate default
+  // Dashboard function calling uses 0 for deterministic tool selection
+  // Conversational routes use configured value or 0.7
+  const temperature = route === 'dashboard'
+    ? 0
+    : (aiConfig.temperature ?? 0.7);
+
+  return { prompt: parts.join('\n\n'), temperature };
 }
 
 /**
@@ -227,7 +234,7 @@ export const POST = withPermission({ resource: 'ai-features', action: 'write' })
     }
 
     // 5. Build rich system prompt with all context layers (including client-scoped memories)
-    const systemPrompt = await buildSystemPrompt(supabase, agencyId, userId, sessionId, route, clientId);
+    const { prompt: systemPrompt, temperature: configuredTemperature } = await buildSystemPrompt(supabase, agencyId, userId, sessionId, route, clientId);
 
     // 6. Handle based on route
     let responseContent: string;
@@ -236,16 +243,16 @@ export const POST = withPermission({ resource: 'ai-features', action: 'write' })
 
     if (route === 'dashboard') {
       // Use function calling for dashboard queries
-      responseContent = await handleDashboardRoute(apiKey, message, agencyId, userId, functionCalls, supabase, systemPrompt);
+      responseContent = await handleDashboardRoute(apiKey, message, agencyId, userId, functionCalls, supabase, systemPrompt, configuredTemperature);
     } else if (route === 'rag') {
       // Use RAG for document search queries
-      responseContent = await handleRAGRoute(apiKey, message, agencyId, citations, supabase);
+      responseContent = await handleRAGRoute(apiKey, message, agencyId, citations, supabase, configuredTemperature);
     } else if (route === 'memory') {
       // Use Memory for recall queries
-      responseContent = await handleMemoryRoute(apiKey, message, agencyId, userId, clientId);
+      responseContent = await handleMemoryRoute(apiKey, message, agencyId, userId, configuredTemperature, clientId);
     } else {
       // Use basic Gemini response for other routes (may include web grounding citations)
-      responseContent = await handleCasualRoute(apiKey, message, systemPrompt, citations);
+      responseContent = await handleCasualRoute(apiKey, message, systemPrompt, citations, configuredTemperature);
     }
 
     // 6b. Persist chat messages to database (fire-and-forget)
@@ -395,7 +402,8 @@ async function handleDashboardRoute(
   userId: string | undefined,
   functionCallsLog: Array<{ name: string; result: unknown }>,
   supabase: SupabaseClient,
-  systemPrompt: string
+  systemPrompt: string,
+  temperature: number = 0
 ): Promise<string> {
   const genai = new GoogleGenAI({ apiKey });
 
@@ -415,7 +423,7 @@ async function handleDashboardRoute(
         model: GEMINI_MODEL,
         contents: `${systemPrompt}\n\nUser: ${message}`,
         config: {
-          temperature: 0,
+          temperature,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           tools: [{ functionDeclarations }] as any,
         },
@@ -463,7 +471,7 @@ Function ${functionName} was called and returned:
 ${JSON.stringify(result, null, 2)}
 
 Please provide a helpful, natural language summary of this data for the user.`,
-          config: { temperature: 0.7 },
+          config: { temperature: Math.max(temperature, 0.7) },
         });
 
         return interpretResponse.candidates?.[0]?.content?.parts?.[0]?.text ||
@@ -488,7 +496,8 @@ async function handleRAGRoute(
   message: string,
   agencyId: string | undefined,
   citations: Citation[],
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  temperature: number = 0.7
 ): Promise<string> {
   try {
     // Query training-enabled documents to build allowlist
@@ -556,6 +565,7 @@ async function handleMemoryRoute(
   message: string,
   agencyId: string | undefined,
   userId: string | undefined,
+  temperature: number = 0.7,
   clientId?: string
 ): Promise<string> {
   try {
@@ -591,7 +601,7 @@ Provide a helpful response that references our previous discussions. Be conversa
       const memoryResult = await genai.models.generateContent({
         model: GEMINI_MODEL,
         contents: memoryPrompt,
-        config: { temperature: 0.7 },
+        config: { temperature },
       });
 
       chatLogger.debug({ memoryCount: memoryInjection.memories.length }, 'Memory search complete');
@@ -615,7 +625,8 @@ async function handleCasualRoute(
   apiKey: string,
   message: string,
   systemPrompt: string,
-  citations: Citation[]
+  citations: Citation[],
+  temperature: number = 0.7
 ): Promise<string> {
   const genai = new GoogleGenAI({ apiKey });
 
@@ -623,7 +634,7 @@ async function handleCasualRoute(
   const requestConfig: any = {
     model: GEMINI_MODEL,
     contents: `${systemPrompt}\n\nBe concise and helpful.\n\nUser: ${message}`,
-    config: { temperature: 0.7 },
+    config: { temperature },
   };
 
   // Enable Google Search grounding for web queries (provides citations)

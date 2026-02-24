@@ -17,6 +17,9 @@ import { getTickets } from './get-tickets';
 import { createTicket } from './create-ticket';
 import { createClient } from './create-client';
 import { getClientEmails } from './get-client-emails';
+import { updateClient } from './update-client';
+import { assignTicket } from './assign-ticket';
+import { searchKnowledgeBase } from './search-knowledge-base';
 import { validateFunctionArgs } from './schemas';
 import {
   getEmails,
@@ -297,6 +300,106 @@ export const hgcFunctions = [
       },
     },
   },
+  {
+    name: 'update_client',
+    description: 'Update a client record. Use when user wants to change client stage, health status, contact info, or notes.',
+    parameters: {
+      type: 'object',
+      properties: {
+        client_id: {
+          type: 'string',
+          description: 'The UUID of the client',
+        },
+        client_name: {
+          type: 'string',
+          description: 'The name of the client (will search if ID not provided)',
+        },
+        stage: {
+          type: 'string',
+          description: 'New lifecycle stage',
+          enum: ['Lead', 'Onboarding', 'Installation', 'Audit', 'Live', 'Needs Support', 'Off-boarding'],
+        },
+        health_status: {
+          type: 'string',
+          description: 'New health status',
+          enum: ['green', 'yellow', 'red'],
+        },
+        contact_name: {
+          type: 'string',
+          description: 'Updated primary contact name',
+        },
+        contact_email: {
+          type: 'string',
+          description: 'Updated primary contact email',
+        },
+        notes: {
+          type: 'string',
+          description: 'Updated client notes',
+        },
+      },
+    },
+  },
+  {
+    name: 'assign_ticket',
+    description: 'Assign a ticket to a team member, or update ticket status/priority. Use when user wants to assign, reassign, or update a ticket.',
+    parameters: {
+      type: 'object',
+      properties: {
+        ticket_id: {
+          type: 'string',
+          description: 'The UUID of the ticket',
+        },
+        ticket_number: {
+          type: 'number',
+          description: 'The ticket number (e.g., 42)',
+        },
+        assignee_name: {
+          type: 'string',
+          description: 'Name of the team member to assign to',
+        },
+        assignee_id: {
+          type: 'string',
+          description: 'UUID of the team member to assign to',
+        },
+        status: {
+          type: 'string',
+          description: 'New ticket status',
+          enum: ['new', 'in_progress', 'waiting_client', 'resolved'],
+        },
+        priority: {
+          type: 'string',
+          description: 'New ticket priority',
+          enum: ['low', 'medium', 'high', 'critical'],
+        },
+      },
+    },
+  },
+  {
+    name: 'search_knowledge_base',
+    description: 'Search the knowledge base for documents. Use when user asks about documentation, SOPs, guides, or wants to find a specific document.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'Search term to find in document titles and file names',
+        },
+        category: {
+          type: 'string',
+          description: 'Filter by document category',
+          enum: ['installation', 'tech', 'support', 'process', 'client_specific'],
+        },
+        client_id: {
+          type: 'string',
+          description: 'Filter documents for a specific client',
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum documents to return (default: 10)',
+        },
+      },
+    },
+  },
   // Google Workspace functions
   {
     name: 'get_emails',
@@ -385,6 +488,9 @@ export const executors: Record<string, FunctionExecutor> = {
   create_ticket: createTicket,
   create_client: createClient,
   get_client_emails: getClientEmails,
+  update_client: updateClient,
+  assign_ticket: assignTicket,
+  search_knowledge_base: searchKnowledgeBase,
   // Google Workspace functions
   get_emails: getEmails,
   get_calendar_events: getCalendarEvents,

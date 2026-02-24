@@ -76,6 +76,32 @@ export const functionSchemas = {
     notes: z.string().optional(),
   }),
 
+  update_client: z.object({
+    client_id: z.string().min(1).optional(),
+    client_name: z.string().optional(),
+    stage: z.string().optional(),
+    health_status: z.enum(['green', 'yellow', 'red']).optional(),
+    contact_name: z.string().optional(),
+    contact_email: z.string().email().optional(),
+    notes: z.string().optional(),
+  }),
+
+  assign_ticket: z.object({
+    ticket_id: z.string().min(1).optional(),
+    ticket_number: z.number().int().positive().optional(),
+    assignee_name: z.string().optional(),
+    assignee_id: z.string().min(1).optional(),
+    status: z.enum(['new', 'in_progress', 'waiting_client', 'resolved']).optional(),
+    priority: z.enum(['low', 'medium', 'high', 'critical']).optional(),
+  }),
+
+  search_knowledge_base: z.object({
+    query: z.string().optional(),
+    category: z.enum(['installation', 'tech', 'support', 'process', 'client_specific']).optional(),
+    client_id: z.string().min(1).optional(),
+    limit: z.number().int().positive().max(50).optional().default(10),
+  }),
+
   get_client_emails: z.object({
     client_id: z.string().min(1).optional(),
     client_name: z.string().optional(),
