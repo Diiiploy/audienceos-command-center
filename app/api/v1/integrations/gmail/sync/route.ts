@@ -18,6 +18,7 @@ import { createClient } from '@supabase/supabase-js'
 import { syncGmail } from '@/lib/sync/gmail-sync'
 import { getOAuthCredentials, markIntegrationDisconnected } from '@/lib/chat/functions/oauth-provider'
 import { refreshGoogleAccessToken } from '@/lib/integrations/google-token-refresh'
+import { storeGmailRecords } from '@/lib/sync/gmail-store'
 import type { SyncJobConfig } from '@/lib/sync/types'
 
 export async function POST(request: NextRequest) {
@@ -110,36 +111,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Step 7: Upsert records into user_communication
-    if (records.length > 0) {
-      const rows = records.map((r) => ({
-        agency_id: userData.agency_id,
-        user_id: userId,
-        platform: 'gmail' as const,
-        message_id: r.message_id,
-        thread_id: r.thread_id,
-        sender_email: r.sender_email,
-        sender_name: r.sender_name,
-        subject: r.subject,
-        content: r.content,
-        is_inbound: r.is_inbound,
-        metadata: {
-          needs_reply: r.needs_reply,
-          received_at: r.received_at,
-        },
-      }))
-
-      const { error: upsertError } = await (supabase as any)
-        .from('user_communication')
-        .upsert(rows, {
-          onConflict: 'user_id,platform,message_id',
-          ignoreDuplicates: false,
-        })
-
-      if (upsertError) {
-        console.error('[Gmail Sync] Upsert error:', upsertError.message)
-      }
-    }
+    // Step 7: Store records (user_communication + email-to-client matching → communication)
+    const storeResult = await storeGmailRecords(supabase, userData.agency_id, userId, records)
 
     // Step 8: Update last_sync_at on credential
     await supabase
@@ -152,6 +125,8 @@ export async function POST(request: NextRequest) {
       success: result.success,
       recordsProcessed: result.recordsProcessed,
       recordsCreated: result.recordsCreated,
+      clientMatched: storeResult.matched,
+      clientUnmatched: storeResult.unmatched,
       errors: result.errors.length > 0 ? result.errors : undefined,
       timestamp: new Date().toISOString(),
     })

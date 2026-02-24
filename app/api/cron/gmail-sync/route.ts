@@ -13,6 +13,7 @@ import { createClient } from '@supabase/supabase-js'
 import { syncGmail } from '@/lib/sync/gmail-sync'
 import { getOAuthCredentials, markIntegrationDisconnected } from '@/lib/chat/functions/oauth-provider'
 import { refreshGoogleAccessToken } from '@/lib/integrations/google-token-refresh'
+import { storeGmailRecords } from '@/lib/sync/gmail-store'
 import type { SyncJobConfig } from '@/lib/sync/types'
 
 const CRON_SECRET = process.env.CRON_SECRET || ''
@@ -46,6 +47,7 @@ export async function GET(request: NextRequest) {
       userId: string
       recordsProcessed: number
       recordsCreated: number
+      clientMatched?: number
       error?: string
     }> = []
 
@@ -102,32 +104,8 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        // Upsert records into user_communication
-        if (records.length > 0) {
-          const rows = records.map((r) => ({
-            agency_id: userData.agency_id,
-            user_id: cred.user_id,
-            platform: 'gmail' as const,
-            message_id: r.message_id,
-            thread_id: r.thread_id,
-            sender_email: r.sender_email,
-            sender_name: r.sender_name,
-            subject: r.subject,
-            content: r.content,
-            is_inbound: r.is_inbound,
-            metadata: {
-              needs_reply: r.needs_reply,
-              received_at: r.received_at,
-            },
-          }))
-
-          await (supabase as any)
-            .from('user_communication')
-            .upsert(rows, {
-              onConflict: 'user_id,platform,message_id',
-              ignoreDuplicates: false,
-            })
-        }
+        // Store records (user_communication + email-to-client matching → communication)
+        const storeResult = await storeGmailRecords(supabase, userData.agency_id, cred.user_id, records)
 
         // Update last_sync_at
         await supabase
@@ -140,6 +118,7 @@ export async function GET(request: NextRequest) {
           userId: cred.user_id,
           recordsProcessed: result.recordsProcessed,
           recordsCreated: result.recordsCreated,
+          clientMatched: storeResult.matched,
           error: result.errors.length > 0 ? result.errors[0] : undefined,
         })
       } catch (err) {

@@ -76,6 +76,13 @@ export const functionSchemas = {
     notes: z.string().optional(),
   }),
 
+  get_client_emails: z.object({
+    client_id: z.string().min(1).optional(),
+    client_name: z.string().optional(),
+    limit: z.number().int().positive().max(100).optional().default(20),
+    days: z.number().int().positive().max(365).optional().default(30),
+  }),
+
   // Google Workspace functions (passthrough — validated internally)
   get_emails: z.object({
     query: z.string().optional(),

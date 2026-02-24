@@ -16,6 +16,7 @@ import { navigateTo } from './navigate-to';
 import { getTickets } from './get-tickets';
 import { createTicket } from './create-ticket';
 import { createClient } from './create-client';
+import { getClientEmails } from './get-client-emails';
 import { validateFunctionArgs } from './schemas';
 import {
   getEmails,
@@ -271,6 +272,31 @@ export const hgcFunctions = [
       required: ['name'],
     },
   },
+  {
+    name: 'get_client_emails',
+    description: 'Get emails associated with a specific client. Use when user asks about emails for a client, client email history, or wants to see email communications with a particular client.',
+    parameters: {
+      type: 'object',
+      properties: {
+        client_id: {
+          type: 'string',
+          description: 'The UUID of the client',
+        },
+        client_name: {
+          type: 'string',
+          description: 'The name of the client (will search if ID not provided)',
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum emails to return (default: 20)',
+        },
+        days: {
+          type: 'number',
+          description: 'Lookback period in days (default: 30)',
+        },
+      },
+    },
+  },
   // Google Workspace functions
   {
     name: 'get_emails',
@@ -358,6 +384,7 @@ export const executors: Record<string, FunctionExecutor> = {
   get_tickets: getTickets,
   create_ticket: createTicket,
   create_client: createClient,
+  get_client_emails: getClientEmails,
   // Google Workspace functions
   get_emails: getEmails,
   get_calendar_events: getCalendarEvents,
