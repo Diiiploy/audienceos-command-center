@@ -27,6 +27,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { useClientDetail } from "@/hooks/use-client-detail"
 import { useAuth } from "@/hooks/use-auth"
 import { SlackChannelLinker } from "@/components/slack-channel-linker"
+import { ClientEmailContacts } from "@/components/client-email-contacts"
 import { AddTicketModal, type TicketPrefill } from "@/components/linear"
 
 interface ClientDetailViewProps {
@@ -300,6 +301,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
 
           <TabsContent value="comms" className="space-y-4">
             <SlackChannelLinker clientId={clientId} />
+            <ClientEmailContacts clientId={clientId} />
             {/* Full communications tab content */}
             <Card className="p-6">
               <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
