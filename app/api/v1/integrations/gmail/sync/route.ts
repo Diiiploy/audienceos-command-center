@@ -3,18 +3,19 @@
  * Triggers Gmail sync for a user using the real Gmail API.
  *
  * Called:
- * 1. Automatically after successful OAuth callback (fire-and-forget)
- * 2. Manually by users via UI button
- * 3. By cron job for periodic sync
+ * 1. Automatically after successful OAuth callback (fire-and-forget) — uses INTERNAL_API_KEY
+ * 2. Manually by users via UI button or browser console — uses session cookie
+ * 3. By cron job for periodic sync — uses INTERNAL_API_KEY
  *
- * SECURITY:
- * - Requires INTERNAL_API_KEY in Authorization header
- * - Uses service-role Supabase client (no user session needed)
- * - Tokens decrypted only when needed, never logged
+ * AUTH: Accepts EITHER:
+ *   - INTERNAL_API_KEY bearer token (cron/internal) with userId in body
+ *   - User session cookie (browser/UI) — userId extracted from session
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
+import { createRouteHandlerClient, getAuthenticatedUser } from '@/lib/supabase'
 import { syncGmail } from '@/lib/sync/gmail-sync'
 import { getOAuthCredentials, markIntegrationDisconnected } from '@/lib/chat/functions/oauth-provider'
 import { refreshGoogleAccessToken } from '@/lib/integrations/google-token-refresh'
@@ -23,33 +24,43 @@ import type { SyncJobConfig } from '@/lib/sync/types'
 
 export async function POST(request: NextRequest) {
   try {
-    // Step 1: Validate INTERNAL_API_KEY
+    // Step 1: Authenticate — try INTERNAL_API_KEY first, then session cookie
+    let userId: string
+
     const authHeader = request.headers.get('authorization')
-    if (!authHeader || authHeader !== `Bearer ${process.env.INTERNAL_API_KEY}`) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized', timestamp: new Date().toISOString() },
-        { status: 401 }
-      )
+    const isInternalAuth = authHeader === `Bearer ${process.env.INTERNAL_API_KEY}`
+
+    if (isInternalAuth) {
+      // Internal auth: userId comes from request body
+      const body = await request.json()
+      if (!body.userId || typeof body.userId !== 'string' || body.userId.trim().length === 0) {
+        return NextResponse.json(
+          { success: false, error: 'Missing or invalid userId', timestamp: new Date().toISOString() },
+          { status: 400 }
+        )
+      }
+      userId = body.userId
+    } else {
+      // Session auth: userId comes from cookie/session
+      const sessionSupabase = await createRouteHandlerClient(cookies)
+      const { user, error } = await getAuthenticatedUser(sessionSupabase)
+
+      if (!user || error) {
+        return NextResponse.json(
+          { success: false, error: 'Unauthorized', timestamp: new Date().toISOString() },
+          { status: 401 }
+        )
+      }
+      userId = user.id
     }
 
-    // Step 2: Extract and validate userId
-    const body = await request.json()
-    const { userId } = body
-
-    if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'Missing or invalid userId', timestamp: new Date().toISOString() },
-        { status: 400 }
-      )
-    }
-
-    // Step 3: Create service-role client (bypasses RLS for internal operations)
+    // Step 2: Create service-role client (bypasses RLS for internal operations)
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    // Step 4: Look up user's agency_id
+    // Step 3: Look up user's agency_id
     const { data: userData, error: userError } = await supabase
       .from('user')
       .select('agency_id')
@@ -63,7 +74,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Step 5: Get decrypted Gmail credentials
+    // Step 4: Get decrypted Gmail credentials
     let credentials = await getOAuthCredentials(supabase, userId, 'gmail')
     if (!credentials) {
       return NextResponse.json(
@@ -72,7 +83,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Step 6: Build SyncJobConfig and call syncGmail
+    // Step 5: Build SyncJobConfig and call syncGmail
     const buildConfig = (accessToken: string): SyncJobConfig => ({
       integrationId: `gmail_${userId}`,
       agencyId: userData.agency_id,
@@ -83,7 +94,7 @@ export async function POST(request: NextRequest) {
 
     let { records, result } = await syncGmail(buildConfig(credentials.accessToken))
 
-    // Step 6b: If sync failed with token error, attempt refresh and retry
+    // Step 5b: If sync failed with token error, attempt refresh and retry
     if (!result.success && result.errors.some(e => e.includes('401') || e.includes('token'))) {
       if (credentials.refreshToken) {
         console.log('[Gmail Sync] Token expired, attempting refresh...')
@@ -111,10 +122,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Step 7: Store records (user_communication + email-to-client matching → communication)
+    // Step 6: Store records (user_communication + email-to-client matching → communication)
     const storeResult = await storeGmailRecords(supabase, userData.agency_id, userId, records)
 
-    // Step 8: Update last_sync_at on credential
+    // Step 7: Update last_sync_at on credential
     await supabase
       .from('user_oauth_credential')
       .update({ last_sync_at: new Date().toISOString() })

@@ -50,9 +50,9 @@ export async function storeGmailRecords(
     subject: r.subject,
     content: r.content,
     is_inbound: r.is_inbound,
+    received_at: r.received_at,
     metadata: {
       needs_reply: r.needs_reply,
-      received_at: r.received_at,
     },
   }))
 
