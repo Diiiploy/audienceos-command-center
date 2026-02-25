@@ -4,6 +4,12 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
+// @types/node@22+ marks process.env.NODE_ENV as readonly.
+// This helper bypasses the type constraint for test assignments.
+function setNodeEnv(value: string) {
+  (process.env as Record<string, string | undefined>).NODE_ENV = value
+}
+
 describe('Environment Validation', () => {
   // Store original env
   const originalEnv = process.env
@@ -22,7 +28,7 @@ describe('Environment Validation', () => {
 
   describe('validateEnv', () => {
     it('should return valid=true when all required vars are set', async () => {
-      process.env.NODE_ENV = 'development'
+      setNodeEnv('development')
       process.env.OAUTH_STATE_SECRET = 'test-secret'
       process.env.TOKEN_ENCRYPTION_KEY = 'test-key'
       process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
@@ -38,7 +44,7 @@ describe('Environment Validation', () => {
     })
 
     it('should return errors for missing security secrets', async () => {
-      process.env.NODE_ENV = 'development'
+      setNodeEnv('development')
       delete process.env.OAUTH_STATE_SECRET
       delete process.env.TOKEN_ENCRYPTION_KEY
       process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
@@ -53,7 +59,7 @@ describe('Environment Validation', () => {
     })
 
     it('should return errors for missing Supabase config', async () => {
-      process.env.NODE_ENV = 'development'
+      setNodeEnv('development')
       process.env.OAUTH_STATE_SECRET = 'test-secret'
       process.env.TOKEN_ENCRYPTION_KEY = 'test-key'
       delete process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -70,7 +76,7 @@ describe('Environment Validation', () => {
 
   describe('IS_PRODUCTION detection', () => {
     it('should detect production environment', async () => {
-      process.env.NODE_ENV = 'production'
+      setNodeEnv('production')
       // All requiredInProd() vars must be set — importing lib/env eagerly
       // evaluates serverEnv which throws for any missing production var
       process.env.OAUTH_STATE_SECRET = 'prod-secret'
@@ -92,7 +98,7 @@ describe('Environment Validation', () => {
     })
 
     it('should detect development environment', async () => {
-      process.env.NODE_ENV = 'development'
+      setNodeEnv('development')
 
       const { IS_PRODUCTION, IS_DEVELOPMENT } = await import('@/lib/env')
 
@@ -101,7 +107,7 @@ describe('Environment Validation', () => {
     })
 
     it('should detect test environment', async () => {
-      process.env.NODE_ENV = 'test'
+      setNodeEnv('test')
 
       const { IS_TEST } = await import('@/lib/env')
 
@@ -111,7 +117,7 @@ describe('Environment Validation', () => {
 
   describe('publicEnv', () => {
     it('should expose public environment variables', async () => {
-      process.env.NODE_ENV = 'development'
+      setNodeEnv('development')
       process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
       process.env.NEXT_PUBLIC_APP_URL = 'https://app.test.com'
@@ -126,7 +132,7 @@ describe('Environment Validation', () => {
     })
 
     it('should use default appUrl when not set', async () => {
-      process.env.NODE_ENV = 'development'
+      setNodeEnv('development')
       process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
       delete process.env.NEXT_PUBLIC_APP_URL
@@ -137,7 +143,7 @@ describe('Environment Validation', () => {
     })
 
     it('should parse mockMode boolean correctly', async () => {
-      process.env.NODE_ENV = 'development'
+      setNodeEnv('development')
       process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
       process.env.NEXT_PUBLIC_MOCK_MODE = 'true'
@@ -150,7 +156,7 @@ describe('Environment Validation', () => {
 
   describe('serverEnv', () => {
     it('should expose server environment variables in development', async () => {
-      process.env.NODE_ENV = 'development'
+      setNodeEnv('development')
       process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-key'
       process.env.GOOGLE_CLIENT_ID = 'google-id'
       process.env.GOOGLE_CLIENT_SECRET = 'google-secret'
@@ -168,7 +174,7 @@ describe('Environment Validation', () => {
     })
 
     it('should use dev defaults for missing required vars in development', async () => {
-      process.env.NODE_ENV = 'development'
+      setNodeEnv('development')
       delete process.env.OAUTH_STATE_SECRET
       delete process.env.TOKEN_ENCRYPTION_KEY
 
@@ -180,7 +186,7 @@ describe('Environment Validation', () => {
     })
 
     it('should expose optional unipile config', async () => {
-      process.env.NODE_ENV = 'development'
+      setNodeEnv('development')
       process.env.UNIPILE_API_KEY = 'unipile-key'
       process.env.UNIPILE_CLIENT_ID = 'unipile-client'
       process.env.UNIPILE_MOCK_MODE = 'true'
@@ -193,7 +199,7 @@ describe('Environment Validation', () => {
     })
 
     it('should use default DSN for unipile when not set', async () => {
-      process.env.NODE_ENV = 'development'
+      setNodeEnv('development')
       delete process.env.UNIPILE_DSN
 
       const { serverEnv } = await import('@/lib/env')
@@ -204,7 +210,7 @@ describe('Environment Validation', () => {
 
   describe('email config', () => {
     it('should expose email configuration', async () => {
-      process.env.NODE_ENV = 'development'
+      setNodeEnv('development')
       process.env.RESEND_API_KEY = 'resend-key'
       process.env.RESEND_FROM_EMAIL = 'noreply@test.com'
 
@@ -215,7 +221,7 @@ describe('Environment Validation', () => {
     })
 
     it('should use default fromEmail when not set', async () => {
-      process.env.NODE_ENV = 'development'
+      setNodeEnv('development')
       delete process.env.RESEND_FROM_EMAIL
 
       const { serverEnv } = await import('@/lib/env')
