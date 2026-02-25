@@ -51,6 +51,18 @@ User: "Show me at-risk clients"
 User: "Give me agency statistics for this week"
 {"route": "dashboard", "confidence": 0.88, "reasoning": "Requesting stats data from the platform"}
 
+User: "Can you summarize any emails I've gotten from clients?"
+{"route": "dashboard", "confidence": 0.92, "reasoning": "Requesting email data from synced communications"}
+
+User: "Summarize the most recent messages in my inbox"
+{"route": "dashboard", "confidence": 0.90, "reasoning": "Requesting synced email data from the platform"}
+
+User: "What emails has Acme Corp sent me?"
+{"route": "dashboard", "confidence": 0.92, "reasoning": "Requesting client-specific email data"}
+
+User: "Create a ticket for Acme about their billing issue"
+{"route": "dashboard", "confidence": 0.90, "reasoning": "Action request to create a ticket in the platform"}
+
 Now classify this query:
 User: "{query}"`;
 
@@ -248,11 +260,15 @@ export class SmartRouter {
       };
     }
 
-    // Dashboard data queries - clients, alerts, stats
+    // Dashboard data queries - clients, alerts, stats, emails, communications
     if (/(show|list|get|what|give)\s+(me\s+)?(my\s+)?(all\s+)?(the\s+)?(clients?|alerts?|statistics?|stats)/i.test(lower) ||
         /(at[- ]?risk|critical|high\s+priority)\s*(clients?|alerts?)/i.test(lower) ||
         /clients?\s+(at[- ]?risk|with|who|that)/i.test(lower) ||
-        /(how many|agency)\s+(clients?|alerts?|stats)/i.test(lower)) {
+        /(how many|agency)\s+(clients?|alerts?|stats)/i.test(lower) ||
+        /(emails?|gmail|inbox|messages?|communications?|slack\s+messages?)/i.test(lower) ||
+        /(summarize|check|pull|read|search)\s+(my\s+)?(recent\s+)?(emails?|inbox|messages?|gmails?)/i.test(lower) ||
+        /tickets?/i.test(lower) ||
+        /(create|add|make|update|assign)\s+(a\s+)?(new\s+)?(client|ticket)/i.test(lower)) {
       return {
         route: 'dashboard',
         confidence: 0.92,

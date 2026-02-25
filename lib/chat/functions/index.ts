@@ -116,7 +116,7 @@ export const hgcFunctions = [
   },
   {
     name: 'get_recent_communications',
-    description: 'Get recent communications (emails, Slack messages) with a client or across all clients. Use when user asks about messages, Slack, or communications.',
+    description: 'Get recent synced communications (Gmail emails, Slack messages) with a client or across all clients. Use when user asks about messages, communications, or recent activity with clients.',
     parameters: {
       type: 'object',
       properties: {
@@ -277,7 +277,7 @@ export const hgcFunctions = [
   },
   {
     name: 'get_client_emails',
-    description: 'Get emails associated with a specific client. Use when user asks about emails for a client, client email history, or wants to see email communications with a particular client.',
+    description: 'Get synced emails for a specific client. Use when user asks about emails from/to a named client (e.g., "emails from Acme", "what has Agro Bros sent me"). Looks up the client by name or ID and returns their email history.',
     parameters: {
       type: 'object',
       properties: {
@@ -403,13 +403,13 @@ export const hgcFunctions = [
   // Google Workspace functions
   {
     name: 'get_emails',
-    description: 'Get emails from Gmail inbox. Use when user asks about emails, messages, or inbox.',
+    description: 'Get synced emails from the connected Gmail inbox. Use when user asks about emails, messages, inbox, or wants to see recent emails. Emails are already synced — call this immediately without checking connection first.',
     parameters: {
       type: 'object',
       properties: {
         query: {
           type: 'string',
-          description: 'Gmail search query (e.g., "from:john", "subject:meeting", "is:unread")',
+          description: 'Search query to filter emails by subject, content, or sender (e.g., "invoice", "john@example.com")',
         },
         maxResults: {
           type: 'number',
@@ -466,7 +466,7 @@ export const hgcFunctions = [
   },
   {
     name: 'check_google_connection',
-    description: 'Check which Google services are connected (Gmail, Calendar, Drive).',
+    description: 'Check which Google services are connected (Gmail, Calendar, Drive). Only use this if the user explicitly asks about connection status — do NOT call this before fetching emails.',
     parameters: {
       type: 'object',
       properties: {},
