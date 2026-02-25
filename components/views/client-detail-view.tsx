@@ -35,6 +35,18 @@ interface ClientDetailViewProps {
   onBack: () => void
 }
 
+/** Decode common HTML entities (Gmail API returns encoded snippets) */
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&#(\d+);/g, (_, code: string) => String.fromCharCode(parseInt(code, 10)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, code: string) => String.fromCharCode(parseInt(code, 16)))
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+}
+
 /**
  * ClientDetailView - Renders full client details within the app shell
  * This component is designed to be used within LinearShell, preserving navigation context
@@ -339,7 +351,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                               setTicketPrefill({
                                 clientId: clientId,
                                 title: comm.subject || `${comm.platform} issue — ${client.name}`,
-                                description: `Source: ${comm.platform} message (${new Date(comm.received_at).toLocaleDateString()})\n\n${subjectLine}${comm.content}`,
+                                description: `Source: ${comm.platform} message (${new Date(comm.received_at).toLocaleDateString()})\n\n${subjectLine}${decodeHtmlEntities(comm.content)}`,
                               })
                               setTicketModalOpen(true)
                             }}
@@ -349,9 +361,9 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                           </Button>
                         </div>
                         {comm.subject && (
-                          <p className="text-sm font-medium text-foreground mb-1">{comm.subject}</p>
+                          <p className="text-sm font-medium text-foreground mb-1">{decodeHtmlEntities(comm.subject)}</p>
                         )}
-                        <p className="text-sm text-muted-foreground line-clamp-2">{comm.content}</p>
+                        <p className="text-sm text-muted-foreground line-clamp-2">{decodeHtmlEntities(comm.content)}</p>
                       </div>
                     ))
                 )}

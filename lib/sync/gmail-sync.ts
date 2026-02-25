@@ -225,8 +225,8 @@ function normalizeGmailMessage(
     message_id: message.id,
     sender_name: fromName,
     sender_email: fromEmail,
-    subject,
-    content: message.snippet || '(empty message)',
+    subject: subject ? decodeHtmlEntities(subject) : null,
+    content: decodeHtmlEntities(message.snippet || '(empty message)'),
     created_at: timestamp,
     received_at: timestamp,
     thread_id: message.threadId || null,
@@ -235,6 +235,21 @@ function normalizeGmailMessage(
     replied_at: null,
     replied_by: null,
   }
+}
+
+/**
+ * Decode HTML entities from Gmail API snippet text.
+ * Gmail returns snippets with entities like &#39; &amp; &quot; &lt; &gt;
+ */
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, code) => String.fromCharCode(parseInt(code, 16)))
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
 }
 
 /**
