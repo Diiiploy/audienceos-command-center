@@ -13,6 +13,7 @@ import {
   isIntegrationConnected,
   type OAuthCredentials,
 } from './oauth-provider';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 /**
  * Email summary from Gmail
@@ -68,7 +69,15 @@ export interface GoogleConnectionStatus {
 }
 
 /**
- * Get emails from Gmail
+ * Get emails from Gmail.
+ *
+ * For gateway-proxied Gmail (tokens in diiiploy-gateway KV):
+ *   Queries the already-synced `user_communication` table instead of
+ *   calling Gmail API directly, since the sync pipeline has already
+ *   fetched and stored the messages.
+ *
+ * Falls back to direct Gmail API calls only if local OAuth credentials
+ * exist in `user_oauth_credential` (non-gateway providers).
  */
 export async function getEmails(
   context: ExecutorContext,
@@ -84,7 +93,7 @@ export async function getEmails(
   connected: boolean;
   message?: string;
 }> {
-  const { supabase, userId } = context;
+  const { supabase, userId, agencyId } = context;
 
   if (!supabase) {
     return {
@@ -95,10 +104,10 @@ export async function getEmails(
     };
   }
 
-  // Get Google credentials
-  const credentials = await getGoogleCredentials(supabase, userId);
+  // Check if Gmail is connected (checks both user_oauth_credential and integration table)
+  const gmailConnected = await isIntegrationConnected(supabase, userId, 'gmail', agencyId);
 
-  if (!credentials) {
+  if (!gmailConnected) {
     return {
       emails: [],
       totalResults: 0,
@@ -107,8 +116,112 @@ export async function getEmails(
     };
   }
 
+  // Try local credentials first (direct OAuth pattern)
+  const credentials = await getGoogleCredentials(supabase, userId);
+
+  if (credentials) {
+    // Direct API path — local tokens exist
+    return getEmailsFromGmailApi(credentials, args);
+  }
+
+  // Gateway path — query synced data from user_communication table
+  return getEmailsFromSyncedData(supabase, agencyId, args);
+}
+
+/**
+ * Query synced Gmail messages from user_communication table.
+ * Used when Gmail is connected via gateway (no local tokens).
+ */
+async function getEmailsFromSyncedData(
+  supabase: SupabaseClient,
+  agencyId: string,
+  args: {
+    query?: string;
+    maxResults?: number;
+    unreadOnly?: boolean;
+  }
+): Promise<{
+  emails: EmailSummary[];
+  totalResults: number;
+  connected: boolean;
+  message?: string;
+}> {
   try {
-    // Build Gmail API query
+    const { query = '', maxResults = 10 } = args;
+
+    let dbQuery = (supabase as any)
+      .from('user_communication')
+      .select('id, message_id, subject, content, sender_email, sender_name, is_inbound, created_at', { count: 'exact' })
+      .eq('agency_id', agencyId)
+      .eq('platform', 'gmail')
+      .order('created_at', { ascending: false })
+      .limit(maxResults);
+
+    // Apply text search filter if query provided
+    if (query) {
+      // Search across subject, content, and sender_email
+      dbQuery = dbQuery.or(`subject.ilike.%${query}%,content.ilike.%${query}%,sender_email.ilike.%${query}%`);
+    }
+
+    const { data, error, count } = await dbQuery;
+
+    if (error) {
+      console.error('[Gmail] Database query error:', error);
+      return {
+        emails: [],
+        totalResults: 0,
+        connected: true,
+        message: `Failed to query synced emails: ${error.message}`,
+      };
+    }
+
+    const emails: EmailSummary[] = (data || []).map((row: any) => ({
+      id: row.id,
+      threadId: row.message_id || row.id,
+      subject: row.subject || '(no subject)',
+      from: row.sender_name
+        ? `${row.sender_name} <${row.sender_email}>`
+        : row.sender_email || '',
+      snippet: row.content?.substring(0, 200) || '',
+      date: row.created_at,
+      isUnread: false, // Sync doesn't track read state
+    }));
+
+    return {
+      emails,
+      totalResults: count ?? emails.length,
+      connected: true,
+    };
+  } catch (error) {
+    console.error('[Gmail] Error querying synced data:', error);
+    return {
+      emails: [],
+      totalResults: 0,
+      connected: true,
+      message: `Failed to fetch emails: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    };
+  }
+}
+
+/**
+ * Direct Gmail API calls — used when local OAuth tokens exist.
+ * Preserved for future non-gateway providers.
+ */
+async function getEmailsFromGmailApi(
+  credentials: OAuthCredentials,
+  args: {
+    query?: string;
+    maxResults?: number;
+    unreadOnly?: boolean;
+    labelIds?: string[];
+  }
+): Promise<{
+  emails: EmailSummary[];
+  totalResults: number;
+  connected: boolean;
+  message?: string;
+}> {
+  try {
     const { query = '', maxResults = 10, unreadOnly = false, labelIds = ['INBOX'] } = args;
 
     let searchQuery = query;
@@ -116,7 +229,6 @@ export async function getEmails(
       searchQuery = `is:unread ${searchQuery}`.trim();
     }
 
-    // Call Gmail API
     const url = new URL('https://gmail.googleapis.com/gmail/v1/users/me/messages');
     url.searchParams.set('maxResults', String(maxResults));
     if (searchQuery) {
@@ -147,7 +259,6 @@ export async function getEmails(
     const messageIds = data.messages || [];
     const totalResults = data.resultSizeEstimate || messageIds.length;
 
-    // Fetch message details (in parallel, limited to 5 concurrent)
     const emails: EmailSummary[] = [];
     for (const msg of messageIds.slice(0, maxResults)) {
       try {
@@ -391,13 +502,14 @@ export async function getDriveFiles(
 }
 
 /**
- * Check Google Workspace connection status
+ * Check Google Workspace connection status.
+ * Checks both direct OAuth credentials and gateway-proxied integrations.
  */
 export async function checkGoogleConnection(
   context: ExecutorContext,
   _args: Record<string, unknown>
 ): Promise<GoogleConnectionStatus> {
-  const { supabase, userId } = context;
+  const { supabase, userId, agencyId } = context;
 
   if (!supabase) {
     return {
@@ -409,9 +521,9 @@ export async function checkGoogleConnection(
   }
 
   const [gmailConnected, calendarConnected, driveConnected] = await Promise.all([
-    isIntegrationConnected(supabase, userId, 'gmail'),
-    isIntegrationConnected(supabase, userId, 'google-calendar'),
-    isIntegrationConnected(supabase, userId, 'google-drive'),
+    isIntegrationConnected(supabase, userId, 'gmail', agencyId),
+    isIntegrationConnected(supabase, userId, 'google-calendar', agencyId),
+    isIntegrationConnected(supabase, userId, 'google-drive', agencyId),
   ]);
 
   return {

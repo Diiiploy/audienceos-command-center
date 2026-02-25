@@ -131,14 +131,23 @@ export async function getAllOAuthStatus(
 }
 
 /**
- * Check if a specific integration is connected
+ * Check if a specific integration is connected.
+ *
+ * Checks two sources:
+ * 1. `user_oauth_credential` table (direct OAuth — tokens stored locally)
+ * 2. `integration` table (gateway-proxied — tokens in diiiploy-gateway KV)
+ *
+ * Gateway-proxied providers (Gmail, Slack) only have records in the
+ * `integration` table, so we must check both.
  */
 export async function isIntegrationConnected(
   supabase: SupabaseClient,
   userId: string,
-  type: OAuthIntegrationType
+  type: OAuthIntegrationType,
+  agencyId?: string
 ): Promise<boolean> {
   try {
+    // Check 1: user_oauth_credential (direct OAuth)
     const { data, error } = await supabase
       .from('user_oauth_credential')
       .select('is_connected')
@@ -146,11 +155,27 @@ export async function isIntegrationConnected(
       .eq('type', type)
       .single();
 
-    if (error || !data) {
-      return false;
+    if (!error && data?.is_connected) {
+      return true;
     }
 
-    return data.is_connected || false;
+    // Check 2: integration table (gateway-proxied providers)
+    if (agencyId) {
+      const { data: integration, error: intError } = await (supabase as any)
+        .from('integration')
+        .select('is_connected')
+        .eq('agency_id', agencyId)
+        .eq('provider', type)
+        .eq('is_connected', true)
+        .limit(1)
+        .maybeSingle();
+
+      if (!intError && integration?.is_connected) {
+        return true;
+      }
+    }
+
+    return false;
   } catch (error) {
     console.error(`[OAuth] Error checking ${type} connection:`, error);
     return false;
