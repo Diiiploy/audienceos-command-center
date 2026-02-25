@@ -469,15 +469,17 @@ async function handleDashboardRoute(
 
         functionCallsLog.push({ name: functionName, result });
 
-        // Second call: Let Gemini interpret the result
+        // Second call: Let Gemini interpret the result (with system context for consistency)
         const interpretResponse = await genai.models.generateContent({
           model: GEMINI_MODEL,
-          contents: `User asked: "${message}"
+          contents: `${systemPrompt}
+
+User asked: "${message}"
 
 Function ${functionName} was called and returned:
 ${JSON.stringify(result, null, 2)}
 
-Please provide a helpful, natural language summary of this data for the user.`,
+Provide a helpful, natural language summary of this data. If the data is empty or shows zero results, tell the user clearly. Do NOT ask the user for confirmation or offer to do something you were already asked to do — just present the results.`,
           config: { temperature: Math.max(temperature, 0.7) },
         });
 

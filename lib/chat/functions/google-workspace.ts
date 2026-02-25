@@ -131,6 +131,9 @@ export async function getEmails(
 /**
  * Query synced Gmail messages from user_communication table.
  * Used when Gmail is connected via gateway (no local tokens).
+ *
+ * Falls back to the communication table if user_communication returns empty,
+ * since the communication table (client-scoped) stores matched emails too.
  */
 async function getEmailsFromSyncedData(
   supabase: SupabaseClient,
@@ -149,6 +152,7 @@ async function getEmailsFromSyncedData(
   try {
     const { query = '', maxResults = 10 } = args;
 
+    // Try user_communication first (personal inbox, all synced emails)
     let dbQuery = (supabase as any)
       .from('user_communication')
       .select('id, message_id, subject, content, sender_email, sender_name, is_inbound, created_at', { count: 'exact' })
@@ -157,13 +161,37 @@ async function getEmailsFromSyncedData(
       .order('created_at', { ascending: false })
       .limit(maxResults);
 
-    // Apply text search filter if query provided
     if (query) {
-      // Search across subject, content, and sender_email
       dbQuery = dbQuery.or(`subject.ilike.%${query}%,content.ilike.%${query}%,sender_email.ilike.%${query}%`);
     }
 
-    const { data, error, count } = await dbQuery;
+    let { data, error, count } = await dbQuery;
+
+    // Fallback: if user_communication is empty (RLS may filter by user_id),
+    // try the communication table which is agency-scoped
+    if ((!data || data.length === 0) && !error) {
+      let commQuery = supabase
+        .from('communication')
+        .select('id, message_id, subject, content, sender_email, sender_name, is_inbound, received_at', { count: 'exact' })
+        .eq('agency_id', agencyId)
+        .eq('platform', 'gmail')
+        .order('received_at', { ascending: false })
+        .limit(maxResults);
+
+      if (query) {
+        commQuery = commQuery.or(`subject.ilike.%${query}%,content.ilike.%${query}%,sender_email.ilike.%${query}%`);
+      }
+
+      const commResult = await commQuery;
+      if (!commResult.error && commResult.data && commResult.data.length > 0) {
+        data = commResult.data.map((r: any) => ({
+          ...r,
+          created_at: r.received_at,
+        }));
+        count = commResult.count;
+        error = null;
+      }
+    }
 
     if (error) {
       console.error('[Gmail] Database query error:', error);

@@ -277,6 +277,17 @@ export class SmartRouter {
       };
     }
 
+    // Short affirmative/continuation responses — keep in dashboard mode
+    // These are follow-ups to previous function results (e.g., "yes", "do it", "go ahead")
+    if (/^(yes|yeah|yep|sure|ok|okay|do it|go ahead|please|go for it|absolutely|definitely)[\s!?.]*$/i.test(lower)) {
+      return {
+        route: 'dashboard',
+        confidence: 0.85,
+        reasoning: 'Short affirmative response — likely continuation of dashboard query',
+        estimatedLatencyMs: ROUTE_LATENCY.dashboard,
+      };
+    }
+
     // Obvious greetings
     if (/^(hi|hello|hey|good (morning|afternoon|evening)|howdy|what'?s up)[\s!?.]*$/i.test(lower)) {
       return {
