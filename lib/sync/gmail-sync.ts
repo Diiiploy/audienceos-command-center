@@ -212,8 +212,8 @@ function normalizeGmailMessage(
   const headers = message.payload?.headers || []
   const headerMap = new Map(headers.map((h) => [h.name.toLowerCase(), h.value]))
 
-  const fromEmail = headerMap.get('from') || 'unknown@unknown.com'
-  const fromName = extractNameFromEmail(fromEmail)
+  const fromRaw = headerMap.get('from') || 'unknown@unknown.com'
+  const { email: fromEmail, name: fromName } = parseFromHeader(fromRaw)
   const subject = headerMap.get('subject') || null
   const timestamp = new Date(parseInt(message.internalDate)).toISOString()
 
@@ -253,13 +253,35 @@ function decodeHtmlEntities(text: string): string {
 }
 
 /**
- * Extract display name from email header
- * Handles formats like: "John Doe <john@example.com>"
+ * Parse the From header into clean email and name.
+ *
+ * Input formats:
+ *   "Andrew Kvaal (Google Docs)" <andrew@example.com>
+ *   audienceOS (via Slack) <notification@slack.com>
+ *   john@example.com
+ *
+ * Returns:
+ *   email: just the address (andrew@example.com)
+ *   name:  clean display name without quotes or parenthetical suffixes (Andrew Kvaal)
  */
-function extractNameFromEmail(email: string): string | null {
-  const match = email.match(/^(.+?)\s*<(.+?)>$/)
-  if (match) {
-    return match[1].trim() || null
+function parseFromHeader(raw: string): { email: string; name: string | null } {
+  const angleMatch = raw.match(/^(.+?)\s*<([^>]+)>$/)
+
+  if (angleMatch) {
+    const email = angleMatch[2].trim()
+    let name = angleMatch[1].trim()
+
+    // Strip surrounding double quotes: "John Doe" → John Doe
+    if (name.startsWith('"') && name.endsWith('"')) {
+      name = name.slice(1, -1).trim()
+    }
+
+    // Remove parenthetical suffixes: Andrew Kvaal (Google Docs) → Andrew Kvaal
+    name = name.replace(/\s*\([^)]*\)\s*$/, '').trim()
+
+    return { email, name: name || null }
   }
-  return null
+
+  // Plain email with no angle brackets
+  return { email: raw.trim(), name: null }
 }
