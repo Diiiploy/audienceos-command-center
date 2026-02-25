@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import {
   ArrowLeft,
+  ArrowUpDown,
   CheckCircle2,
   Circle,
   TrendingUp,
@@ -109,6 +110,8 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   }
 
   const [message, setMessage] = useState("")
+  const [commFilter, setCommFilter] = useState<'all' | 'slack' | 'gmail'>('all')
+  const [commSortOrder, setCommSortOrder] = useState<'newest' | 'oldest'>('newest')
   const [accessStatus, setAccessStatus] = useState({
     meta: false,
     gtm: false,
@@ -337,18 +340,65 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
           <TabsContent value="comms" className="space-y-4">
             <ClientEmailContacts clientId={clientId} />
             <SlackChannelLinker clientId={clientId} />
-            {/* Full communications tab content */}
+            {/* Synced Messages */}
             <Card className="p-6">
-              <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
-                {client.communications.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <p className="text-sm">No communications yet.</p>
-                    <p className="text-xs mt-1">Connect Slack or Gmail to sync messages.</p>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-foreground">Synced Messages</h3>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center rounded-md border border-border bg-secondary/50 p-0.5">
+                    {(['all', 'slack', 'gmail'] as const).map((filter) => (
+                      <button
+                        key={filter}
+                        onClick={() => setCommFilter(filter)}
+                        className={cn(
+                          "px-2.5 py-1 text-[10px] font-medium rounded-sm transition-colors capitalize",
+                          commFilter === filter
+                            ? "bg-background text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {filter}
+                      </button>
+                    ))}
                   </div>
-                ) : (
-                  client.communications
-                    .sort((a, b) => new Date(b.received_at).getTime() - new Date(a.received_at).getTime())
-                    .map((comm) => (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 gap-1 text-[10px] text-muted-foreground"
+                    onClick={() => setCommSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest')}
+                  >
+                    <ArrowUpDown className="h-3 w-3" />
+                    {commSortOrder === 'newest' ? 'Newest' : 'Oldest'}
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
+                {(() => {
+                  const filtered = client.communications
+                    .filter((comm) => commFilter === 'all' || comm.platform === commFilter)
+                    .sort((a, b) => {
+                      const diff = new Date(b.received_at).getTime() - new Date(a.received_at).getTime()
+                      return commSortOrder === 'newest' ? diff : -diff
+                    })
+
+                  if (client.communications.length === 0) {
+                    return (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <p className="text-sm">No communications yet.</p>
+                        <p className="text-xs mt-1">Connect Slack or Gmail to sync messages.</p>
+                      </div>
+                    )
+                  }
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <p className="text-sm">No {commFilter} messages found.</p>
+                      </div>
+                    )
+                  }
+
+                  return filtered.map((comm) => (
                       <div
                         key={comm.id}
                         className={cn(
@@ -394,7 +444,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                         <p className="text-sm text-muted-foreground line-clamp-2">{decodeHtmlEntities(comm.content)}</p>
                       </div>
                     ))
-                )}
+                })()}
               </div>
 
               <div className="space-y-3 pt-4 border-t border-border mt-4">
