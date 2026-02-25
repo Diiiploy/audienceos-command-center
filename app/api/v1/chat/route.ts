@@ -92,7 +92,8 @@ IMPORTANT CAPABILITIES:
 - When users mention a client name, always check if they exist in the system first using get_clients or get_client_details. Never say "if they are a client" — look them up.
 - When asked to summarize emails or messages, call the appropriate function right away. Do not ask for confirmation — just do it.
 - "emails" and "messages" refer to synced Gmail/Slack data in the system. Always treat email requests as requests for synced data.
-- Use get_emails for general inbox queries. Use get_client_emails when asking about a specific client's emails.`);
+- Use get_emails for general inbox queries (e.g., "show my recent emails", "check my inbox").
+- Use get_client_emails when the user mentions BOTH emails AND a client name (e.g., "emails from Acme", "gmails from Test Client", "summarize emails from [name]"). NEVER use get_clients or get_client_details for email requests — always use get_client_emails.`);
 
   // 1. App structure awareness (always include)
   // Note: currentPage could be passed from frontend in request body for better context
@@ -483,8 +484,13 @@ Provide a helpful, natural language summary of this data. If the data is empty o
           config: { temperature: Math.max(temperature, 0.7) },
         });
 
-        return interpretResponse.candidates?.[0]?.content?.parts?.[0]?.text ||
-          `I found the data you requested. ${JSON.stringify(result).substring(0, 200)}...`;
+        const interpretedText = interpretResponse.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (interpretedText) {
+          return interpretedText;
+        }
+
+        // Smart fallback: format result as readable text instead of raw JSON
+        return formatFallbackResult(functionName, result);
       } catch (execError) {
         console.error(`[Chat API] Function execution failed:`, execError);
         return `I tried to get that information but encountered an error. Please try again.`;
@@ -494,6 +500,54 @@ Provide a helpful, natural language summary of this data. If the data is empty o
 
   // No function call, return text response
   return parts[0]?.text || "I can help you with client information, alerts, and navigation. What would you like to know?";
+}
+
+/**
+ * Format function result as readable text when Gemini interpretation fails.
+ * Prevents raw JSON from being shown to users.
+ */
+function formatFallbackResult(functionName: string, result: unknown): string {
+  try {
+    // Handle arrays (most common case — list of clients, emails, alerts, etc.)
+    if (Array.isArray(result)) {
+      if (result.length === 0) {
+        return `No results found for your request.`;
+      }
+      const items = result.slice(0, 10).map((item, i) => {
+        if (typeof item === 'object' && item !== null) {
+          // Pick the most human-readable fields
+          const obj = item as Record<string, unknown>;
+          const name = obj.name || obj.title || obj.subject || obj.senderName || '';
+          const detail = obj.stage || obj.status || obj.senderEmail || obj.snippet || obj.content || '';
+          const date = obj.date || obj.receivedAt || obj.created_at || obj.modifiedTime || '';
+          return `${i + 1}. **${name}**${detail ? ` — ${String(detail).substring(0, 100)}` : ''}${date ? ` (${date})` : ''}`;
+        }
+        return `${i + 1}. ${String(item)}`;
+      });
+      const more = result.length > 10 ? `\n...and ${result.length - 10} more` : '';
+      return `Here's what I found (${result.length} results):\n\n${items.join('\n')}${more}`;
+    }
+
+    // Handle objects with nested arrays (e.g., { emails: [...], totalResults: N })
+    if (typeof result === 'object' && result !== null) {
+      const obj = result as Record<string, unknown>;
+      // Look for common list properties
+      for (const key of ['emails', 'events', 'files', 'clients', 'alerts', 'tickets', 'communications']) {
+        if (Array.isArray(obj[key])) {
+          return formatFallbackResult(functionName, obj[key]);
+        }
+      }
+      // Handle message property (connection status, errors, etc.)
+      if (obj.message && typeof obj.message === 'string') {
+        return obj.message;
+      }
+    }
+
+    // Last resort — still better than raw JSON
+    return `I found some data but had trouble formatting it. Please try rephrasing your question.`;
+  } catch {
+    return `I found some data but had trouble formatting it. Please try rephrasing your question.`;
+  }
 }
 
 /**

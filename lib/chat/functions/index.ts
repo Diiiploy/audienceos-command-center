@@ -45,7 +45,7 @@ export type {
 export const hgcFunctions = [
   {
     name: 'get_clients',
-    description: 'Get list of clients for the agency. Use when user asks about clients, client health, or wants to see client data.',
+    description: 'Get list of clients for the agency. Use when user asks about client health, client stages, or wants to see the client list. Do NOT use this when user asks about emails, gmails, or messages from a client — use get_client_emails instead.',
     parameters: {
       type: 'object',
       properties: {
@@ -277,7 +277,7 @@ export const hgcFunctions = [
   },
   {
     name: 'get_client_emails',
-    description: 'Get synced emails for a specific client. Use when user asks about emails from/to a named client (e.g., "emails from Acme", "what has Agro Bros sent me"). Looks up the client by name or ID and returns their email history.',
+    description: 'Get synced emails for a specific client. ALWAYS use this when the user mentions both emails/gmails/messages AND a client name (e.g., "emails from Acme", "gmails from Test Client", "what has Agro Bros sent me", "summarize emails from [client]"). This is the PREFERRED function for any email query that references a specific client. Looks up client by name and returns their email history.',
     parameters: {
       type: 'object',
       properties: {
