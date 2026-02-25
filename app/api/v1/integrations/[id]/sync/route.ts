@@ -65,53 +65,62 @@ export const POST = withPermission({ resource: 'integrations', action: 'manage' 
     // Note: integration is agency-scoped. clientId comes from config or defaults to agency
     const integrationConfig = (integration.config as Record<string, unknown>) || {}
 
-    // Decrypt tokens before passing to sync workers
-    // Tokens are stored encrypted with AES-256-GCM in the database
-    let decryptedAccessToken = ''
-    let decryptedRefreshToken: string | undefined
+    // Gmail uses gateway proxy (tokens in gateway KV, not in DB)
+    // Other providers store encrypted tokens in the integration table
+    const gatewayProxiedProviders = ['gmail']
+    const isGatewayProxied = gatewayProxiedProviders.includes(integration.provider)
 
-    if (integration.access_token) {
-      try {
-        const accessTokenEncrypted = deserializeEncryptedToken(integration.access_token)
-        if (accessTokenEncrypted) {
-          decryptedAccessToken = decryptToken(accessTokenEncrypted) || ''
+    let syncConfig: SyncJobConfig | null = null
+
+    if (!isGatewayProxied) {
+      // Decrypt tokens before passing to sync workers
+      // Tokens are stored encrypted with AES-256-GCM in the database
+      let decryptedAccessToken = ''
+      let decryptedRefreshToken: string | undefined
+
+      if (integration.access_token) {
+        try {
+          const accessTokenEncrypted = deserializeEncryptedToken(integration.access_token)
+          if (accessTokenEncrypted) {
+            decryptedAccessToken = decryptToken(accessTokenEncrypted) || ''
+          }
+        } catch (e) {
+          console.error('[sync] Failed to decrypt access token:', e)
+          return NextResponse.json(
+            { error: 'Failed to decrypt credentials. Please reconnect the integration.' },
+            { status: 400 }
+          )
         }
-      } catch (e) {
-        console.error('[sync] Failed to decrypt access token:', e)
+      }
+
+      if (integration.refresh_token) {
+        try {
+          const refreshTokenEncrypted = deserializeEncryptedToken(integration.refresh_token)
+          if (refreshTokenEncrypted) {
+            decryptedRefreshToken = decryptToken(refreshTokenEncrypted) || undefined
+          }
+        } catch (e) {
+          console.error('[sync] Failed to decrypt refresh token:', e)
+          // Non-fatal - some providers don't use refresh tokens
+        }
+      }
+
+      if (!decryptedAccessToken) {
         return NextResponse.json(
-          { error: 'Failed to decrypt credentials. Please reconnect the integration.' },
+          { error: 'No valid access token available. Please reconnect the integration.' },
           { status: 400 }
         )
       }
-    }
 
-    if (integration.refresh_token) {
-      try {
-        const refreshTokenEncrypted = deserializeEncryptedToken(integration.refresh_token)
-        if (refreshTokenEncrypted) {
-          decryptedRefreshToken = decryptToken(refreshTokenEncrypted) || undefined
-        }
-      } catch (e) {
-        console.error('[sync] Failed to decrypt refresh token:', e)
-        // Non-fatal - some providers don't use refresh tokens
+      syncConfig = {
+        integrationId: id,
+        agencyId,
+        clientId: (integrationConfig.clientId as string) || agencyId,
+        provider: integration.provider,
+        accessToken: decryptedAccessToken,
+        refreshToken: decryptedRefreshToken,
+        config: integrationConfig,
       }
-    }
-
-    if (!decryptedAccessToken) {
-      return NextResponse.json(
-        { error: 'No valid access token available. Please reconnect the integration.' },
-        { status: 400 }
-      )
-    }
-
-    const syncConfig: SyncJobConfig = {
-      integrationId: id,
-      agencyId,
-      clientId: (integrationConfig.clientId as string) || agencyId, // Fallback to agency
-      provider: integration.provider,
-      accessToken: decryptedAccessToken,
-      refreshToken: decryptedRefreshToken,
-      config: integrationConfig,
     }
 
     let syncResult: SyncResult
@@ -119,7 +128,7 @@ export const POST = withPermission({ resource: 'integrations', action: 'manage' 
     // Execute provider-specific sync
     switch (integration.provider) {
       case 'google_ads': {
-        const { records, result } = await syncGoogleAds(syncConfig)
+        const { records, result } = await syncGoogleAds(syncConfig!)
         syncResult = result
 
         // Upsert ad_performance records if we have any
@@ -149,7 +158,7 @@ export const POST = withPermission({ resource: 'integrations', action: 'manage' 
       }
 
       case 'slack': {
-        const { records, result } = await syncSlack(syncConfig)
+        const { records, result } = await syncSlack(syncConfig!)
         syncResult = result
 
         // Upsert communication records if we have any
@@ -193,45 +202,18 @@ export const POST = withPermission({ resource: 'integrations', action: 'manage' 
       }
 
       case 'gmail': {
-        const { records, result } = await syncGmail(syncConfig)
+        // Gmail syncs via diiiploy-gateway proxy (tokens live in gateway KV, not DB)
+        const { records, result } = await syncGmail({
+          agencyId,
+          userId: request.user.id,
+        })
         syncResult = result
 
-        // Upsert communication records if we have any
+        // Store records via gmail-store (handles both user_communication and communication)
         if (records.length > 0) {
-          const { error: upsertError } = await supabase
-            .from('communication')
-            .upsert(
-              records.map((r) => ({
-                id: r.id,
-                agency_id: r.agency_id,
-                client_id: r.client_id,
-                platform: r.platform,
-                message_id: r.message_id,
-                sender_name: r.sender_name,
-                sender_email: r.sender_email,
-                subject: r.subject,
-                content: r.content,
-                created_at: r.created_at,
-                received_at: r.received_at,
-                thread_id: r.thread_id,
-                is_inbound: r.is_inbound,
-                needs_reply: r.needs_reply,
-                replied_at: r.replied_at,
-                replied_by: r.replied_by,
-              })),
-              {
-                onConflict: 'agency_id,client_id,platform,message_id',
-                ignoreDuplicates: false,
-              }
-            )
-
-          if (upsertError) {
-            console.error('[sync] communication upsert error:', upsertError)
-            syncResult.errors.push(`Database upsert failed: ${upsertError.message}`)
-            syncResult.success = false
-          } else {
-            syncResult.recordsCreated = records.length
-          }
+          const { storeGmailRecords } = await import('@/lib/sync/gmail-store')
+          await storeGmailRecords(supabase, agencyId, request.user.id, records)
+          syncResult.recordsCreated = records.length
         }
         break
       }

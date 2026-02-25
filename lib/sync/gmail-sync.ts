@@ -1,14 +1,24 @@
 /**
  * Gmail Sync Worker
  *
- * Fetches emails directly from Gmail API using user's OAuth token
+ * Fetches emails via diiiploy-gateway proxy (which handles OAuth token management)
  * Normalizes to AudienceOS communication schema
  * Stores in multi-tenant database
  *
- * Architecture: Multi-tenant - each user's OAuth token fetches their own emails
+ * Architecture: Gateway-proxied — tokens live in gateway KV, all Gmail API calls
+ * route through the gateway which handles auth, refresh, and expiry automatically.
  */
 
-import type { SyncJobConfig, SyncResult } from './types'
+import type { SyncResult } from './types'
+
+const GATEWAY_URL = process.env.DIIIPLOY_GATEWAY_URL || 'https://diiiploy-gateway.diiiploy.workers.dev'
+const GATEWAY_API_KEY = process.env.DIIIPLOY_GATEWAY_API_KEY || ''
+const TENANT_ID = process.env.DIIIPLOY_TENANT_ID || ''
+
+export interface GmailSyncConfig {
+  agencyId: string
+  userId: string
+}
 
 export interface GmailMessage {
   id: string
@@ -28,11 +38,11 @@ export interface NormalizedCommunication {
   agency_id: string
   client_id: string
   platform: 'gmail'
-  message_id: string // external_id mapped to message_id
+  message_id: string
   sender_name: string | null
   sender_email: string
   subject: string | null
-  content: string // body_preview mapped to content
+  content: string
   created_at: string
   received_at: string
   thread_id: string | null
@@ -43,11 +53,11 @@ export interface NormalizedCommunication {
 }
 
 /**
- * Sync Gmail using direct Gmail API
- * Uses user's decrypted OAuth token for authentication
- * Returns normalized communications ready to store in DB
+ * Sync Gmail via diiiploy-gateway proxy.
+ * Gateway handles OAuth tokens (stored in its KV), auto-refresh, and expiry.
+ * Returns normalized communications ready to store in DB.
  */
-export async function syncGmail(config: SyncJobConfig): Promise<{
+export async function syncGmail(config: GmailSyncConfig): Promise<{
   records: NormalizedCommunication[]
   result: SyncResult
 }> {
@@ -65,13 +75,12 @@ export async function syncGmail(config: SyncJobConfig): Promise<{
   const records: NormalizedCommunication[] = []
 
   try {
-    if (!config.accessToken) {
-      throw new Error('Gmail access token not configured')
+    if (!GATEWAY_URL || !GATEWAY_API_KEY || !TENANT_ID) {
+      throw new Error('Gateway not configured (DIIIPLOY_GATEWAY_URL, DIIIPLOY_GATEWAY_API_KEY, DIIIPLOY_TENANT_ID required)')
     }
 
-    // Call chi-gateway Gmail MCP endpoint
-    // chi-gateway MCP exposes: GET /gmail/messages?maxResults=100&pageToken=...
-    const gmailMessages = await fetchGmailMessages(config.accessToken)
+    // Fetch messages via gateway proxy — gateway handles token management
+    const gmailMessages = await fetchGmailMessages()
 
     result.recordsProcessed = gmailMessages.length
 
@@ -81,7 +90,7 @@ export async function syncGmail(config: SyncJobConfig): Promise<{
         const normalized = normalizeGmailMessage(
           message,
           config.agencyId,
-          config.clientId || config.agencyId
+          config.agencyId // client_id resolved later by email-client-matcher
         )
         records.push(normalized)
       } catch (e) {
@@ -109,35 +118,34 @@ export async function syncGmail(config: SyncJobConfig): Promise<{
 }
 
 /**
- * Fetch Gmail messages using direct Gmail API
- * Uses user's OAuth access token for multi-tenant authentication
- *
- * Gmail API: GET https://gmail.googleapis.com/gmail/v1/users/me/messages
- * Returns: { messages: [{id, threadId}], nextPageToken?, resultSizeEstimate }
+ * Fetch Gmail messages via diiiploy-gateway proxy.
+ * Gateway routes: GET /gmail/inbox (list) and GET /gmail/message/:id (details)
+ * Authentication handled by gateway via X-Tenant-ID header.
  */
-async function fetchGmailMessages(accessToken: string): Promise<GmailMessage[]> {
-  const GMAIL_API_BASE = 'https://gmail.googleapis.com/gmail/v1/users/me'
-
+async function fetchGmailMessages(): Promise<GmailMessage[]> {
   // Query: unread messages or messages from the last 7 days
   const query = 'is:unread OR newer_than:7d'
-  const maxResults = 50 // Lower for initial sync, can paginate later
+  const maxResults = 50
+
+  const gatewayHeaders = {
+    'Authorization': `Bearer ${GATEWAY_API_KEY}`,
+    'X-Tenant-ID': TENANT_ID,
+  }
 
   try {
-    // Step 1: Get message IDs
+    // Step 1: Get message IDs via gateway
     const listResponse = await fetch(
-      `${GMAIL_API_BASE}/messages?q=${encodeURIComponent(query)}&maxResults=${maxResults}`,
+      `${GATEWAY_URL}/gmail/inbox?maxResults=${maxResults}&q=${encodeURIComponent(query)}`,
       {
         method: 'GET',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
+        headers: gatewayHeaders,
+        signal: AbortSignal.timeout(30000),
       }
     )
 
     if (!listResponse.ok) {
       const errorText = await listResponse.text()
-      throw new Error(`Gmail API list failed: ${listResponse.status} - ${errorText}`)
+      throw new Error(`Gateway Gmail list failed: ${listResponse.status} - ${errorText}`)
     }
 
     const listData = (await listResponse.json()) as {
@@ -152,7 +160,7 @@ async function fetchGmailMessages(accessToken: string): Promise<GmailMessage[]> 
 
     console.log(`[gmail-sync] Found ${listData.messages.length} message IDs`)
 
-    // Step 2: Fetch full message details (batch in parallel, max 10 concurrent)
+    // Step 2: Fetch full message details via gateway (batch in parallel, max 10 concurrent)
     const messages: GmailMessage[] = []
     const batchSize = 10
 
@@ -161,13 +169,11 @@ async function fetchGmailMessages(accessToken: string): Promise<GmailMessage[]> 
       const batchPromises = batch.map(async (msg) => {
         try {
           const msgResponse = await fetch(
-            `${GMAIL_API_BASE}/messages/${msg.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
+            `${GATEWAY_URL}/gmail/message/${msg.id}?format=metadata`,
             {
               method: 'GET',
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-              },
+              headers: gatewayHeaders,
+              signal: AbortSignal.timeout(15000),
             }
           )
 
@@ -190,7 +196,7 @@ async function fetchGmailMessages(accessToken: string): Promise<GmailMessage[]> 
     console.log(`[gmail-sync] Fetched ${messages.length} full message details`)
     return messages
   } catch (error) {
-    console.error('[gmail-sync] Gmail API error:', error)
+    console.error('[gmail-sync] Gateway Gmail API error:', error)
     throw error
   }
 }
@@ -211,8 +217,6 @@ function normalizeGmailMessage(
   const subject = headerMap.get('subject') || null
   const timestamp = new Date(parseInt(message.internalDate)).toISOString()
 
-  // Gmail messages are always inbound (from external senders) when synced
-  // Outbound emails would need separate handling
   return {
     id: `gmail_${message.id}`,
     agency_id: agencyId,

@@ -3,7 +3,12 @@
  * GET /api/cron/gmail-sync
  *
  * Triggered by Vercel cron every 15 minutes.
- * Iterates all users with active Gmail connections and syncs their emails.
+ * Syncs Gmail for all agencies with an active Gmail integration.
+ *
+ * Architecture: Gateway-proxied — tokens live in diiiploy-gateway KV,
+ * all Gmail API calls route through the gateway automatically.
+ * Since the gateway is tenant-scoped (not user-scoped), this syncs
+ * once per agency, not once per user.
  *
  * Pattern follows: app/api/cron/slack-sync/route.ts
  */
@@ -11,10 +16,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { syncGmail } from '@/lib/sync/gmail-sync'
-import { getOAuthCredentials, markIntegrationDisconnected } from '@/lib/chat/functions/oauth-provider'
-import { refreshGoogleAccessToken } from '@/lib/integrations/google-token-refresh'
 import { storeGmailRecords } from '@/lib/sync/gmail-store'
-import type { SyncJobConfig } from '@/lib/sync/types'
 
 const CRON_SECRET = process.env.CRON_SECRET || ''
 
@@ -25,97 +27,66 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Service-role client for cross-user access
+  // Service-role client for cross-agency access
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
   try {
-    // Find all users with active Gmail connections
-    const { data: gmailCredentials, error } = await supabase
-      .from('user_oauth_credential')
-      .select('user_id')
-      .eq('type', 'gmail')
+    // Find all agencies with active Gmail integrations
+    const { data: gmailIntegrations, error } = await supabase
+      .from('integration')
+      .select('agency_id')
+      .eq('provider', 'gmail')
       .eq('is_connected', true)
 
-    if (error || !gmailCredentials?.length) {
+    if (error || !gmailIntegrations?.length) {
       return NextResponse.json({ synced: 0, message: 'No active Gmail connections' })
     }
 
     const results: Array<{
-      userId: string
+      agencyId: string
       recordsProcessed: number
       recordsCreated: number
       clientMatched?: number
       error?: string
     }> = []
 
-    for (const cred of gmailCredentials) {
+    for (const integration of gmailIntegrations) {
       try {
-        // Look up user's agency_id
-        const { data: userData } = await supabase
+        // Find the agency owner (first user) for storing user_communication records
+        const { data: owner } = await supabase
           .from('user')
-          .select('agency_id')
-          .eq('id', cred.user_id)
+          .select('id')
+          .eq('agency_id', integration.agency_id)
+          .order('created_at', { ascending: true })
+          .limit(1)
           .single()
 
-        if (!userData) {
-          results.push({ userId: cred.user_id, recordsProcessed: 0, recordsCreated: 0, error: 'User not found' })
+        if (!owner) {
+          results.push({ agencyId: integration.agency_id, recordsProcessed: 0, recordsCreated: 0, error: 'No agency owner found' })
           continue
         }
 
-        // Get decrypted credentials
-        const credentials = await getOAuthCredentials(supabase, cred.user_id, 'gmail')
-        if (!credentials) {
-          results.push({ userId: cred.user_id, recordsProcessed: 0, recordsCreated: 0, error: 'No credentials' })
-          continue
-        }
-
-        // Build sync config
-        const buildConfig = (accessToken: string): SyncJobConfig => ({
-          integrationId: `gmail_${cred.user_id}`,
-          agencyId: userData.agency_id,
-          provider: 'gmail' as SyncJobConfig['provider'],
-          accessToken,
-          refreshToken: credentials.refreshToken,
+        // Sync via gateway proxy — gateway handles token management
+        const { records, result } = await syncGmail({
+          agencyId: integration.agency_id,
+          userId: owner.id,
         })
 
-        // Attempt sync
-        let { records, result } = await syncGmail(buildConfig(credentials.accessToken))
-
-        // Token expired? Try refresh and retry
-        if (!result.success && result.errors.some(e => e.includes('401') || e.includes('token'))) {
-          if (credentials.refreshToken) {
-            const newAccessToken = await refreshGoogleAccessToken(supabase, cred.user_id, credentials.refreshToken)
-            if (newAccessToken) {
-              const retryResult = await syncGmail(buildConfig(newAccessToken))
-              records = retryResult.records
-              result = retryResult.result
-            } else {
-              await markIntegrationDisconnected(supabase, cred.user_id, 'gmail', 'Token refresh failed during cron sync.')
-              results.push({ userId: cred.user_id, recordsProcessed: 0, recordsCreated: 0, error: 'Token refresh failed' })
-              continue
-            }
-          } else {
-            await markIntegrationDisconnected(supabase, cred.user_id, 'gmail', 'Access token expired with no refresh token.')
-            results.push({ userId: cred.user_id, recordsProcessed: 0, recordsCreated: 0, error: 'No refresh token' })
-            continue
-          }
-        }
-
         // Store records (user_communication + email-to-client matching → communication)
-        const storeResult = await storeGmailRecords(supabase, userData.agency_id, cred.user_id, records)
+        const storeResult = await storeGmailRecords(supabase, integration.agency_id, owner.id, records)
 
-        // Update last_sync_at
+        // Update last_sync_at on integration record
         await supabase
-          .from('user_oauth_credential')
+          .from('integration')
           .update({ last_sync_at: new Date().toISOString() })
-          .eq('user_id', cred.user_id)
-          .eq('type', 'gmail')
+          .eq('agency_id', integration.agency_id)
+          .eq('provider', 'gmail')
 
         results.push({
-          userId: cred.user_id,
+          agencyId: integration.agency_id,
           recordsProcessed: result.recordsProcessed,
           recordsCreated: result.recordsCreated,
           clientMatched: storeResult.matched,
@@ -123,8 +94,8 @@ export async function GET(request: NextRequest) {
         })
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error'
-        console.error(`[cron/gmail-sync] User ${cred.user_id} failed:`, message)
-        results.push({ userId: cred.user_id, recordsProcessed: 0, recordsCreated: 0, error: message })
+        console.error(`[cron/gmail-sync] Agency ${integration.agency_id} failed:`, message)
+        results.push({ agencyId: integration.agency_id, recordsProcessed: 0, recordsCreated: 0, error: message })
       }
     }
 
