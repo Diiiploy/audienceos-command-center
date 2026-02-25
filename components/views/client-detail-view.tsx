@@ -78,12 +78,35 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     contact_name: detailedClient.contact_name,
     notes: detailedClient.notes,
     tags: detailedClient.tags,
+    slackChannels: detailedClient.slack_channels || [],
     // Placeholder fields - will be fetched from dedicated APIs later
     metaAds: null as { spend: number; roas: number; cpa: number; trend: 'up' | 'down' | 'flat' } | null,
     googleAds: null as { impressions: number; clicks: number; conversions: number; trend: 'up' | 'down' | 'flat' } | null,
     performanceData: [] as { date: string; adSpend: number; roas: number }[],
     onboardingData: null as { shopifyUrl: string; gtmContainerId: string; metaPixelId: string; klaviyoApiKey: string } | null,
   } : null
+
+  // Build Slack channel ID → name lookup from linked channels
+  const slackChannelMap = new Map(
+    (client?.slackChannels || []).map(ch => [ch.slack_channel_id, ch.slack_channel_name])
+  )
+
+  /** Extract source label for a communication entry */
+  const getSourceLabel = (comm: { platform: string; sender_email: string | null; message_id: string | null }) => {
+    if (comm.platform === 'gmail' || comm.platform === 'email') {
+      return comm.sender_email || null
+    }
+    if (comm.platform === 'slack' && comm.message_id) {
+      // message_id format: slack-{channelId}-{timestamp}
+      const parts = comm.message_id.split('-')
+      if (parts.length >= 2) {
+        const channelId = parts[1]
+        const channelName = slackChannelMap.get(channelId)
+        return channelName ? `#${channelName}` : `#${channelId}`
+      }
+    }
+    return null
+  }
 
   const [message, setMessage] = useState("")
   const [accessStatus, setAccessStatus] = useState({
@@ -339,6 +362,11 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                           <Badge variant="outline" className="text-[9px] px-1.5 py-0">
                             {comm.platform}
                           </Badge>
+                          {getSourceLabel(comm) && (
+                            <Badge variant="secondary" className="text-[9px] px-1.5 py-0 font-normal max-w-[200px] truncate">
+                              {getSourceLabel(comm)}
+                            </Badge>
+                          )}
                           <span className="text-xs text-muted-foreground ml-auto">
                             {formatTimeAgo(comm.received_at)}
                           </span>

@@ -41,6 +41,8 @@ export interface ClientCommunication {
   subject: string | null
   content: string
   received_at: string
+  sender_email: string | null
+  message_id: string | null
 }
 
 export interface ClientAssignment {
@@ -72,6 +74,7 @@ export interface DetailedClient {
   assignments: ClientAssignment[]
   tickets: ClientTicket[]
   communications: ClientCommunication[]
+  slack_channels: { slack_channel_id: string; slack_channel_name: string }[]
   stage_events: StageEvent[]
   tasks: ClientTask[]
 }

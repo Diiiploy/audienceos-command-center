@@ -61,7 +61,13 @@ export const GET = withPermission({ resource: 'clients', action: 'read' })(
           platform,
           subject,
           content,
-          received_at
+          received_at,
+          sender_email,
+          message_id
+        ),
+        slack_channels:client_slack_channel (
+          slack_channel_id,
+          slack_channel_name
         ),
         stage_events:stage_event (
           id,
