@@ -260,6 +260,18 @@ export class SmartRouter {
       };
     }
 
+    // Explicit memory store requests — must come BEFORE dashboard patterns
+    // to prevent "remember X prefers email over slack" from matching "emails"
+    if (/^(can you (please )?|please )?(remember|note|keep in mind|don't forget|store|save)\b/i.test(lower) ||
+        /\b(remember that|note that|for future reference|keep track of)\b/i.test(lower)) {
+      return {
+        route: 'casual',
+        confidence: 0.92,
+        reasoning: 'Explicit memory storage request',
+        estimatedLatencyMs: ROUTE_LATENCY.casual,
+      };
+    }
+
     // Dashboard data queries - clients, alerts, stats, emails, communications
     if (/(show|list|get|what|give)\s+(me\s+)?(my\s+)?(all\s+)?(the\s+)?(clients?|alerts?|statistics?|stats)/i.test(lower) ||
         /(at[- ]?risk|critical|high\s+priority)\s*(clients?|alerts?)/i.test(lower) ||

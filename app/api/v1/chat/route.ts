@@ -111,6 +111,13 @@ IMPORTANT CAPABILITIES:
 - Use get_emails for general inbox queries (e.g., "show my recent emails", "check my inbox").
 - Use get_client_emails when the user mentions BOTH emails AND a client name (e.g., "emails from Acme", "gmails from Test Client", "summarize emails from [name]"). NEVER use get_clients or get_client_details for email requests — always use get_client_emails.`);
 
+  // Memory capability — applies to ALL routes so the LLM acknowledges store requests
+  // even if routed to casual. Combined with shouldStoreMemory() expansion, this ensures
+  // the preference gets both acknowledged in response AND stored in mem0.
+  parts.push(`MEMORY CAPABILITY:
+When users ask you to remember, note, or keep track of something, acknowledge it naturally.
+If you're asked to remember a preference, decision, or fact about a client, confirm you've noted it.`);
+
   // 1. App structure awareness (always include)
   // Note: currentPage could be passed from frontend in request body for better context
   const appContext = buildAppContext('dashboard'); // Default to dashboard view
@@ -322,7 +329,7 @@ export const POST = withPermission({ resource: 'ai-features', action: 'write' })
 
     // Build suggested memory for the client (if detected)
     const suggestedMemory = memoryDetection.should ? {
-      content: `${message} → ${responseContent.substring(0, 200)}${responseContent.length > 200 ? '...' : ''}`,
+      content: extractMemoryContent(message, responseContent, memoryDetection.type),
       type: memoryDetection.type,
       importance: memoryDetection.importance,
       topic: route,
@@ -421,6 +428,29 @@ export const POST = withPermission({ resource: 'ai-features', action: 'write' })
   }
   }
 );
+
+/**
+ * Extract clean memory content from user message.
+ * For "remember that X prefers Y" → "X prefers Y"
+ * For "I prefer dark mode" → "I prefer dark mode"
+ * Fallback: raw message + truncated response
+ */
+function extractMemoryContent(userMessage: string, assistantResponse: string, type: string): string {
+  // For explicit "remember that..." requests, extract the fact after the trigger phrase
+  const rememberMatch = userMessage.match(/(?:remember|note|keep in mind)\s+(?:that\s+)?(.+)/i);
+  if (rememberMatch) {
+    return rememberMatch[1].replace(/\s*please\s*/gi, '').trim();
+  }
+
+  // For preferences, try to extract the preference statement
+  const preferMatch = userMessage.match(/(.+?\s+prefers?\s+.+?)(?:\.|$)/i);
+  if (preferMatch) {
+    return preferMatch[1].trim();
+  }
+
+  // Fallback: first 200 chars of the combined context
+  return `${userMessage} → ${assistantResponse.substring(0, 200)}${assistantResponse.length > 200 ? '...' : ''}`;
+}
 
 /**
  * Handle dashboard route with function calling

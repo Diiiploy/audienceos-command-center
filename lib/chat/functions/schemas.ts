@@ -129,6 +129,13 @@ export const functionSchemas = {
   }),
 
   check_google_connection: z.object({}),
+
+  store_memory: z.object({
+    content: z.string().min(1),
+    type: z.enum(['preference', 'decision', 'task', 'insight']).optional().default('preference'),
+    importance: z.enum(['high', 'medium']).optional().default('high'),
+    clientName: z.string().optional(),
+  }),
 } as const;
 
 /**

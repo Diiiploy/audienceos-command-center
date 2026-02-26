@@ -27,6 +27,7 @@ import {
   getDriveFiles,
   checkGoogleConnection,
 } from './google-workspace';
+import { initializeMem0Service } from '@/lib/memory/mem0-service';
 
 // Re-export types
 export type { ExecutorContext } from './types';
@@ -472,6 +473,35 @@ export const hgcFunctions = [
       properties: {},
     },
   },
+  // Memory store function
+  {
+    name: 'store_memory',
+    description: 'Remember information the user asks you to store. Use this when the user says "remember that...", "note that...", "keep in mind...", or shares a preference, decision, or important fact they want remembered.',
+    parameters: {
+      type: 'object',
+      properties: {
+        content: {
+          type: 'string',
+          description: 'The fact or preference to remember (clean, concise statement)',
+        },
+        type: {
+          type: 'string',
+          enum: ['preference', 'decision', 'task', 'insight'],
+          description: 'Memory category',
+        },
+        importance: {
+          type: 'string',
+          enum: ['high', 'medium'],
+          description: 'How important this is to remember',
+        },
+        clientName: {
+          type: 'string',
+          description: 'Client name if this memory is about a specific client (optional)',
+        },
+      },
+      required: ['content', 'type'],
+    },
+  },
 ];
 
 /**
@@ -496,6 +526,38 @@ export const executors: Record<string, FunctionExecutor> = {
   get_calendar_events: getCalendarEvents,
   get_drive_files: getDriveFiles,
   check_google_connection: checkGoogleConnection,
+  // Memory store function
+  store_memory: async (context, args) => {
+    const mem0 = initializeMem0Service();
+
+    // Optionally resolve clientName → clientId
+    let clientId: string | undefined;
+    if (args.clientName && context.supabase) {
+      const { data: clients } = await context.supabase
+        .from('client')
+        .select('id, name')
+        .eq('agency_id', context.agencyId)
+        .ilike('name', `%${args.clientName}%`)
+        .limit(1);
+      clientId = (clients as Array<{ id: string; name: string }> | null)?.[0]?.id;
+    }
+
+    const result = await mem0.addMemory({
+      content: args.content as string,
+      agencyId: context.agencyId,
+      userId: context.userId,
+      clientId,
+      type: (args.type as 'preference' | 'decision' | 'task' | 'insight') || 'preference',
+      importance: (args.importance as 'high' | 'medium') || 'high',
+    });
+
+    return {
+      stored: true,
+      memoryId: result?.id,
+      content: args.content,
+      clientResolved: !!clientId,
+    };
+  },
 };
 
 /**

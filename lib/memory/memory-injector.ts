@@ -397,6 +397,30 @@ export class MemoryInjector {
     const lowerUser = userMessage.toLowerCase();
     const lowerResponse = assistantResponse.toLowerCase();
 
+    // Check for EXPLICIT store requests ("remember that...", "note that...", "keep in mind...")
+    if (
+      lowerUser.includes('remember that') ||
+      lowerUser.includes('please remember') ||
+      lowerUser.includes('can you remember') ||
+      lowerUser.includes('note that') ||
+      lowerUser.includes('keep in mind') ||
+      lowerUser.includes('keep track of') ||
+      lowerUser.includes('don\'t forget') ||
+      lowerUser.includes('for future reference')
+    ) {
+      return { should: true, type: 'preference', importance: 'high' };
+    }
+
+    // Check for THIRD-PERSON preferences ("[name] prefers...", "[name] likes...", "their preference...")
+    if (
+      /\bprefers?\b/i.test(lowerUser) ||
+      lowerUser.includes('their preference') ||
+      lowerUser.includes('communication preference') ||
+      /\b(always|never)\b.*(use|send|contact|communicate|reach out)/i.test(lowerUser)
+    ) {
+      return { should: true, type: 'preference', importance: 'high' };
+    }
+
     // Check for decisions
     if (
       lowerUser.includes('decide') ||
