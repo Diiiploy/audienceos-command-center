@@ -23,15 +23,31 @@ export const GET = withPermission({ resource: 'ai-features', action: 'read' })(
       const pageSize = parseInt(url.searchParams.get('pageSize') || '50', 10);
       const search = url.searchParams.get('search');
 
+      console.log('[Memory API] GET request:', {
+        agencyId: agencyId?.substring(0, 8) + '...',
+        userId: userId?.substring(0, 8) + '...',
+        page,
+        pageSize,
+        search: search || '(none)',
+        hasGatewayUrl: !!process.env.DIIIPLOY_GATEWAY_URL,
+        hasGatewayKey: !!process.env.DIIIPLOY_GATEWAY_API_KEY,
+      });
+
       const mem0 = initializeMem0Service();
 
       if (search) {
         // Search mode
+        console.log('[Memory API] Search mode:', { query: search });
         const result = await mem0.searchMemories({
           query: search,
           agencyId,
           userId,
           limit: pageSize,
+        });
+        console.log('[Memory API] Search result:', {
+          memoriesCount: result.memories.length,
+          totalFound: result.totalFound,
+          searchTimeMs: result.searchTimeMs,
         });
         return NextResponse.json({
           memories: result.memories,
@@ -43,10 +59,17 @@ export const GET = withPermission({ resource: 'ai-features', action: 'read' })(
       }
 
       // List mode
+      console.log('[Memory API] List mode:', { agencyId: agencyId?.substring(0, 8) + '...', userId: userId?.substring(0, 8) + '...' });
       const result = await mem0.listMemories(agencyId, userId, page, pageSize);
+      console.log('[Memory API] List result:', {
+        memoriesCount: result.memories.length,
+        total: result.total,
+        page: result.page,
+      });
       return NextResponse.json(result);
     } catch (error) {
       console.error('[Memory API] GET error:', error);
+      console.error('[Memory API] GET error stack:', error instanceof Error ? error.stack : 'no stack');
       return NextResponse.json(
         { error: 'Failed to fetch memories' },
         { status: 500 }

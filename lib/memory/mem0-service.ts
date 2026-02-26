@@ -167,12 +167,15 @@ export class Mem0Service {
     const metadata = buildNativeMetadata(request);
     const expirationDate = calculateExpiration(request.type);
 
+    // CRITICAL: Do NOT pass sessionId as runId. mem0 scopes run_id memories
+    // so they're only visible when listing/searching with that same run_id.
+    // Since the Memory panel and search functions don't pass run_id, memories
+    // stored with run_id become invisible. Store sessionId in metadata instead.
     const result = await this.mcpClient.addMemory({
       content: request.content,
       messages: request.messages,
       userId: request.userId,
       appId: request.agencyId,
-      runId: request.sessionId,
       metadata,
       expirationDate,
       infer: true,
@@ -667,6 +670,8 @@ function createDiiiplopyGatewayMem0Client(): Mem0MCPClient {
 
   async function callTool(toolName: string, args: Record<string, unknown>): Promise<any> {
     const mcpUrl = gatewayUrl.replace(/\/$/, '') + '/mcp';
+    console.log(`[Mem0] callTool ${toolName} → ${mcpUrl} (key: ${apiKey ? 'set' : 'MISSING'})`);
+
     const response = await fetch(mcpUrl, {
       method: 'POST',
       headers: {
@@ -682,6 +687,8 @@ function createDiiiplopyGatewayMem0Client(): Mem0MCPClient {
     });
 
     if (!response.ok) {
+      const body = await response.text();
+      console.error(`[Mem0] Gateway HTTP ${response.status}:`, body.substring(0, 200));
       throw new Error(`Diiiploy-gateway error: ${response.status}`);
     }
 
@@ -689,31 +696,67 @@ function createDiiiplopyGatewayMem0Client(): Mem0MCPClient {
 
     // Check for JSON-RPC error
     if (data.error) {
+      console.error('[Mem0] JSON-RPC error:', data.error);
       throw new Error(`Gateway MCP error: ${data.error.message || JSON.stringify(data.error)}`);
     }
 
     // Check for tool-level error
     if (data.result?.isError) {
       const errorText = data.result?.content?.[0]?.text || 'Unknown tool error';
+      console.error('[Mem0] Tool error:', errorText);
       throw new Error(`Mem0 tool error: ${errorText}`);
     }
 
     const text = data.result?.content?.[0]?.text;
+    console.log(`[Mem0] callTool ${toolName} raw result:`, {
+      hasResult: !!data.result,
+      hasContent: !!data.result?.content,
+      contentLength: data.result?.content?.length,
+      firstContentType: data.result?.content?.[0]?.type,
+      textPreview: text ? text.substring(0, 200) : 'NO TEXT',
+    });
     if (text) {
-      return JSON.parse(text);
+      const parsed = JSON.parse(text);
+      console.log(`[Mem0] callTool ${toolName} parsed:`, JSON.stringify(parsed).substring(0, 300));
+      return parsed;
     }
+    console.warn(`[Mem0] callTool ${toolName} — no text in content, falling through to data.result`);
     return data.result || {};
   }
 
   return {
     addMemory: async (params) => {
       const result = await callTool('mem0_add', params);
-      return { id: result.id || crypto.randomUUID() };
+
+      // mem0 API v2 returns async response: [{status: "PENDING", event_id: "..."}]
+      // Extract ID from various response formats
+      let id: string | undefined;
+      if (result?.id) {
+        id = result.id;
+      } else if (Array.isArray(result) && result.length > 0) {
+        // Async PENDING response — use event_id as tracking ID
+        const first = result[0];
+        id = first.id || first.event_id;
+        if (first.status === 'PENDING') {
+          console.log('[Mem0] addMemory — memory queued for async processing:', {
+            eventId: first.event_id,
+            status: first.status,
+          });
+        }
+      } else if (result?.results?.[0]?.id) {
+        id = result.results[0].id;
+      }
+
+      if (!id) {
+        console.warn('[Mem0] addMemory — no ID in response, generating fallback UUID. Raw result:', JSON.stringify(result).substring(0, 300));
+      }
+      return { id: id || crypto.randomUUID() };
     },
 
     searchMemories: async (params) => {
       const result = await callTool('mem0_search', params);
       const results = Array.isArray(result.results) ? result.results : Array.isArray(result) ? result : [];
+      console.log('[Mem0] searchMemories:', { resultCount: results.length, query: params.query?.substring(0, 50) });
       return results.map((r: any) => ({
         id: r.id || r.memory_id || crypto.randomUUID(),
         memory: r.memory || r.content || '',
@@ -728,7 +771,15 @@ function createDiiiplopyGatewayMem0Client(): Mem0MCPClient {
 
     listMemories: async (params) => {
       const result = await callTool('mem0_list', params);
+      console.log('[Mem0] listMemories raw shape:', {
+        type: typeof result,
+        isArray: Array.isArray(result),
+        hasResults: result?.results !== undefined,
+        resultsIsArray: Array.isArray(result?.results),
+        keys: result && typeof result === 'object' ? Object.keys(result) : 'N/A',
+      });
       const items = Array.isArray(result.results) ? result.results : Array.isArray(result) ? result : [];
+      console.log('[Mem0] listMemories extracted:', { itemCount: items.length, rawCount: result?.count });
       return { results: items, count: result.count || items.length };
     },
 

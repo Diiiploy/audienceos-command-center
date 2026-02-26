@@ -918,13 +918,16 @@ async function storeConversationMemory(
       { role: 'assistant', content: assistantResponse.substring(0, 1000) },
     ];
 
+    // NOTE: Do NOT pass sessionId as runId here. mem0 scopes run_id memories so
+    // they're only visible when listing with the same run_id. Since the Memory
+    // panel lists without run_id, run-scoped memories would be invisible.
+    // Store sessionId in metadata instead for traceability.
     const result = await mem0Service.addMemory({
       content: `User: "${userMessage}" → Assistant response about ${route}`,
       messages,
       agencyId,
       userId,
       clientId,
-      sessionId: sessionId || `session-${Date.now()}`,
       type: 'conversation',
       topic: route,
       importance: route === 'memory' ? 'high' : 'medium',
