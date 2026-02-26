@@ -192,7 +192,7 @@ export const PATCH = withPermission({ resource: 'users', action: 'read' })(
 
       // Merge preferences (don't overwrite entire preferences object)
       const currentPrefs = (currentUser?.preferences as any) || {}
-      const updatedPreferences: Record<string, unknown> = { ...currentPrefs }
+      const updatedPreferences: Record<string, any> = { ...currentPrefs }
 
       if (notifications) {
         updatedPreferences.notifications = {
