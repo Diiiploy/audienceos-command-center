@@ -30,6 +30,7 @@ import {
   ExternalLink,
   Brain,
   CheckCircle2,
+  ChevronDown,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { fetchWithCsrf } from "@/lib/csrf"
@@ -738,13 +739,13 @@ export function ChatInterface({
               </button>
             </div>
 
-            {/* Messages Area */}
+            {/* Messages Area Wrapper */}
+            <div className="relative flex-1 min-h-0">
             <div
               ref={scrollContainerRef}
               onScroll={handleScroll}
-              className="flex-1 overflow-y-auto px-4 py-3 space-y-3 scrollbar-hide"
+              className="h-full overflow-y-auto px-4 py-3 space-y-3 scrollbar-hide"
               style={{
-                minHeight: 0,
                 scrollbarWidth: 'none', /* Firefox */
                 msOverflowStyle: 'none', /* IE/Edge */
               }}
@@ -902,6 +903,27 @@ export function ChatInterface({
 
               <div ref={messagesEndRef} />
               <div style={{ height: "16px", flexShrink: 0 }} />
+            </div>
+
+            {/* Scroll to bottom button */}
+            {userScrolledUp && isPanelOpen && (
+              <button
+                onClick={() => {
+                  messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+                  setUserScrolledUp(false)
+                }}
+                className="absolute bottom-3 right-3 w-8 h-8 rounded-full
+                  bg-white/70 dark:bg-slate-800/80 backdrop-blur-sm
+                  border border-black/10 dark:border-slate-700
+                  flex items-center justify-center
+                  text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200
+                  hover:bg-white/90 dark:hover:bg-slate-700/90
+                  transition-all shadow-sm hover:shadow cursor-pointer z-10"
+                title="Scroll to bottom"
+              >
+                <ChevronDown className="w-4 h-4" />
+              </button>
+            )}
             </div>
           </div>
         </>
