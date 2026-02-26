@@ -28,6 +28,7 @@ const accountItems: Array<{
   id: SettingsSection
   label: string
 }> = [
+  { id: "personal_preferences", label: "AI Preferences" },
   { id: "notifications", label: "Notifications" },
   { id: "display_preferences", label: "Display" },
 ]

@@ -120,14 +120,34 @@ export const PATCH = withPermission({ resource: 'users', action: 'read' })(
         return createErrorResponse(400, 'Request body must be an object')
       }
 
-      const { notifications } = body as { notifications?: unknown }
+      const { notifications, ai } = body as { notifications?: unknown; ai?: unknown }
 
-      if (!notifications || typeof notifications !== 'object') {
+      if (!notifications && !ai) {
+        return createErrorResponse(400, 'Must provide notifications or ai preferences')
+      }
+
+      if (notifications && typeof notifications !== 'object') {
         return createErrorResponse(400, 'Invalid notification preferences format')
       }
 
+      // Validate AI preferences if provided
+      if (ai) {
+        if (typeof ai !== 'object') {
+          return createErrorResponse(400, 'Invalid AI preferences format')
+        }
+        const { assistant_name } = ai as { assistant_name?: unknown }
+        if (assistant_name !== undefined) {
+          if (typeof assistant_name !== 'string') {
+            return createErrorResponse(400, 'Assistant name must be a string')
+          }
+          if (assistant_name.length < 1 || assistant_name.length > 50) {
+            return createErrorResponse(400, 'Assistant name must be 1-50 characters')
+          }
+        }
+      }
+
       // Validate quiet hours if provided
-      const { quiet_hours_start, quiet_hours_end } = notifications as any
+      const { quiet_hours_start, quiet_hours_end } = (notifications || {}) as any
       const quietHoursProvided = quiet_hours_start !== undefined || quiet_hours_end !== undefined
 
       if (quietHoursProvided) {
@@ -172,11 +192,20 @@ export const PATCH = withPermission({ resource: 'users', action: 'read' })(
 
       // Merge preferences (don't overwrite entire preferences object)
       const currentPrefs = (currentUser?.preferences as any) || {}
-      const updatedPreferences = {
-        notifications: {
+      const updatedPreferences: Record<string, unknown> = { ...currentPrefs }
+
+      if (notifications) {
+        updatedPreferences.notifications = {
           ...(currentPrefs.notifications || {}),
           ...notifications,
-        },
+        }
+      }
+
+      if (ai) {
+        updatedPreferences.ai = {
+          ...(currentPrefs.ai || {}),
+          ...(ai as object),
+        }
       }
 
       // Update preferences

@@ -77,7 +77,23 @@ async function buildSystemPrompt(
     console.warn('[Chat API] Failed to load ai_config:', err);
   }
 
-  const assistantName = aiConfig.assistant_name || 'Diii';
+  // Check for per-user assistant name override
+  let userAssistantName: string | null = null;
+  try {
+    const { data: userData } = await supabase
+      .from('user')
+      .select('preferences')
+      .eq('id', userId)
+      .single();
+    const userAiPrefs = (userData?.preferences as any)?.ai;
+    if (userAiPrefs?.assistant_name) {
+      userAssistantName = userAiPrefs.assistant_name;
+    }
+  } catch (err) {
+    // Fall through to agency default
+  }
+
+  const assistantName = userAssistantName || aiConfig.assistant_name || 'Diii';
   const responseTone = aiConfig.response_tone || 'professional';
   const responseLength = aiConfig.response_length || 'detailed';
 

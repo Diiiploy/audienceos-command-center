@@ -8,6 +8,7 @@ import { NotificationsSection } from "./sections/notifications-section"
 import { PipelineSection } from "./sections/pipeline-section"
 import { AuditLogSection } from "./sections/audit-log-section"
 import { DisplayPreferencesSection } from "./sections/display-preferences-section"
+import { PersonalAISection } from "./sections/personal-ai-section"
 // Note: Security section removed - Sign Out is now a direct button in the sidebar
 
 export function SettingsContent() {
@@ -20,6 +21,8 @@ export function SettingsContent() {
       return <TeamMembersSection />
     case "ai_configuration":
       return <AIConfigurationSection />
+    case "personal_preferences":
+      return <PersonalAISection />
     case "notifications":
       return <NotificationsSection />
     case "display_preferences":
