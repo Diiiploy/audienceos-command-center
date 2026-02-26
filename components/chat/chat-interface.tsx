@@ -87,7 +87,16 @@ export function ChatInterface({
   const [isDragOver, setIsDragOver] = useState(false)
 
   // Memory suggestion state — tracks dismissed/confirmed suggestions by message ID
-  const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set())
+  // Persisted to localStorage so selections survive page refresh
+  const dismissedStorageKey = `cc-chat-dismissed-${agencyId}-${userId}`
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem(dismissedStorageKey)
+      return stored ? new Set(JSON.parse(stored)) : new Set()
+    } catch {
+      return new Set()
+    }
+  })
   const [confirmingSuggestion, setConfirmingSuggestion] = useState<string | null>(null)
 
   // Refs
@@ -176,6 +185,13 @@ export function ChatInterface({
       )
     }
   }, [messages, agencyId, userId])
+
+  // Save dismissed memory suggestions to localStorage
+  useEffect(() => {
+    if (dismissedSuggestions.size > 0) {
+      localStorage.setItem(dismissedStorageKey, JSON.stringify([...dismissedSuggestions]))
+    }
+  }, [dismissedSuggestions, dismissedStorageKey])
 
   // Expose global method to open chat with pre-filled message
   // NOTE: Using ref pattern to avoid stale closure issues
