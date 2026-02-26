@@ -119,7 +119,7 @@ const defaultUserPreferences: UserPreferences = {
     muted_clients: [],
   },
   ai: {
-    assistant_name: 'Chi',
+    assistant_name: 'Diii',
     response_tone: 'professional',
     response_length: 'detailed',
   },

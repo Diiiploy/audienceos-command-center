@@ -161,7 +161,7 @@ const mockChatSessions: ChatSession[] = [
       {
         id: "ai-2",
         type: "mention" as ActivityType,
-        actor: { name: "Chi Assistant", initials: "AI", color: "bg-primary" },
+        actor: { name: "Diii Assistant", initials: "AI", color: "bg-primary" },
         timestamp: "2:30 PM",
         content: "Found 3 at-risk clients: Beardbrand (6d in Needs Support), Allbirds (high urgency ticket), MVMT Watches (120d in Live with declining engagement).",
       },
@@ -182,7 +182,7 @@ const mockChatSessions: ChatSession[] = [
       {
         id: "ai-4",
         type: "mention" as ActivityType,
-        actor: { name: "Chi Assistant", initials: "AI", color: "bg-primary" },
+        actor: { name: "Diii Assistant", initials: "AI", color: "bg-primary" },
         timestamp: "1:16 PM",
         content: "You have 5 open tickets. 2 are urgent: TKT-001 (Pixel tracking) and TKT-004 (Page speed). Would you like me to summarize them?",
       },
@@ -224,7 +224,7 @@ const mockChatSessions: ChatSession[] = [
       {
         id: "ai-8",
         type: "mention" as ActivityType,
-        actor: { name: "Chi Assistant", initials: "AI", color: "bg-primary" },
+        actor: { name: "Diii Assistant", initials: "AI", color: "bg-primary" },
         timestamp: "4:31 PM",
         content: "I've drafted an email highlighting their 23% CTR improvement and suggesting next steps for Q1. Would you like to review it?",
       },
@@ -601,7 +601,7 @@ export function IntelligenceCenter({ onBack, initialSection = "overview", initia
               const filteredActivities = session.activities.filter((activity) => {
                 if (chatFilter === "all") return true
                 if (chatFilter === "chat") return activity.actor.name === "You"
-                if (chatFilter === "ai") return activity.actor.name === "Chi Assistant"
+                if (chatFilter === "ai") return activity.actor.name === "Diii Assistant"
                 if (chatFilter === "system") return activity.actor.name === "System"
                 return true
               })
@@ -628,7 +628,7 @@ export function IntelligenceCenter({ onBack, initialSection = "overview", initia
               const filteredActivities = session.activities.filter((activity) => {
                 if (chatFilter === "all") return true
                 if (chatFilter === "chat") return activity.actor.name === "You"
-                if (chatFilter === "ai") return activity.actor.name === "Chi Assistant"
+                if (chatFilter === "ai") return activity.actor.name === "Diii Assistant"
                 if (chatFilter === "system") return activity.actor.name === "System"
                 return true
               })

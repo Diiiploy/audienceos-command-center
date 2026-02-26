@@ -65,7 +65,7 @@ export function AIConfigurationSection() {
 
   // Local form state
   const [isLoading, setIsLoading] = useState(true)
-  const [assistantName, setAssistantName] = useState("Chi")
+  const [assistantName, setAssistantName] = useState("Diii")
   const [responseTone, setResponseTone] = useState<"professional" | "casual" | "technical">("professional")
   const [responseLength, setResponseLength] = useState<"brief" | "detailed" | "comprehensive">("detailed")
   const [enabledFeatures, setEnabledFeatures] = useState<string[]>(AI_FEATURES.map((f) => f.id))
@@ -90,7 +90,7 @@ export function AIConfigurationSection() {
         const config = agency.ai_config || {}
 
         // Populate form with fetched data
-        setAssistantName(config.assistant_name || 'Chi')
+        setAssistantName(config.assistant_name || 'Diii')
         setResponseTone(config.response_tone || 'professional')
         setResponseLength(config.response_length || 'detailed')
         setEnabledFeatures(config.enabled_features || AI_FEATURES.map(f => f.id))
@@ -269,7 +269,7 @@ export function AIConfigurationSection() {
                 setAssistantName(e.target.value)
                 setHasUnsavedChanges(true)
               }}
-              placeholder="Chi"
+              placeholder="Diii"
               className="bg-secondary border-border max-w-xs h-7 text-[11px]"
             />
             <p className="text-[9px] text-muted-foreground">

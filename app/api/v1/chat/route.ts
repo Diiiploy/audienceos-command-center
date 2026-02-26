@@ -77,7 +77,7 @@ async function buildSystemPrompt(
     console.warn('[Chat API] Failed to load ai_config:', err);
   }
 
-  const assistantName = aiConfig.assistant_name || 'Chi';
+  const assistantName = aiConfig.assistant_name || 'Diii';
   const responseTone = aiConfig.response_tone || 'professional';
   const responseLength = aiConfig.response_length || 'detailed';
 
@@ -885,6 +885,15 @@ async function storeConversationMemory(
   clientId?: string
 ): Promise<void> {
   try {
+    console.log('[Chat API] Memory storage starting:', {
+      agencyId: agencyId?.substring(0, 8) + '...',
+      userId: userId?.substring(0, 8) + '...',
+      route,
+      hasGatewayUrl: !!process.env.DIIIPLOY_GATEWAY_URL,
+      hasGatewayKey: !!process.env.DIIIPLOY_GATEWAY_API_KEY,
+      messagePreview: userMessage.substring(0, 50),
+    });
+
     const mem0Service = initializeMem0Service();
 
     // Send full conversation pair as message array for better mem0 fact extraction
@@ -893,7 +902,7 @@ async function storeConversationMemory(
       { role: 'assistant', content: assistantResponse.substring(0, 1000) },
     ];
 
-    await mem0Service.addMemory({
+    const result = await mem0Service.addMemory({
       content: `User: "${userMessage}" → Assistant response about ${route}`,
       messages,
       agencyId,
@@ -904,9 +913,11 @@ async function storeConversationMemory(
       topic: route,
       importance: route === 'memory' ? 'high' : 'medium',
     });
+
+    console.log('[Chat API] Memory stored successfully:', { memoryId: result?.id });
   } catch (error) {
     // Don't throw - memory storage is non-critical
-    console.warn('[Chat API] Memory storage error:', error);
+    console.error('[Chat API] Memory storage FAILED:', error instanceof Error ? error.message : error);
   }
 }
 

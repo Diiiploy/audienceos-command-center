@@ -525,7 +525,7 @@ describe('Settings Store', () => {
           muted_clients: [],
         },
         ai: {
-          assistant_name: 'Chi',
+          assistant_name: 'Diii',
           response_tone: 'professional' as const,
           response_length: 'detailed' as const,
         },

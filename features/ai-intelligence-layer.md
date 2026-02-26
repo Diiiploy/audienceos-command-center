@@ -164,7 +164,7 @@
 
 ## Why "Holy Grail Chat"?
 
-- **Confusion:** "Chi" conflicts with Chi PAI system
+- **Confusion:** Original name "Chi" conflicted with Chi PAI system; renamed to "Diii"
 - **Reusability:** HGC is designed for AudienceOS, RevOS, War Room
 - **Branding:** "Holy Grail" = the complete AI chat solution
 - **Independence:** Standalone development enables faster iteration
@@ -755,7 +755,7 @@ class AppKnowledgeService {
   };
 
   generateSystemPrompt(userContext?: { clientId?: string; agencyName?: string }): string {
-    return `You are Chi, an AI assistant for AudienceOS Command Center.
+    return `You are Diii, an AI assistant for AudienceOS Command Center.
 
 CORE CAPABILITIES:
 ${this.knowledge.capabilities.map(c => `• ${c}`).join('\n')}

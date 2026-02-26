@@ -3,7 +3,7 @@
 
 ALTER TABLE agency
 ADD COLUMN ai_config JSONB DEFAULT '{
-  "assistant_name": "Chi",
+  "assistant_name": "Diii",
   "response_tone": "professional",
   "response_length": "detailed",
   "enabled_features": ["chat_assistant", "draft_replies", "alert_analysis", "document_rag"],

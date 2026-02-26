@@ -211,7 +211,7 @@ Acceptance Criteria:
 - [ ] "Snooze" hides until specified time
 - [ ] "Dismiss" with reason for learning
 
-### D2: Chi Intelligent Chat
+### D2: Diii Intelligent Chat
 
 **US-019: Chat with AI Assistant**
 As an Account Manager, I want an AI assistant that understands my clients, so that I can get quick answers.
@@ -440,7 +440,7 @@ Acceptance Criteria:
 As an Admin, I want to customize AI settings, so responses match our style.
 
 Acceptance Criteria:
-- [ ] Set AI assistant name (default: "Chi")
+- [ ] Set AI assistant name (default: "Diii")
 - [ ] Configure response tone: Professional/Casual/Technical
 - [ ] Set default response length preference
 - [ ] View AI token usage this month

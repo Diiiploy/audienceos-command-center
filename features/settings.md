@@ -33,7 +33,7 @@ Acceptance Criteria:
 As an Admin, I want to customize AI settings, so responses match our style.
 
 Acceptance Criteria:
-- [ ] Set AI assistant name (default: "Chi")
+- [ ] Set AI assistant name (default: "Diii")
 - [ ] Configure response tone: Professional/Casual/Technical
 - [ ] Set default response length preference
 - [ ] View AI token usage this month
