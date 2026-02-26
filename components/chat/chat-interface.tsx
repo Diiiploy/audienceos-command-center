@@ -86,17 +86,7 @@ export function ChatInterface({
   }>({ stage: "idle", progress: 0, message: "" })
   const [isDragOver, setIsDragOver] = useState(false)
 
-  // Memory suggestion state — tracks dismissed/confirmed suggestions by message ID
-  // Persisted to localStorage so selections survive page refresh
-  const dismissedStorageKey = `cc-chat-dismissed-${agencyId}-${userId}`
-  const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(() => {
-    try {
-      const stored = localStorage.getItem(dismissedStorageKey)
-      return stored ? new Set(JSON.parse(stored)) : new Set()
-    } catch {
-      return new Set()
-    }
-  })
+  // Memory suggestion — loading state for the confirm API call
   const [confirmingSuggestion, setConfirmingSuggestion] = useState<string | null>(null)
 
   // Refs
@@ -185,13 +175,6 @@ export function ChatInterface({
       )
     }
   }, [messages, agencyId, userId])
-
-  // Save dismissed memory suggestions to localStorage
-  useEffect(() => {
-    if (dismissedSuggestions.size > 0) {
-      localStorage.setItem(dismissedStorageKey, JSON.stringify([...dismissedSuggestions]))
-    }
-  }, [dismissedSuggestions, dismissedStorageKey])
 
   // Expose global method to open chat with pre-filled message
   // NOTE: Using ref pattern to avoid stale closure issues
@@ -619,6 +602,15 @@ export function ChatInterface({
   }
 
   // Memory suggestion handlers
+  // Clear suggestedMemory from the message itself after user acts.
+  // This propagates through the existing messages→localStorage useEffect,
+  // so the prompt never reappears on refresh.
+  const clearSuggestedMemory = (messageId: string) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === messageId ? { ...m, suggestedMemory: undefined } : m))
+    )
+  }
+
   const handleConfirmMemory = async (messageId: string, memory: SuggestedMemory) => {
     setConfirmingSuggestion(messageId)
     try {
@@ -631,7 +623,7 @@ export function ChatInterface({
           topic: memory.topic,
         }),
       })
-      setDismissedSuggestions((prev) => new Set(prev).add(messageId))
+      clearSuggestedMemory(messageId)
     } catch (err) {
       console.error("[Chat] Memory confirm error:", err)
     } finally {
@@ -640,7 +632,7 @@ export function ChatInterface({
   }
 
   const handleDismissMemory = (messageId: string) => {
-    setDismissedSuggestions((prev) => new Set(prev).add(messageId))
+    clearSuggestedMemory(messageId)
   }
 
   // CSS Keyframes for slide animations
@@ -842,8 +834,7 @@ export function ChatInterface({
 
                   {/* Memory Suggestion Bar */}
                   {msg.role === "assistant" &&
-                    msg.suggestedMemory &&
-                    !dismissedSuggestions.has(msg.id) && (
+                    msg.suggestedMemory && (
                       <div className="max-w-[85%] mt-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs">
                         <Brain className="h-3.5 w-3.5 text-amber-500 shrink-0" />
                         <span className="text-amber-200/80 flex-1 truncate">
