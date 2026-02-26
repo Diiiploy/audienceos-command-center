@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { cookies } from 'next/headers';
 import { GoogleGenAI } from '@google/genai';
 import { getSmartRouter } from '@/lib/chat/router';
@@ -279,38 +279,46 @@ export const POST = withPermission({ resource: 'ai-features', action: 'write' })
       responseContent = await handleCasualRoute(apiKey, message, systemPrompt, citations, configuredTemperature);
     }
 
-    // 6b. Persist chat messages to database (fire-and-forget)
-    persistChatMessages(supabase, agencyId, userId, sessionId, message, responseContent).catch(
-      (err) => console.warn('[Chat API] Chat persistence failed (non-blocking):', err)
-    );
-
-    // 6c. Detect if this exchange contains a high-value memory (decision/preference/task)
+    // 6b. Detect if this exchange contains a high-value memory (decision/preference/task)
     const memoryInjector = getMemoryInjector();
     const memoryDetection = memoryInjector.shouldStoreMemory(message, responseContent);
 
-    // 6d. Store conversation in memory (fire-and-forget, don't block response)
-    // Only auto-store as low-importance background context when a suggestion is shown,
-    // so we don't duplicate with the user-confirmed high-importance version.
-    if (!memoryDetection.should) {
-      storeConversationMemory(agencyId, userId, sessionId, message, responseContent, route, clientId).catch(
-        (err) => console.warn('[Chat API] Memory storage failed (non-blocking):', err)
-      );
-    }
+    // 6c. Schedule background work with after() — guarantees completion on Vercel
+    // Unlike fire-and-forget promises, after() keeps the serverless function alive
+    // until all callbacks finish, preventing silent data loss.
+    after(async () => {
+      // Persist chat messages to database
+      try {
+        await persistChatMessages(supabase, agencyId, userId, sessionId, message, responseContent);
+      } catch (err) {
+        console.warn('[Chat API] Chat persistence failed (non-blocking):', err);
+      }
 
-    // 6e. Session summarization — extract insights after every N messages (fire-and-forget)
-    if (sessionId) {
-      getSessionMessages(supabase, sessionId, 100).then((sessionMsgs) => {
-        if (shouldSummarize(sessionMsgs.length)) {
-          const formatted = sessionMsgs.map((m) => ({
-            role: m.role as 'user' | 'assistant',
-            content: m.content,
-          }));
-          summarizeConversation(formatted, agencyId, userId, sessionId, clientId).catch(
-            (err) => console.warn('[Chat API] Summarization failed (non-blocking):', err)
-          );
+      // Store conversation in memory (only when no suggestion is shown)
+      if (!memoryDetection.should) {
+        try {
+          await storeConversationMemory(agencyId, userId, sessionId, message, responseContent, route, clientId);
+        } catch (err) {
+          console.warn('[Chat API] Memory storage failed (non-blocking):', err);
         }
-      }).catch(() => { /* session fetch failed — skip summarization */ });
-    }
+      }
+
+      // Session summarization — extract insights after every N messages
+      if (sessionId) {
+        try {
+          const sessionMsgs = await getSessionMessages(supabase, sessionId, 100);
+          if (shouldSummarize(sessionMsgs.length)) {
+            const formatted = sessionMsgs.map((m) => ({
+              role: m.role as 'user' | 'assistant',
+              content: m.content,
+            }));
+            await summarizeConversation(formatted, agencyId, userId, sessionId, clientId);
+          }
+        } catch (err) {
+          console.warn('[Chat API] Summarization failed (non-blocking):', err);
+        }
+      }
+    });
 
     // Build suggested memory for the client (if detected)
     const suggestedMemory = memoryDetection.should ? {

@@ -132,7 +132,7 @@ export const GET = withPermission({ resource: 'ai-features', action: 'read' })(
 
       // Step 6: Entity check
       diagnostics.step = 'getEntities';
-      let entities;
+      let entities: Awaited<ReturnType<typeof mem0.getEntities>> | undefined = undefined;
       let entityError: string | null = null;
       try {
         entities = await mem0.getEntities();
