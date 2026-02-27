@@ -213,7 +213,7 @@ export function SettingsLayout({ children, onBack, onBrandClick }: SettingsLayou
 
       {/* Settings Content */}
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto p-8 pb-[150px]">
+        <div className="max-w-4xl mx-auto p-8 pb-[var(--chat-pb,150px)]">
           {children}
         </div>
       </main>

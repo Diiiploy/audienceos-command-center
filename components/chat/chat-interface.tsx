@@ -72,6 +72,28 @@ export function ChatInterface({
   const dragStartRef = useRef<{ y: number; height: number } | null>(null)
   const [isInputFocused, setIsInputFocused] = useState(false)
 
+  // Minimize state — persisted in localStorage
+  const [isMinimized, setIsMinimized] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("chat-minimized") === "true"
+    }
+    return false
+  })
+
+  // Persist minimize state and update CSS variable for layout padding
+  useEffect(() => {
+    localStorage.setItem("chat-minimized", String(isMinimized))
+    document.documentElement.style.setProperty(
+      "--chat-pb",
+      isMinimized ? "20px" : "150px"
+    )
+    return () => {
+      document.documentElement.style.removeProperty("--chat-pb")
+    }
+  }, [isMinimized])
+
+  // handleMinimize and handleExpandFromMinimized defined after closePanel below
+
   // Chat state
   const [messages, setMessages] = useState<ChatMessageType[]>([])
   const [inputValue, setInputValue] = useState("")
@@ -182,6 +204,7 @@ export function ChatInterface({
   const openChatRef = useRef<((message: string) => void) | undefined>(undefined)
 
   openChatRef.current = (message: string) => {
+    setIsMinimized(false) // Expand from minimized if needed
     setInputValue(message)
     setIsPanelOpen(true)
     setIsClosing(false)
@@ -225,6 +248,19 @@ export function ChatInterface({
       setIsPanelOpen(false)
       setIsClosing(false)
     }, 200)
+  }
+
+  // Minimize chat to small pill
+  const handleMinimize = () => {
+    if (isPanelOpen) {
+      closePanel()
+    }
+    setIsMinimized(true)
+  }
+
+  // Expand from minimized pill back to full chat bar
+  const handleExpandFromMinimized = () => {
+    setIsMinimized(false)
   }
 
   // Handle textarea change with auto-resize
@@ -655,6 +691,18 @@ export function ChatInterface({
           from { transform: translateX(-50%) translateY(0) scale(0.90); opacity: 1; }
           to { transform: translateX(-50%) translateY(100%) scale(0.90); opacity: 0; }
         }
+        @keyframes chatBarExpand {
+          from { transform: translateX(-50%) scale(0.3); opacity: 0; max-width: 60px; }
+          to { transform: translateX(-50%) scale(0.90); opacity: 1; max-width: 1000px; }
+        }
+        @keyframes chatBarCollapse {
+          from { transform: translateX(-50%) scale(0.90); opacity: 1; max-width: 1000px; }
+          to { transform: translateX(-50%) scale(0.3); opacity: 0; max-width: 60px; }
+        }
+        @keyframes pillExpand {
+          from { transform: translateX(-50%) scale(0.8); opacity: 0; }
+          to { transform: translateX(-50%) scale(1); opacity: 1; }
+        }
       `
       document.head.appendChild(existingStyle)
     } else {
@@ -929,25 +977,51 @@ export function ChatInterface({
         </>
       )}
 
+      {/* MINIMIZED PILL - small unobtrusive button at bottom center */}
+      {isMinimized && (
+        <button
+          onClick={handleExpandFromMinimized}
+          className="fixed bottom-4 left-1/2 z-[10000] flex items-center gap-2 cursor-pointer
+            bg-black/60 dark:bg-gray-300/80
+            hover:bg-black/75 dark:hover:bg-gray-300/95
+            text-white/80 dark:text-gray-900/80
+            hover:text-white dark:hover:text-gray-900
+            backdrop-blur-sm border border-white/10 dark:border-gray-400/30
+            transition-colors duration-200"
+          style={{
+            transform: "translateX(-50%)",
+            borderRadius: "14px",
+            padding: "8px 16px",
+            animation: "pillExpand 0.3s ease-out forwards",
+          }}
+          title="Open AI Chat"
+        >
+          <Sparkles className="w-4 h-4" />
+          <span className="text-xs font-medium">AI Chat</span>
+        </button>
+      )}
+
       {/* PERSISTENT CHAT BAR - iOS Liquid Glass style (double-layer frosted) */}
+      {!isMinimized && (
       <div
         className="flex items-center gap-3 z-[10000]"
         style={{
           position: "fixed",
           width: PANEL_WIDTH,
           maxWidth: MAX_PANEL_WIDTH,
-          bottom: "10px", // 10px from bottom (matches HGC)
+          bottom: "10px",
           left: "50%",
           transform: "translateX(-50%) scale(0.90)",
           transformOrigin: "bottom center",
-          background: "rgba(255, 255, 255, 0.15)", // 15% white tint - double-layer effect (more frosted than panel)
+          background: "rgba(255, 255, 255, 0.15)",
           backdropFilter: "blur(40px) saturate(180%)",
           WebkitBackdropFilter: "blur(40px) saturate(180%)",
           border: "1px solid rgba(255, 255, 255, 0.25)",
           borderRadius: "20px",
           boxShadow: "0 4px 24px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.15)",
           padding: "12px 16px",
-          pointerEvents: isInputFocused || isPanelOpen ? "auto" : "none", // Pass through clicks when not in use
+          pointerEvents: isInputFocused || isPanelOpen ? "auto" : "none",
+          animation: "chatBarExpand 0.35s ease-out forwards",
         }}
       >
         {/* Stacked Buttons */}
@@ -1036,7 +1110,18 @@ export function ChatInterface({
             <Send className="w-5 h-5" />
           )}
         </button>
+
+        {/* Minimize Button */}
+        <button
+          onClick={handleMinimize}
+          style={{ pointerEvents: "auto" }}
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+          title="Minimize chat"
+        >
+          <Minimize2 className="w-4 h-4" />
+        </button>
       </div>
+      )}
 
       {/* Upload Progress Toast */}
       {uploadProgress.stage !== "idle" && (
