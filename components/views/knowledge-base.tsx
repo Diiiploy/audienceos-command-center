@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo, useCallback } from "react"
+import React, { useState, useMemo, useCallback, useEffect } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import { useSlideTransition } from "@/hooks/use-slide-transition"
 import { useToast } from "@/hooks/use-toast"
@@ -9,9 +9,11 @@ import { cn } from "@/lib/utils"
 import {
   DocumentCard,
   type DocumentCategory,
+  type DocumentType,
   categoryLabels,
 } from "@/components/linear/document-card"
 import { DocumentPreviewPanel, type Document } from "@/components/linear/document-preview-panel"
+import { formatFileSize } from "@/types/knowledge-base"
 import { DocumentUploadModal } from "@/components/linear/document-upload-modal"
 import { DriveLinkModal } from "@/components/knowledge-base/drive-link-modal"
 import { ProcessingPanel } from "@/components/knowledge-base/processing-panel"
@@ -50,6 +52,64 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+
+// Map MIME types to UI document types
+function mimeToDocType(mime: string): DocumentType {
+  if (mime === 'application/pdf') return 'pdf'
+  if (mime.includes('wordprocessingml') || mime === 'application/msword') return 'document'
+  if (mime.includes('spreadsheetml') || mime.includes('ms-excel')) return 'spreadsheet'
+  if (mime.includes('presentationml') || mime.includes('ms-powerpoint')) return 'presentation'
+  if (mime.startsWith('image/')) return 'image'
+  if (mime.startsWith('video/')) return 'video'
+  if (mime === 'text/plain') return 'document'
+  return 'other'
+}
+
+// Map DB categories to UI categories (closest match)
+const DB_TO_UI_CATEGORY: Record<string, DocumentCategory> = {
+  installation: 'onboarding',
+  tech: 'training',
+  support: 'templates',
+  process: 'onboarding',
+  client_specific: 'strategy',
+}
+
+// Transform an API document record into the UI Document shape
+function apiDocToDocument(apiDoc: Record<string, unknown>): Document {
+  const createdAt = apiDoc.created_at ? new Date(apiDoc.created_at as string) : new Date()
+  const updatedAt = apiDoc.updated_at ? new Date(apiDoc.updated_at as string) : createdAt
+
+  // Relative time helper
+  const msAgo = Date.now() - updatedAt.getTime()
+  const minsAgo = Math.floor(msAgo / 60000)
+  const hoursAgo = Math.floor(msAgo / 3600000)
+  const daysAgo = Math.floor(msAgo / 86400000)
+  let updatedAtLabel = 'Just now'
+  if (daysAgo > 0) updatedAtLabel = `${daysAgo} day${daysAgo > 1 ? 's' : ''} ago`
+  else if (hoursAgo > 0) updatedAtLabel = `${hoursAgo} hour${hoursAgo > 1 ? 's' : ''} ago`
+  else if (minsAgo > 0) updatedAtLabel = `${minsAgo} min${minsAgo > 1 ? 's' : ''} ago`
+
+  const dbCategory = (apiDoc.category as string) || 'process'
+  const uiCategory = DB_TO_UI_CATEGORY[dbCategory] || 'templates'
+
+  return {
+    id: apiDoc.id as string,
+    name: (apiDoc.title as string) || (apiDoc.file_name as string) || 'Untitled',
+    type: mimeToDocType((apiDoc.mime_type as string) || ''),
+    category: uiCategory,
+    description: (apiDoc.description as string) || undefined,
+    updatedAt: updatedAtLabel,
+    createdAt: createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    updatedBy: undefined,
+    size: formatFileSize((apiDoc.file_size as number) || 0),
+    shared: false,
+    starred: false,
+    useForTraining: (apiDoc.use_for_training as boolean) ?? true,
+    tags: (apiDoc.tags as string[]) || [],
+    clientName: (apiDoc.client as { name?: string })?.name || undefined,
+    viewCount: 0,
+  }
+}
 
 // Diiiploy - Knowledge Base Documents (initial data, will be replaced by API)
 const initialDocuments: Document[] = [
@@ -259,6 +319,31 @@ export function KnowledgeBase() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
+
+  // Fetch real documents from API on mount
+  useEffect(() => {
+    let cancelled = false
+    async function loadDocuments() {
+      try {
+        const response = await fetch('/api/v1/documents', { credentials: 'include' })
+        if (!response.ok) return
+        const { data } = await response.json()
+        if (cancelled || !data) return
+        const realDocs: Document[] = (data as Record<string, unknown>[]).map(apiDocToDocument)
+        // Prepend real documents before mock data
+        setDocuments(prev => {
+          // Avoid duplicates by filtering out any mock docs with matching IDs
+          const realIds = new Set(realDocs.map(d => d.id))
+          const mockDocs = prev.filter(d => !realIds.has(d.id))
+          return [...realDocs, ...mockDocs]
+        })
+      } catch {
+        // Silently fall back to mock data
+      }
+    }
+    loadDocuments()
+    return () => { cancelled = true }
+  }, [])
 
   // Get unique clients for filter dropdown
   const availableClients = useMemo(() => getUniqueClients(documents), [documents])
@@ -819,9 +904,20 @@ export function KnowledgeBase() {
 
               <TabsContent value="processing" className="mt-0 h-full">
                 <div className="p-4">
-                  <ProcessingPanel onProcessingComplete={() => {
+                  <ProcessingPanel onProcessingComplete={async () => {
                     // Refresh document list after processing
-                    // In a real app, this would refetch from API
+                    try {
+                      const response = await fetch('/api/v1/documents', { credentials: 'include' })
+                      if (!response.ok) return
+                      const { data } = await response.json()
+                      if (!data) return
+                      const realDocs: Document[] = (data as Record<string, unknown>[]).map(apiDocToDocument)
+                      setDocuments(prev => {
+                        const realIds = new Set(realDocs.map(d => d.id))
+                        const mockDocs = prev.filter(d => !realIds.has(d.id))
+                        return [...realDocs, ...mockDocs]
+                      })
+                    } catch { /* keep existing data */ }
                   }} />
                 </div>
               </TabsContent>
