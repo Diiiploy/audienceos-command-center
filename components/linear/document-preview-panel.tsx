@@ -364,6 +364,7 @@ export function DocumentPreviewPanel({
                 metadata: {
                   category: document.category,
                   tags: document.tags,
+                  useForTraining: document.useForTraining,
                 },
               }}
               label="Send to AI"

@@ -31,12 +31,13 @@ import {
   Brain,
   CheckCircle2,
   ChevronDown,
+  FileText,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { fetchWithCsrf } from "@/lib/csrf"
 import { useStreamingText } from "./use-streaming-text"
 import { TypingCursor } from "./typing-cursor"
-import type { ChatMessage as ChatMessageType, RouteType, Citation, SessionContext, SuggestedMemory } from "@/lib/chat/types"
+import type { ChatMessage as ChatMessageType, RouteType, Citation, SessionContext, SuggestedMemory, DocumentContext } from "@/lib/chat/types"
 
 // Panel dimensions
 const PANEL_WIDTH = "85%"
@@ -111,6 +112,9 @@ export function ChatInterface({
 
   // Memory suggestion — loading state for the confirm API call
   const [confirmingSuggestion, setConfirmingSuggestion] = useState<string | null>(null)
+
+  // Document context — set when user clicks "Send to AI" on a document
+  const [documentContext, setDocumentContext] = useState<DocumentContext | null>(null)
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -228,6 +232,34 @@ export function ChatInterface({
     }
   }, [])
 
+  // Listen for "Send to AI" events from document preview panel (and other sources)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (!detail?.id || !detail?.title) return
+
+      setDocumentContext({
+        id: detail.id,
+        title: detail.title || "Document",
+        category: detail.metadata?.category,
+        clientName: detail.metadata?.clientName,
+        useForTraining: detail.metadata?.useForTraining,
+      })
+
+      // Open chat panel and focus input
+      setIsMinimized(false)
+      setIsPanelOpen(true)
+      setIsClosing(false)
+      setIsInputFocused(true)
+      setTimeout(() => {
+        textareaRef.current?.focus()
+      }, 100)
+    }
+
+    window.addEventListener("sendToHolyGrailChat", handler)
+    return () => window.removeEventListener("sendToHolyGrailChat", handler)
+  }, [])
+
   // Handle input focus - opens panel
   const handleInputFocus = () => {
     setIsInputFocused(true)
@@ -244,6 +276,7 @@ export function ChatInterface({
   // Close panel with animation
   const closePanel = () => {
     setIsClosing(true)
+    setDocumentContext(null)
     setTimeout(() => {
       setIsPanelOpen(false)
       setIsClosing(false)
@@ -277,6 +310,7 @@ export function ChatInterface({
       role: "user",
       content: messageContent,
       timestamp: new Date(),
+      documentContext: documentContext || undefined,
     }
 
     setMessages((prev) => [...prev, userMessage])
@@ -294,6 +328,7 @@ export function ChatInterface({
           agencyId,
           userId,
           stream: true, // Enable SSE streaming
+          ...(documentContext && { documentContext: { id: documentContext.id, title: documentContext.title } }),
         }),
       })
 
@@ -853,7 +888,15 @@ export function ChatInterface({
                           />
                         </div>
                       ) : (
-                        <span className="whitespace-pre-wrap">{msg.content}</span>
+                        <>
+                          {msg.documentContext && (
+                            <div className="flex items-center gap-1 text-[10px] text-blue-200/70 mb-1">
+                              <FileText className="h-3 w-3" />
+                              <span className="truncate">Re: {msg.documentContext.title}</span>
+                            </div>
+                          )}
+                          <span className="whitespace-pre-wrap">{msg.content}</span>
+                        </>
                       )}
                     </div>
                   </div>
@@ -999,6 +1042,32 @@ export function ChatInterface({
           <Sparkles className="w-4 h-4" />
           <span className="text-xs font-medium">AI Chat</span>
         </button>
+      )}
+
+      {/* Document context card — rendered ABOVE the chat bar */}
+      {documentContext && !isMinimized && (
+        <div className="fixed z-[9998]" style={{ bottom: "78px", left: "50%", transform: "translateX(-50%)", width: `min(95vw, ${MAX_PANEL_WIDTH})` }}>
+          <div className="mx-4 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 backdrop-blur-sm px-3 py-2">
+            <FileText className="h-4 w-4 text-amber-400 flex-shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-amber-200 truncate">
+                {documentContext.title}
+              </p>
+              {documentContext.category && (
+                <p className="text-[10px] text-amber-400/70 capitalize">{documentContext.category}</p>
+              )}
+            </div>
+            {documentContext.useForTraining === false && (
+              <span className="text-[10px] text-amber-400/50 whitespace-nowrap">AI training off</span>
+            )}
+            <button
+              onClick={() => setDocumentContext(null)}
+              className="p-0.5 text-amber-400/60 hover:text-amber-300 transition-colors cursor-pointer"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
       )}
 
       {/* PERSISTENT CHAT BAR - iOS Liquid Glass style (double-layer frosted) */}

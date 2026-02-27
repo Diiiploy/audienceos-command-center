@@ -230,7 +230,12 @@ export const POST = withPermission({ resource: 'ai-features', action: 'write' })
 
     // 1. Parse request body
     const body = await request.json();
-    const { message, sessionId, stream = false, clientId } = body;
+    const { message, sessionId, stream = false, clientId, documentContext } = body;
+
+    // Validate documentContext shape if present
+    const validDocContext = documentContext && typeof documentContext.id === 'string' && typeof documentContext.title === 'string'
+      ? { id: documentContext.id, title: documentContext.title }
+      : undefined;
 
     if (!message) {
       return NextResponse.json(
@@ -265,6 +270,12 @@ export const POST = withPermission({ resource: 'ai-features', action: 'write' })
       console.warn('[Chat API] Router failed, using casual route:', routerError);
     }
 
+    // 4b. Force RAG route when document context is attached
+    if (validDocContext?.id) {
+      route = 'rag';
+      routeConfidence = 1.0;
+    }
+
     // 5. Build rich system prompt with all context layers (including client-scoped memories)
     const { prompt: systemPrompt, temperature: configuredTemperature } = await buildSystemPrompt(supabase, agencyId, userId, sessionId, route, clientId);
 
@@ -278,7 +289,7 @@ export const POST = withPermission({ resource: 'ai-features', action: 'write' })
       responseContent = await handleDashboardRoute(apiKey, message, agencyId, userId, functionCalls, supabase, systemPrompt, configuredTemperature);
     } else if (route === 'rag') {
       // Use RAG for document search queries
-      responseContent = await handleRAGRoute(apiKey, message, agencyId, citations, supabase, configuredTemperature);
+      responseContent = await handleRAGRoute(apiKey, message, agencyId, citations, supabase, configuredTemperature, validDocContext?.title);
     } else if (route === 'memory') {
       // Use Memory for recall queries
       responseContent = await handleMemoryRoute(apiKey, message, agencyId, userId, configuredTemperature, clientId);
@@ -618,7 +629,8 @@ async function handleRAGRoute(
   agencyId: string | undefined,
   citations: Citation[],
   supabase: SupabaseClient,
-  temperature: number = 0.7
+  temperature: number = 0.7,
+  documentTitle?: string
 ): Promise<string> {
   try {
     const effectiveAgencyId = agencyId || 'demo-agency';
@@ -634,9 +646,12 @@ async function handleRAGRoute(
     if (store?.store_name) {
       // ── New path: File Search Store ──
       const service = getFileSearchStoreService(apiKey);
+      const searchQuery = documentTitle
+        ? `About the document "${documentTitle}": ${message}`
+        : message;
       const result = await service.search(
         store.store_name,
-        message,
+        searchQuery,
         {
           agencyId: effectiveAgencyId,
           useForTrainingOnly: true,
@@ -687,8 +702,11 @@ async function handleRAGRoute(
     }
 
     const ragService = getGeminiRAG(apiKey);
+    const fallbackQuery = documentTitle
+      ? `About the document "${documentTitle}": ${message}`
+      : message;
     const result = await ragService.search({
-      query: message,
+      query: fallbackQuery,
       agencyId: effectiveAgencyId,
       includeGlobal: true,
       maxDocuments: 5,

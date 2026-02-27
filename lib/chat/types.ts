@@ -67,6 +67,7 @@ export interface ChatMessage {
   suggestions?: string[];
   suggestedMemory?: SuggestedMemory;
   metadata?: MessageMetadata;
+  documentContext?: DocumentContext;
 }
 
 /**
@@ -122,6 +123,18 @@ export interface SessionContext {
   clientName?: string;
   currentPage?: string;
   recentAlerts?: string[];
+}
+
+/**
+ * Document context for "Send to AI" feature.
+ * Attached to messages when user sends a document to chat.
+ */
+export interface DocumentContext {
+  id: string;
+  title: string;
+  category?: string;
+  clientName?: string;
+  useForTraining?: boolean;
 }
 
 /**
