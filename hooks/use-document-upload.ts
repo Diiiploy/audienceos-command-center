@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useKnowledgeBaseStore } from '@/stores/knowledge-base-store'
+import { getCsrfToken } from '@/lib/csrf'
 import type { KnowledgeBaseDocument } from '@/types/knowledge-base'
 import type { DocumentCategory } from '@/types/database'
 
@@ -49,12 +50,17 @@ export function useDocumentUpload() {
       setProgress(25)
 
       // Upload via API
+      const csrfToken = getCsrfToken()
+      const headers: Record<string, string> = {}
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken
+      }
+
       const response = await fetch('/api/v1/documents', {
         method: 'POST',
         body: formData,
-        headers: {
-          'X-CSRF-Token': getCsrfToken(),
-        },
+        headers,
+        credentials: 'include',
       })
 
       setProgress(75)
@@ -86,16 +92,4 @@ export function useDocumentUpload() {
     progress,
     error,
   }
-}
-
-// Helper to get CSRF token from meta tag or cookie
-function getCsrfToken(): string {
-  // Try to get from meta tag first
-  const metaTag = document.querySelector('meta[name="csrf-token"]')
-  if (metaTag) {
-    return metaTag.getAttribute('content') || ''
-  }
-
-  // Fallback: generate a dummy token (in production, use actual CSRF token)
-  return ''
 }
