@@ -1046,8 +1046,8 @@ export function ChatInterface({
 
       {/* Document context card — rendered ABOVE the chat bar */}
       {documentContext && !isMinimized && (
-        <div className="fixed z-[10000]" style={{ bottom: "78px", left: "50%", transform: "translateX(-50%)", width: `min(95vw, ${MAX_PANEL_WIDTH})` }}>
-          <div className="mx-4 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 backdrop-blur-sm px-3 py-2">
+        <div className="fixed z-[10000]" style={{ bottom: "90px", left: "50%", transform: "translateX(-50%)", width: `min(76vw, 880px)` }}>
+          <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 backdrop-blur-sm px-3 py-2">
             <FileText className="h-4 w-4 text-amber-400 flex-shrink-0" />
             <div className="min-w-0 flex-1">
               <p className="text-xs font-medium text-amber-200 truncate">
