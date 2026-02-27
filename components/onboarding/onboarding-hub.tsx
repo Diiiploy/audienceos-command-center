@@ -97,15 +97,15 @@ export function OnboardingHub({ onClientClick }: OnboardingHubProps) {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="active" className="mt-6 pb-[var(--chat-pb,80px)]">
+        <TabsContent value="active" className="mt-6 pb-[var(--chat-pb,0px)]">
           <ActiveOnboardings onClientClick={onClientClick} />
         </TabsContent>
 
-        <TabsContent value="journey" className="mt-6 pb-[var(--chat-pb,80px)]">
+        <TabsContent value="journey" className="mt-6 pb-[var(--chat-pb,0px)]">
           <ClientJourneyConfig />
         </TabsContent>
 
-        <TabsContent value="form-builder" className="mt-6 pb-[var(--chat-pb,80px)]">
+        <TabsContent value="form-builder" className="mt-6 pb-[var(--chat-pb,0px)]">
           <FormBuilder />
         </TabsContent>
       </Tabs>

@@ -212,7 +212,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-8 pb-[var(--chat-pb,80px)]">
+      <div className="flex-1 overflow-y-auto px-6 py-8 pb-[var(--chat-pb,0px)]">
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList className="bg-secondary">
             <TabsTrigger value="overview">Overview</TabsTrigger>
