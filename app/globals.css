@@ -40,7 +40,7 @@
   --chart-5: oklch(0.55 0.15 300);
 
   --radius: 0.375rem; /* Slightly smaller radius for cleaner look */
-  --chat-pb: 150px; /* Bottom padding for chat bar — toggled by ChatInterface minimize */
+  --chat-pb: 80px; /* Bottom padding for chat bar — matches bar height, toggled on minimize */
 
   --sidebar: oklch(1 0 0); /* White sidebar */
   --sidebar-foreground: oklch(0.15 0.01 260);

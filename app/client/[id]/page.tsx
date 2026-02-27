@@ -126,7 +126,7 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
   }
 
   return (
-    <div className="min-h-screen bg-background pb-[var(--chat-pb,150px)]">
+    <div className="min-h-screen bg-background pb-[var(--chat-pb,80px)]">
       {/* Header */}
       <div className="border-b border-border bg-card/50 backdrop-blur sticky top-0 z-10">
         <div className="container mx-auto px-6 py-4">

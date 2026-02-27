@@ -94,7 +94,7 @@ export function FormBuilder() {
   const sortedFields = [...fields].sort((a, b) => a.sort_order - b.sort_order)
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pb-[var(--chat-pb,150px)]">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pb-[var(--chat-pb,80px)]">
       {/* Left: Field List (2/3 width) */}
       <Card className="lg:col-span-2">
         <CardHeader className="pb-3">

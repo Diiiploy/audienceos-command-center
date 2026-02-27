@@ -85,7 +85,7 @@ export function ChatInterface({
     localStorage.setItem("chat-minimized", String(isMinimized))
     document.documentElement.style.setProperty(
       "--chat-pb",
-      isMinimized ? "20px" : "150px"
+      isMinimized ? "20px" : "80px"
     )
     return () => {
       document.documentElement.style.removeProperty("--chat-pb")

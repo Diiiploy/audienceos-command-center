@@ -41,7 +41,7 @@ export function LinearShell({
   return (
     <div className="flex h-screen bg-background text-foreground">
       <LinearSidebar activeView={activeView} onViewChange={onViewChange} onQuickCreate={onQuickCreate} user={user} />
-      <main className="flex-1 flex flex-col overflow-y-auto pb-[var(--chat-pb,150px)]">{children}</main>
+      <main className="flex-1 flex flex-col overflow-y-auto pb-[var(--chat-pb,80px)]">{children}</main>
       <AnimatePresence mode="wait">
         {showDetailPanel && (
           <motion.aside
