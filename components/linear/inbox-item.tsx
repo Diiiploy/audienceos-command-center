@@ -76,7 +76,7 @@ export function InboxItem({
     }
   }
 
-  // Compact view when detail panel is open
+  // Compact view when detail panel is open — readable but space-efficient
   if (compact) {
     return (
       <div
@@ -84,29 +84,40 @@ export function InboxItem({
         tabIndex={0}
         aria-selected={selected}
         className={cn(
-          "px-3 py-2.5 cursor-pointer transition-colors border-b border-border/30",
+          "flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors border-b border-border/30 border-l-2",
           selected
-            ? "bg-primary/10 border-l-2 border-l-primary"
-            : "hover:bg-secondary/50 border-l-2 border-l-transparent"
+            ? "bg-primary/10 border-l-primary"
+            : "hover:bg-secondary/50 border-l-transparent"
         )}
         onClick={onClick}
         onKeyDown={handleKeyDown}
       >
-        <div className="flex items-center gap-2">
-          {/* Priority dot */}
-          <div className={cn("w-2 h-2 rounded-full shrink-0", priorityColors[priority])} />
-          <div className="flex-1 min-w-0">
-            <h3 className="text-xs font-medium text-foreground truncate">
+        {/* Priority dot */}
+        <div className={cn("w-2 h-2 rounded-full shrink-0", priorityColors[priority])} />
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-sm font-medium text-foreground truncate">
               {title}
             </h3>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[10px] text-muted-foreground truncate">
-                {client.name}
-              </span>
-              <span className="text-[10px] text-muted-foreground">
-                #{id}
-              </span>
-            </div>
+            <span className="text-xs text-muted-foreground flex-shrink-0">
+              {timestamp}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-xs text-muted-foreground truncate">
+              {client.name}
+            </span>
+            <span
+              className={cn(
+                "text-[10px] px-1.5 py-0.5 rounded font-medium",
+                statusColors[status]
+              )}
+            >
+              {statusLabels[status]}
+            </span>
+            <span className="text-[11px] text-muted-foreground">#{id}</span>
           </div>
         </div>
       </div>
