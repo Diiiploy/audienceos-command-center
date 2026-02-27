@@ -371,8 +371,8 @@ export function SupportTickets() {
           </div>
         )}
 
-        {/* Ticket list - natural flow */}
-        <div className="flex-1">
+        {/* Ticket list - scrollable */}
+        <div className="flex-1 overflow-y-auto">
           {filteredTickets.length > 0 ? (
             filteredTickets.map((ticket) => (
               <InboxItem
