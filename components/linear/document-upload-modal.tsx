@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,6 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useDocumentUpload } from '@/hooks/use-document-upload'
 import { Upload, AlertCircle, CheckCircle } from 'lucide-react'
 import type { DocumentCategory } from '@/types/database'
+
+interface ClientOption {
+  id: string
+  name: string
+}
 
 const CATEGORIES: { value: DocumentCategory; label: string }[] = [
   { value: 'installation', label: 'Installation' },
@@ -27,9 +32,27 @@ export function DocumentUploadModal({ isOpen, onClose, clientId }: DocumentUploa
   const [file, setFile] = useState<File | null>(null)
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState<DocumentCategory>('installation')
+  const [selectedClientId, setSelectedClientId] = useState<string>(clientId || '')
+  const [clients, setClients] = useState<ClientOption[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const { uploadDocument, isUploading, progress, error } = useDocumentUpload()
+
+  // Fetch clients for the dropdown
+  useEffect(() => {
+    if (!isOpen) return
+    async function loadClients() {
+      try {
+        const response = await fetch('/api/v1/clients?is_active=true', { credentials: 'include' })
+        if (!response.ok) return
+        const { data } = await response.json()
+        if (data) {
+          setClients((data as { id: string; name: string }[]).map(c => ({ id: c.id, name: c.name })))
+        }
+      } catch { /* ignore */ }
+    }
+    loadClients()
+  }, [isOpen])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
@@ -48,7 +71,7 @@ export function DocumentUploadModal({ isOpen, onClose, clientId }: DocumentUploa
     const result = await uploadDocument(file, {
       title: title || file.name,
       category,
-      clientId,
+      clientId: selectedClientId || clientId,
     })
 
     if (result) {
@@ -56,6 +79,7 @@ export function DocumentUploadModal({ isOpen, onClose, clientId }: DocumentUploa
       setFile(null)
       setTitle('')
       setCategory('installation')
+      setSelectedClientId(clientId || '')
       onClose()
     }
   }
@@ -119,6 +143,26 @@ export function DocumentUploadModal({ isOpen, onClose, clientId }: DocumentUploa
               </SelectContent>
             </Select>
           </div>
+
+          {/* Client Select (optional) */}
+          {clients.length > 0 && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Client <span className="text-muted-foreground font-normal">(optional)</span></label>
+              <Select value={selectedClientId} onValueChange={setSelectedClientId} disabled={isUploading}>
+                <SelectTrigger>
+                  <SelectValue placeholder="No client — global document" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No client — global document</SelectItem>
+                  {clients.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Error Message */}
           {error && (

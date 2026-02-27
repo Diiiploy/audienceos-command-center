@@ -106,8 +106,10 @@ function apiDocToDocument(apiDoc: Record<string, unknown>): Document {
     starred: (apiDoc.is_starred as boolean) ?? false,
     useForTraining: (apiDoc.use_for_training as boolean) ?? false,
     tags: (apiDoc.tags as string[]) || [],
+    clientId: (apiDoc.client_id as string) || undefined,
     clientName: (apiDoc.client as { name?: string })?.name || undefined,
-    viewCount: 0,
+    viewCount: (apiDoc.view_count as number) || 0,
+    downloadCount: (apiDoc.download_count as number) || 0,
     storageMimeType: (apiDoc.mime_type as string) || undefined,
   }
 }
@@ -320,6 +322,22 @@ export function KnowledgeBase() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
+  const [clients, setClients] = useState<{ id: string; name: string }[]>([])
+
+  // Fetch clients for dropdown usage
+  useEffect(() => {
+    async function loadClients() {
+      try {
+        const response = await fetch('/api/v1/clients?is_active=true', { credentials: 'include' })
+        if (!response.ok) return
+        const { data } = await response.json()
+        if (data) {
+          setClients((data as { id: string; name: string }[]).map(c => ({ id: c.id, name: c.name })))
+        }
+      } catch { /* ignore */ }
+    }
+    loadClients()
+  }, [])
 
   // Fetch real documents from API on mount
   useEffect(() => {
@@ -543,6 +561,38 @@ export function KnowledgeBase() {
       description: doc.name,
     })
   }, [documents])
+
+  // Change document client assignment
+  const handleClientChange = useCallback(async (clientId: string | null) => {
+    if (!selectedDocument) return
+    const docId = selectedDocument.id
+
+    // Skip mock documents
+    if (docId.startsWith('doc-') || docId.startsWith('drive-')) return
+
+    const clientName = clientId ? clients.find(c => c.id === clientId)?.name : undefined
+
+    // Optimistic update
+    setSelectedDocument(prev =>
+      prev?.id === docId ? { ...prev, clientId: clientId || undefined, clientName } : prev
+    )
+    setDocuments(prev =>
+      prev.map(d => d.id === docId ? { ...d, clientId: clientId || undefined, clientName } : d)
+    )
+
+    try {
+      const response = await fetchWithCsrf(`/api/v1/documents/${docId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ client_id: clientId || null }),
+      })
+
+      if (!response.ok) {
+        toast({ title: "Failed to update client", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Failed to update client", variant: "destructive" })
+    }
+  }, [selectedDocument, clients, toast])
 
   // Download a document
   const handleDownload = useCallback(async (docId: string) => {
@@ -983,6 +1033,8 @@ export function KnowledgeBase() {
               onShare={() => handleShare(selectedDocument.id)}
               onDelete={() => handleDelete(selectedDocument.id)}
               onToggleTraining={() => handleToggleTraining(selectedDocument.id)}
+              onClientChange={handleClientChange}
+              clients={clients}
               isDownloading={isDownloading}
               isDeleting={isDeleting}
             />

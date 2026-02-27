@@ -28,6 +28,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { type DocumentType, type DocumentCategory, categoryLabels, categoryColors } from "./document-card"
 
 interface Document {
@@ -49,9 +56,15 @@ interface Document {
   starred?: boolean
   useForTraining?: boolean
   tags?: string[]
+  clientId?: string
   clientName?: string
   viewCount?: number
   downloadCount?: number
+}
+
+interface ClientOption {
+  id: string
+  name: string
 }
 
 interface DocumentPreviewPanelProps {
@@ -62,6 +75,8 @@ interface DocumentPreviewPanelProps {
   onShare?: () => void
   onDelete?: () => void
   onToggleTraining?: () => void
+  onClientChange?: (clientId: string | null) => void
+  clients?: ClientOption[]
   isDownloading?: boolean
   isDeleting?: boolean
   className?: string
@@ -75,6 +90,8 @@ export function DocumentPreviewPanel({
   onShare,
   onDelete,
   onToggleTraining,
+  onClientChange,
+  clients,
   isDownloading,
   isDeleting,
   className,
@@ -165,7 +182,7 @@ export function DocumentPreviewPanel({
       <div className="flex-1 bg-secondary/50 flex items-center justify-center min-h-0">
         {document.previewUrl && document.storageMimeType === 'application/pdf' ? (
           <iframe
-            src={document.previewUrl}
+            src={`${document.previewUrl}#toolbar=0&navpanes=0&scrollbar=1`}
             title={document.name}
             className="w-full h-full border-0"
           />
@@ -251,7 +268,28 @@ export function DocumentPreviewPanel({
 
             {/* Row 4: Client | AI Training */}
             <span className="text-xs text-muted-foreground">Client</span>
-            <span className="text-xs text-foreground">{document.clientName || "—"}</span>
+            <span>
+              {onClientChange && clients && clients.length > 0 ? (
+                <Select
+                  value={document.clientId || ''}
+                  onValueChange={(val) => onClientChange(val || null)}
+                >
+                  <SelectTrigger className="h-6 text-xs w-[140px] border-dashed">
+                    <SelectValue placeholder="None" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {clients.map((c) => (
+                      <SelectItem key={c.id} value={c.id} className="text-xs">
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <span className="text-xs text-foreground">{document.clientName || "—"}</span>
+              )}
+            </span>
             <span className="text-xs text-muted-foreground">AI Training</span>
             <span>
               {onToggleTraining ? (

@@ -21,6 +21,7 @@ const VALID_CATEGORIES: DocumentCategory[] = ['installation', 'tech', 'support',
 interface DocumentUpdateBody {
   title?: string
   category?: DocumentCategory
+  client_id?: string | null
   is_starred?: boolean
   use_for_training?: boolean
   is_active?: boolean
@@ -53,6 +54,13 @@ export const GET = withPermission({ resource: 'knowledge-base', action: 'read' }
       if (error || !document) {
         return createErrorResponse(404, 'Document not found')
       }
+
+      // Fire-and-forget: increment view count (new column, use any cast until types regenerated)
+      ;(supabase as any)
+        .from('document')
+        .update({ view_count: ((document as Record<string, unknown>).view_count as number || 0) + 1 })
+        .eq('id', id)
+        .then()
 
       return NextResponse.json({ data: document })
     } catch {
@@ -99,6 +107,9 @@ export const PATCH = withPermission({ resource: 'knowledge-base', action: 'write
       }
       if (body.category !== undefined) {
         updates.category = body.category
+      }
+      if (body.client_id !== undefined) {
+        updates.client_id = body.client_id
       }
       if (body.is_starred !== undefined) {
         updates.is_starred = body.is_starred

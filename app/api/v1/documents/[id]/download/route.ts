@@ -48,6 +48,21 @@ export const POST = withPermission({ resource: 'knowledge-base', action: 'read' 
         return createErrorResponse(500, 'Failed to generate download URL')
       }
 
+      // Fire-and-forget: increment download count (new column, use any cast until types regenerated)
+      ;(async () => {
+        try {
+          const { data: current } = await (supabase as any)
+            .from('document')
+            .select('download_count')
+            .eq('id', id)
+            .single()
+          await (supabase as any)
+            .from('document')
+            .update({ download_count: ((current?.download_count ?? 0) + 1) })
+            .eq('id', id)
+        } catch { /* non-critical */ }
+      })()
+
       return NextResponse.json({
         data: {
           url: signedData.signedUrl,
