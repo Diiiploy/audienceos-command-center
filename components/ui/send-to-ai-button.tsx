@@ -56,9 +56,9 @@ const SendToAiButton = forwardRef<HTMLButtonElement, SendToAiButtonProps>(
     }
 
     const baseStyles: Record<ButtonVariant, string> = {
-      default: "bg-amber-200 hover:bg-amber-300 text-amber-900 border-amber-300 shadow-sm",
-      ghost: "hover:bg-amber-100 text-amber-700",
-      outline: "border-amber-300 text-amber-700 hover:bg-amber-50",
+      default: "bg-amber-200 hover:bg-amber-300 text-amber-900 border-amber-300 shadow-sm dark:bg-amber-400/20 dark:hover:bg-amber-400/30 dark:text-amber-300 dark:border-amber-500/40",
+      ghost: "hover:bg-amber-100 text-amber-700 dark:hover:bg-amber-400/15 dark:text-amber-400",
+      outline: "border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-500/40 dark:text-amber-400 dark:hover:bg-amber-400/15",
     }
 
     return (
