@@ -5,35 +5,10 @@ import { cookies } from 'next/headers'
 import { createRouteHandlerClient, getAuthenticatedUser } from '@/lib/supabase'
 import { withRateLimit, withCsrfProtection, createErrorResponse } from '@/lib/security'
 import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission'
-import { geminiFileService } from '@/lib/gemini/file-service'
+import { getFileSearchStoreService } from '@/lib/gemini/file-search-store-service'
+import { getOrCreateAgencyStore } from '@/lib/gemini/store-provisioner'
 import { apiLogger } from '@/lib/logger'
 import type { DocumentCategory, IndexStatus } from '@/types/database'
-
-/**
- * DISPLAY_NAME_PREFIX for Gemini file metadata encoding
- * Format: hgc|{agencyId}|{scope}|{clientId}|{displayName}
- * This allows RAG service to identify and filter files by agency/client
- */
-const DISPLAY_NAME_PREFIX = 'hgc'
-const DISPLAY_NAME_SEPARATOR = '|'
-
-/**
- * Encode document metadata into Gemini displayName for RAG filtering
- */
-function encodeDisplayName(
-  agencyId: string,
-  scope: 'global' | 'client',
-  clientId: string | null,
-  displayName: string
-): string {
-  return [
-    DISPLAY_NAME_PREFIX,
-    agencyId,
-    scope,
-    clientId || 'none',
-    displayName,
-  ].join(DISPLAY_NAME_SEPARATOR)
-}
 
 // Valid file types and size limit (50MB)
 const VALID_MIME_TYPES = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain']
@@ -218,36 +193,50 @@ export const POST = withPermission({ resource: 'knowledge-base', action: 'write'
       return createErrorResponse(500, 'Failed to save document record')
     }
 
-    // CRITICAL FIX (2026-01-20): Auto-upload to Gemini File API for RAG indexing
-    // This is fire-and-forget to not block the response, but we still update the status
+    // Auto-upload to Gemini File Search Store for persistent RAG indexing
+    // Fire-and-forget: don't block the response, retry via /process if it fails
     const documentId = document.id
     const scope: 'global' | 'client' = clientId ? 'client' : 'global'
-    const encodedDisplayName = encodeDisplayName(agencyId, scope, clientId, title.trim())
 
-    // Fire-and-forget Gemini upload - don't block the response
     ;(async () => {
       try {
-        // Upload to Gemini File API
-        const geminiFileId = await geminiFileService.uploadFile(
-          buffer,
-          file.type,
-          encodedDisplayName
+        // Get or create the agency's File Search Store
+        const { storeName, storeId } = await getOrCreateAgencyStore(supabase, agencyId)
+
+        // Upload to File Search Store with custom metadata
+        const service = getFileSearchStoreService()
+        const result = await service.uploadDocument(
+          storeName,
+          new Blob([buffer], { type: file.type }),
+          {
+            displayName: title.trim(),
+            mimeType: file.type,
+            agencyId,
+            scope,
+            clientId: clientId || undefined,
+            category: category as string,
+            useForTraining: true,
+          }
         )
 
-        // Update document record with Gemini file ID
-        await supabase
+        if (result.status === 'failed') {
+          throw new Error(result.errorMessage || 'Upload to File Search Store failed')
+        }
+
+        // Update document record with File Search Store references
+        await (supabase as any)
           .from('document')
           .update({
-            gemini_file_id: geminiFileId,
-            index_status: 'indexed' as IndexStatus,
+            gemini_document_name: result.documentName || null,
+            file_search_store_id: storeId,
+            index_status: (result.status === 'active' ? 'indexed' : 'indexing') as IndexStatus,
             updated_at: new Date().toISOString(),
           })
           .eq('id', documentId)
 
-        apiLogger.info({ documentId, geminiFileId }, 'Document indexed in Gemini')
+        apiLogger.info({ documentId, documentName: result.documentName }, 'Document indexed in File Search Store')
       } catch (geminiError) {
-        // Log error but don't fail the upload - document is still in Supabase
-        apiLogger.error({ documentId, err: geminiError }, 'Gemini indexing failed')
+        apiLogger.error({ documentId, err: geminiError }, 'File Search Store indexing failed')
 
         // Mark as failed so it can be retried via /process endpoint
         await supabase

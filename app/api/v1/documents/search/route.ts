@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 import { createRouteHandlerClient } from '@/lib/supabase'
 import { withRateLimit, createErrorResponse } from '@/lib/security'
 import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission'
-import { geminiFileService } from '@/lib/gemini/file-service'
+import { getFileSearchStoreService } from '@/lib/gemini/file-search-store-service'
 
 interface SearchResult {
   answer: string
@@ -11,15 +11,24 @@ interface SearchResult {
     id: string
     title: string
     category: string
-    gemini_file_id: string
   }>
+  citations: Array<{
+    documentName: string
+    snippet: string
+    confidence: number
+  }>
+  isGrounded: boolean
   query: string
   timestamp: string
 }
 
 /**
  * POST /api/v1/documents/search
- * Search across indexed documents using Gemini File API
+ * Search across indexed documents using Gemini File Search Store
+ *
+ * Instead of manually passing file references to generateContent,
+ * this now uses the `fileSearch` tool for true semantic search with
+ * auto-chunking, embeddings, and citation grounding.
  */
 export const POST = withPermission({ resource: 'knowledge-base', action: 'read' })(
   async (request: AuthenticatedRequest) => {
@@ -32,7 +41,7 @@ export const POST = withPermission({ resource: 'knowledge-base', action: 'read' 
 
     // Parse request body
     const body = await request.json()
-    const { query, categories, client_id } = body
+    const { query, client_id } = body
 
     // Validate query
     if (!query || typeof query !== 'string' || query.trim().length === 0) {
@@ -43,90 +52,77 @@ export const POST = withPermission({ resource: 'knowledge-base', action: 'read' 
       return createErrorResponse(400, 'Search query too long (max 500 characters)')
     }
 
-    // Build document filter query
-    // Cast to any: use_for_training column not yet in generated Supabase types
-    let docQuery = (supabase as any)
-      .from('document')
-      .select('id, title, category, gemini_file_id, file_name')
+    // Look up the agency's File Search Store
+    const { data: store } = await (supabase as any)
+      .from('file_search_store')
+      .select('store_name')
       .eq('agency_id', agencyId)
-      .eq('index_status', 'indexed')
+      .eq('is_active', true)
+      .single()
+
+    if (!store?.store_name) {
+      return NextResponse.json({
+        answer: "No knowledge base has been set up yet. Upload documents first — the search index will be created automatically.",
+        documentsSearched: [],
+        citations: [],
+        isGrounded: false,
+        query: query.trim(),
+        timestamp: new Date().toISOString()
+      })
+    }
+
+    // Also get a count of indexed docs for the response
+    const { data: indexedDocs } = await (supabase as any)
+      .from('document')
+      .select('id, title, category')
+      .eq('agency_id', agencyId)
       .eq('is_active', true)
       .eq('use_for_training', true)
-      .not('gemini_file_id', 'is', null)
-
-    // Filter by categories if provided
-    if (categories && Array.isArray(categories) && categories.length > 0) {
-      const validCategories = categories.filter(cat =>
-        ['installation', 'tech', 'support', 'process', 'client_specific'].includes(cat)
-      )
-      if (validCategories.length > 0) {
-        docQuery = docQuery.in('category', validCategories)
-      }
-    }
-
-    // Filter by client if provided
-    if (client_id) {
-      docQuery = docQuery.eq('client_id', client_id)
-    }
-
-    const { data: documents, error: fetchError } = await docQuery
-      .select('id, title, category, gemini_file_id, mime_type, file_name')
+      .not('gemini_document_name', 'is', null)
       .order('updated_at', { ascending: false })
-      .limit(20) // Limit to avoid too many file references
+      .limit(20)
 
-    if (fetchError) {
-      return createErrorResponse(500, 'Failed to fetch indexed documents')
-    }
-
-    if (!documents || documents.length === 0) {
+    if (!indexedDocs || indexedDocs.length === 0) {
       return NextResponse.json({
-        answer: "I couldn't find any indexed documents to search. Please make sure you have uploaded and processed documents first.",
+        answer: "No documents are currently indexed for search. Please upload documents and wait for processing to complete.",
         documentsSearched: [],
+        citations: [],
+        isGrounded: false,
         query: query.trim(),
         timestamp: new Date().toISOString()
       })
     }
 
-    // Extract Gemini file references with mime types
-    // Explicit types needed because (supabase as any) makes chain return any
-    const docReferences = documents
-      .filter((doc: any) => doc.gemini_file_id && doc.mime_type)
-      .map((doc: any) => ({
-        id: doc.gemini_file_id!,
-        mimeType: doc.mime_type!
-      }))
-
-    if (docReferences.length === 0) {
-      return NextResponse.json({
-        answer: "No documents are currently available for search. Please wait for document processing to complete.",
-        documentsSearched: [],
-        query: query.trim(),
-        timestamp: new Date().toISOString()
-      })
-    }
-
-    // Perform search using Gemini File API with actual MIME types
-    try {
-      const searchAnswer = await geminiFileService.searchDocuments(query.trim(), docReferences)
-
-      const result: SearchResult = {
-        answer: searchAnswer,
-        documentsSearched: documents.map((doc: any) => ({
-          id: doc.id,
-          title: doc.title,
-          category: doc.category,
-          gemini_file_id: doc.gemini_file_id!
-        })),
-        query: query.trim(),
-        timestamp: new Date().toISOString()
+    // Perform semantic search via File Search Store
+    const service = getFileSearchStoreService()
+    const searchResult = await service.search(
+      store.store_name,
+      query.trim(),
+      {
+        agencyId,
+        clientId: client_id || undefined,
+        useForTrainingOnly: true,
       }
+    )
 
-      return NextResponse.json(result)
-
-    } catch (searchError) {
-      console.error('Gemini search error:', searchError)
-      return createErrorResponse(500, 'Search operation failed. Please try again.')
+    const result: SearchResult = {
+      answer: searchResult.content,
+      documentsSearched: indexedDocs.map((doc: any) => ({
+        id: doc.id,
+        title: doc.title,
+        category: doc.category,
+      })),
+      citations: searchResult.citations.map(c => ({
+        documentName: c.documentName,
+        snippet: c.text,
+        confidence: c.confidence,
+      })),
+      isGrounded: searchResult.isGrounded,
+      query: query.trim(),
+      timestamp: new Date().toISOString()
     }
+
+    return NextResponse.json(result)
 
   } catch (error) {
     console.error('Document search error:', error)

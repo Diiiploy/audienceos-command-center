@@ -15,6 +15,7 @@ import {
   Clock,
   X,
   CheckCircle,
+  Quote,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -153,6 +154,42 @@ export function SearchPanel({ className }: SearchPanelProps) {
                 {results.answer}
               </div>
             </div>
+
+            {/* Citations from File Search Store */}
+            {results.citations && results.citations.length > 0 && (
+              <div className="space-y-2">
+                <Separator />
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Quote className="w-3 h-3" />
+                  <span>Sources ({results.citations.length})</span>
+                  {results.isGrounded && (
+                    <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
+                      Grounded
+                    </Badge>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  {results.citations.map((citation, idx) => (
+                    <div
+                      key={idx}
+                      className="p-2.5 bg-secondary/30 border border-border/50 rounded-md"
+                    >
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <FileText className="w-3 h-3 text-primary flex-shrink-0" />
+                        <span className="text-xs font-medium truncate">
+                          {citation.documentName}
+                        </span>
+                      </div>
+                      {citation.snippet && (
+                        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
+                          {citation.snippet}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Documents Searched */}
             {results.documentsSearched.length > 0 && (

@@ -1,13 +1,20 @@
 import { useState, useCallback } from 'react'
 
+interface SearchCitation {
+  documentName: string
+  snippet: string
+  confidence: number
+}
+
 interface DocumentSearchResult {
   answer: string
   documentsSearched: Array<{
     id: string
     title: string
     category: string
-    gemini_file_id: string
   }>
+  citations: SearchCitation[]
+  isGrounded: boolean
   query: string
   timestamp: string
 }

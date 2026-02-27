@@ -6,6 +6,7 @@ import { executeFunction, hgcFunctions } from '@/lib/chat/functions';
 import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission';
 import { createRouteHandlerClient } from '@/lib/supabase';
 import { getGeminiRAG } from '@/lib/rag';
+import { getFileSearchStoreService } from '@/lib/gemini/file-search-store-service';
 import { getMemoryInjector, summarizeConversation, shouldSummarize } from '@/lib/memory';
 import { initializeMem0Service } from '@/lib/memory/mem0-service';
 import { checkRateLimitDistributed } from '@/lib/security';
@@ -605,8 +606,11 @@ function formatFallbackResult(functionName: string, result: unknown): string {
 }
 
 /**
- * Handle RAG route - document search using Gemini File Search
- * ADDED 2026-01-15: Ported from HGC for knowledge base queries
+ * Handle RAG route - document search using Gemini File Search Store
+ *
+ * Primary path: Uses persistent File Search Store with `fileSearch` tool
+ * Fallback: If no store exists for agency, falls back to old GeminiRAG service
+ * (backward-compat for agencies that haven't uploaded since migration)
  */
 async function handleRAGRoute(
   apiKey: string,
@@ -617,13 +621,56 @@ async function handleRAGRoute(
   temperature: number = 0.7
 ): Promise<string> {
   try {
-    // Query training-enabled documents to build allowlist
+    const effectiveAgencyId = agencyId || 'demo-agency';
+
+    // Check if agency has a File Search Store (new path)
+    const { data: store } = await (supabase as any)
+      .from('file_search_store')
+      .select('store_name')
+      .eq('agency_id', effectiveAgencyId)
+      .eq('is_active', true)
+      .single();
+
+    if (store?.store_name) {
+      // ── New path: File Search Store ──
+      const service = getFileSearchStoreService(apiKey);
+      const result = await service.search(
+        store.store_name,
+        message,
+        {
+          agencyId: effectiveAgencyId,
+          useForTrainingOnly: true,
+          temperature,
+        }
+      );
+
+      // Add RAG citations
+      for (const ragCitation of result.citations) {
+        const citation: Citation = {
+          index: citations.length + 1,
+          title: ragCitation.documentName,
+          url: ragCitation.documentId,
+          source: 'rag',
+          snippet: ragCitation.text,
+        };
+        if (!citations.find(c => c.url === citation.url)) {
+          citations.push(citation);
+        }
+      }
+
+      chatLogger.debug({ citationCount: result.citations.length, isGrounded: result.isGrounded, path: 'file-search-store' }, 'RAG search complete');
+      return result.content;
+    }
+
+    // ── Fallback path: old GeminiRAG (agencies without a store yet) ──
+    chatLogger.debug({ agencyId: effectiveAgencyId }, 'No File Search Store found, falling back to legacy RAG');
+
     let allowedGeminiFileNames: string[] | undefined;
     try {
       const { data: trainingDocs } = await (supabase as any)
         .from('document')
         .select('gemini_file_id')
-        .eq('agency_id', agencyId || 'demo-agency')
+        .eq('agency_id', effectiveAgencyId)
         .eq('is_active', true)
         .eq('use_for_training', true)
         .not('gemini_file_id', 'is', null);
@@ -637,21 +684,18 @@ async function handleRAGRoute(
       }
     } catch (err) {
       console.warn('[Chat API] Failed to load training allowlist:', err);
-      // Continue without allowlist — fail open to avoid breaking RAG entirely
     }
 
     const ragService = getGeminiRAG(apiKey);
-
     const result = await ragService.search({
       query: message,
-      agencyId: agencyId || 'demo-agency',
+      agencyId: effectiveAgencyId,
       includeGlobal: true,
       maxDocuments: 5,
       minConfidence: 0.5,
       allowedGeminiFileNames,
     });
 
-    // Add RAG citations
     for (const ragCitation of result.citations) {
       const citation: Citation = {
         index: citations.length + 1,
@@ -665,7 +709,7 @@ async function handleRAGRoute(
       }
     }
 
-    chatLogger.debug({ citationCount: result.citations.length, isGrounded: result.isGrounded }, 'RAG search complete');
+    chatLogger.debug({ citationCount: result.citations.length, isGrounded: result.isGrounded, path: 'legacy-rag' }, 'RAG search complete');
     return result.content;
   } catch (error) {
     console.error('[Chat API] RAG search failed:', error);

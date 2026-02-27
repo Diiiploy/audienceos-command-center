@@ -12,6 +12,7 @@ import { cookies } from 'next/headers'
 import { createRouteHandlerClient } from '@/lib/supabase'
 import { withRateLimit, withCsrfProtection, createErrorResponse } from '@/lib/security'
 import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission'
+import { getFileSearchStoreService } from '@/lib/gemini/file-search-store-service'
 import type { DocumentCategory } from '@/types/database'
 
 // Valid categories for updates
@@ -163,10 +164,10 @@ export const DELETE = withPermission({ resource: 'knowledge-base', action: 'mana
       const supabase = await createRouteHandlerClient(cookies)
       const agencyId = request.user.agencyId
 
-      // Verify document belongs to this agency
-      const { data: existing, error: fetchError } = await supabase
+      // Verify document belongs to this agency (include gemini_document_name for cleanup)
+      const { data: existing, error: fetchError } = await (supabase as any)
         .from('document')
-        .select('id, storage_path')
+        .select('id, storage_path, gemini_document_name')
         .eq('id', id)
         .eq('agency_id', agencyId)
         .single()
@@ -187,6 +188,18 @@ export const DELETE = withPermission({ resource: 'knowledge-base', action: 'mana
 
       if (updateError) {
         return createErrorResponse(500, 'Failed to delete document')
+      }
+
+      // Fire-and-forget: clean up from Gemini File Search Store
+      if (existing.gemini_document_name) {
+        try {
+          const service = getFileSearchStoreService()
+          service.deleteDocument(existing.gemini_document_name).catch((err: unknown) => {
+            console.warn(`[Documents] Failed to delete from File Search Store:`, err)
+          })
+        } catch {
+          // Non-critical — document is already soft-deleted in Supabase
+        }
       }
 
       return NextResponse.json({ success: true })

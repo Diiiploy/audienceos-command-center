@@ -2,8 +2,20 @@
  * RAG System
  *
  * Document-based retrieval using Gemini File Search.
+ *
+ * Primary: FileSearchStoreService (persistent stores, semantic search)
+ * Legacy: GeminiRAGService (hydration from files.list(), kept as fallback)
  */
 
+// New: Persistent File Search Store service
+export {
+  FileSearchStoreService,
+  getFileSearchStoreService,
+  resetFileSearchStoreService,
+} from '../gemini/file-search-store-service';
+export { getOrCreateAgencyStore } from '../gemini/store-provisioner';
+
+// Legacy: kept as fallback for agencies without a store yet
 export { GeminiRAGService, getGeminiRAG, resetGeminiRAG } from './gemini-rag';
 export {
   IndexingPipeline,

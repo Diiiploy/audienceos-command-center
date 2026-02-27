@@ -5,75 +5,9 @@ import { cookies } from 'next/headers'
 import { createRouteHandlerClient } from '@/lib/supabase'
 import { withRateLimit, createErrorResponse } from '@/lib/security'
 import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission'
-import { geminiFileService } from '@/lib/gemini/file-service'
+import { getFileSearchStoreService } from '@/lib/gemini/file-search-store-service'
+import { getOrCreateAgencyStore } from '@/lib/gemini/store-provisioner'
 import type { IndexStatus } from '@/types/database'
-
-/**
- * DISPLAY_NAME_PREFIX for Gemini file metadata encoding
- * Format: hgc|{agencyId}|{scope}|{clientId}|{displayName}
- * This allows RAG service to identify and filter files by agency/client
- */
-const DISPLAY_NAME_PREFIX = 'hgc'
-const DISPLAY_NAME_SEPARATOR = '|'
-
-/**
- * Encode document metadata into Gemini displayName for RAG filtering
- */
-function encodeDisplayName(
-  agencyId: string,
-  scope: 'global' | 'client',
-  clientId: string | null,
-  displayName: string
-): string {
-  return [
-    DISPLAY_NAME_PREFIX,
-    agencyId,
-    scope,
-    clientId || 'none',
-    displayName,
-  ].join(DISPLAY_NAME_SEPARATOR)
-}
-
-/**
- * Wait for Gemini to finish processing a file with exponential backoff retry
- */
-async function waitForGeminiProcessing(fileId: string, maxAttempts = 10) {
-  let attempt = 0
-  let backoffMs = 500 // Start with 500ms
-
-  while (attempt < maxAttempts) {
-    try {
-      const status = await geminiFileService.getFileStatus(fileId)
-      const stateStr = String(status.state || '')
-
-      // File is ready or failed - return regardless
-      if (!stateStr.includes('PROCESSING')) {
-        return status
-      }
-
-      // Still processing, wait and retry
-      attempt++
-      if (attempt < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, backoffMs))
-        backoffMs = Math.min(backoffMs * 1.5, 5000) // Cap at 5 seconds
-      }
-    } catch (error) {
-      // Retry on error (temporary network issue)
-      console.error(`Attempt ${attempt + 1} to get file status failed:`, error)
-      attempt++
-      if (attempt < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, backoffMs))
-        backoffMs = Math.min(backoffMs * 1.5, 5000)
-      } else {
-        throw error
-      }
-    }
-  }
-
-  // Max attempts reached, return last known status
-  const lastStatus = await geminiFileService.getFileStatus(fileId)
-  return lastStatus
-}
 
 /**
  * POST /api/v1/documents/process
@@ -166,52 +100,62 @@ export const POST = withPermission({ resource: 'knowledge-base', action: 'write'
           continue
         }
 
-        // Convert to buffer
+        // Convert to buffer and upload to File Search Store
         const buffer = Buffer.from(await fileData.arrayBuffer())
-
-        // Upload to Gemini File API with HGC-encoded displayName for RAG filtering
         const scope: 'global' | 'client' = doc.client_id ? 'client' : 'global'
-        const displayName = encodeDisplayName(agencyId, scope, doc.client_id, doc.title)
-        const geminiFileId = await geminiFileService.uploadFile(
-          buffer,
-          doc.mime_type,
-          displayName
+
+        // Get or create the agency's File Search Store
+        const { storeName, storeId } = await getOrCreateAgencyStore(supabase, agencyId)
+
+        const service = getFileSearchStoreService()
+        const uploadResult = await service.uploadDocument(
+          storeName,
+          new Blob([buffer], { type: doc.mime_type }),
+          {
+            displayName: doc.title,
+            mimeType: doc.mime_type,
+            agencyId,
+            scope,
+            clientId: doc.client_id || undefined,
+            category: doc.category || undefined,
+            useForTraining: true,
+          }
         )
 
-        // Wait for Gemini to process using exponential backoff
-        const fileStatus = await waitForGeminiProcessing(geminiFileId)
-
-        let finalStatus: IndexStatus = 'indexed'
-        if (fileStatus.state === 'PROCESSING') {
-          finalStatus = 'indexing'
-        } else if (fileStatus.state === 'FAILED' || fileStatus.error) {
-          finalStatus = 'failed'
+        if (uploadResult.status === 'failed') {
+          throw new Error(uploadResult.errorMessage || 'File Search Store upload failed')
         }
 
-        // Update document with Gemini file ID and status
-        const { error: finalUpdateError } = await supabase
+        const finalStatus: IndexStatus = uploadResult.status === 'active' ? 'indexed' : 'indexing'
+
+        // Update document with File Search Store references
+        const { error: finalUpdateError } = await (supabase as any)
           .from('document')
           .update({
-            gemini_file_id: geminiFileId,
+            gemini_document_name: uploadResult.documentName || null,
+            file_search_store_id: storeId,
             index_status: finalStatus,
             updated_at: new Date().toISOString()
           })
           .eq('id', doc.id)
 
         if (finalUpdateError) {
-          console.error(`Failed to update document ${doc.id} with Gemini ID:`, finalUpdateError)
-          // Try to clean up the Gemini file
-          try {
-            await geminiFileService.deleteFile(geminiFileId)
-          } catch (cleanupError) {
-            console.error(`Failed to cleanup Gemini file ${geminiFileId}:`, cleanupError)
+          console.error(`Failed to update document ${doc.id} with store refs:`, finalUpdateError)
+
+          // Try to clean up from the store
+          if (uploadResult.documentName) {
+            try {
+              await service.deleteDocument(uploadResult.documentName)
+            } catch (cleanupError) {
+              console.error(`Failed to cleanup document ${uploadResult.documentName}:`, cleanupError)
+            }
           }
 
           results.failed++
           results.details.push({
             id: doc.id,
             status: 'failed',
-            error: 'Failed to save Gemini file ID'
+            error: 'Failed to save store references'
           })
           continue
         }

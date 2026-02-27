@@ -23,6 +23,8 @@ export interface KnowledgeBaseDocument {
   word_count: number | null
   index_status: IndexStatus
   gemini_file_id: string | null
+  gemini_document_name: string | null
+  file_search_store_id: string | null
   uploaded_by: string
   uploader_name?: string // Joined from user table
   is_active: boolean

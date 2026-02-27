@@ -116,6 +116,8 @@ function transformDocument(apiDoc: Record<string, unknown>): KnowledgeBaseDocume
     word_count: (apiDoc.word_count as number) || null,
     index_status: apiDoc.index_status as IndexStatus,
     gemini_file_id: (apiDoc.gemini_file_id as string) || null,
+    gemini_document_name: (apiDoc.gemini_document_name as string) || null,
+    file_search_store_id: (apiDoc.file_search_store_id as string) || null,
     uploaded_by: apiDoc.uploaded_by as string,
     uploader_name: uploader?.first_name || undefined,
     is_active: apiDoc.is_active as boolean,
