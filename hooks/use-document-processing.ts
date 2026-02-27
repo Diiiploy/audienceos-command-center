@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { getCsrfToken } from '@/lib/csrf'
 
 interface ProcessingStatus {
   pending: number
@@ -75,18 +76,18 @@ export function useDocumentProcessing() {
       setIsProcessing(true)
       setError(null)
 
-      // Get CSRF token from meta tag (consistent with upload hook)
       const csrfToken = getCsrfToken()
-      if (!csrfToken) {
-        throw new Error('CSRF token not found. Page may need to be reloaded.')
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      }
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken
       }
 
       const response = await fetch('/api/v1/documents/process', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': csrfToken,
-        },
+        headers,
+        credentials: 'include',
       })
 
       if (!response.ok) {
@@ -117,15 +118,4 @@ export function useDocumentProcessing() {
     fetchStatus,
     startProcessing,
   }
-}
-
-// Helper to get CSRF token from meta tag (consistent with upload hook)
-function getCsrfToken(): string {
-  if (typeof document === 'undefined') return ''
-
-  const metaTag = document.querySelector('meta[name="csrf-token"]')
-  if (metaTag) {
-    return metaTag.getAttribute('content') || ''
-  }
-  return ''
 }
