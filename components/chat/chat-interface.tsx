@@ -912,7 +912,7 @@ export function ChatInterface({
                   messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
                   setUserScrolledUp(false)
                 }}
-                className="absolute bottom-3 right-3 w-8 h-8 rounded-full
+                className="absolute bottom-6 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full
                   bg-white/70 dark:bg-slate-800/80 backdrop-blur-sm
                   border border-black/10 dark:border-slate-700
                   flex items-center justify-center
