@@ -993,7 +993,7 @@ export function ChatInterface({
               )}
 
               <div ref={messagesEndRef} />
-              <div style={{ height: "16px", flexShrink: 0 }} />
+              <div style={{ height: documentContext ? "56px" : "16px", flexShrink: 0 }} />
             </div>
 
             {/* Scroll to bottom button */}
@@ -1046,7 +1046,7 @@ export function ChatInterface({
 
       {/* Document context card — rendered ABOVE the chat bar */}
       {documentContext && !isMinimized && (
-        <div className="fixed z-[10000]" style={{ bottom: "90px", left: "50%", transform: "translateX(-50%)", width: `min(76vw, 880px)` }}>
+        <div className="fixed z-[10000]" style={{ bottom: "100px", left: "50%", transform: "translateX(-50%)", width: `min(76vw, 880px)` }}>
           <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 backdrop-blur-sm px-3 py-2">
             <FileText className="h-4 w-4 text-amber-400 flex-shrink-0" />
             <div className="min-w-0 flex-1">

@@ -659,16 +659,15 @@ async function handleRAGRoute(
         }
       );
 
-      // Add RAG citations
+      // Add RAG citations (url omitted — documentId is a Gemini file ID, not a navigable URL)
       for (const ragCitation of result.citations) {
         const citation: Citation = {
           index: citations.length + 1,
           title: ragCitation.documentName,
-          url: ragCitation.documentId,
           source: 'rag',
           snippet: ragCitation.text,
         };
-        if (!citations.find(c => c.url === citation.url)) {
+        if (!citations.find(c => c.title === citation.title)) {
           citations.push(citation);
         }
       }
@@ -718,11 +717,10 @@ async function handleRAGRoute(
       const citation: Citation = {
         index: citations.length + 1,
         title: ragCitation.documentName,
-        url: ragCitation.documentId,
         source: 'rag',
         snippet: ragCitation.text,
       };
-      if (!citations.find(c => c.url === citation.url)) {
+      if (!citations.find(c => c.title === citation.title)) {
         citations.push(citation);
       }
     }
