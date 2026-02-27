@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import React, { useState, useRef, useCallback } from "react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 import {
@@ -75,7 +75,7 @@ interface DocumentPreviewPanelProps {
   onShare?: () => void
   onDelete?: () => void
   onToggleTraining?: () => void
-  onClientChange?: (clientId: string | null) => void
+  onClientChange?: (clientId: string | null) => Promise<boolean>
   clients?: ClientOption[]
   isDownloading?: boolean
   isDeleting?: boolean
@@ -96,6 +96,19 @@ export function DocumentPreviewPanel({
   isDeleting,
   className,
 }: DocumentPreviewPanelProps) {
+  const [clientSaved, setClientSaved] = useState(false)
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleClientChange = useCallback(async (clientId: string | null) => {
+    if (!onClientChange) return
+    const success = await onClientChange(clientId)
+    if (success) {
+      setClientSaved(true)
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
+      savedTimerRef.current = setTimeout(() => setClientSaved(false), 2000)
+    }
+  }, [onClientChange])
+
   return (
     <div
       className={cn(
@@ -270,22 +283,27 @@ export function DocumentPreviewPanel({
             <span className="text-xs text-muted-foreground">Client</span>
             <span>
               {onClientChange && clients && clients.length > 0 ? (
-                <Select
-                  value={document.clientId || '__none__'}
-                  onValueChange={(val) => onClientChange(val === '__none__' ? null : val)}
-                >
-                  <SelectTrigger className="h-6 text-xs w-[140px] border-dashed">
-                    <SelectValue placeholder="None" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">None</SelectItem>
-                    {clients.map((c) => (
-                      <SelectItem key={c.id} value={c.id} className="text-xs">
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <span className="inline-flex items-center gap-1.5">
+                  <Select
+                    value={document.clientId || '__none__'}
+                    onValueChange={(val) => handleClientChange(val === '__none__' ? null : val)}
+                  >
+                    <SelectTrigger className="h-6 text-xs w-[140px] border-dashed">
+                      <SelectValue placeholder="None" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">None</SelectItem>
+                      {clients.map((c) => (
+                        <SelectItem key={c.id} value={c.id} className="text-xs">
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {clientSaved && (
+                    <Check className="w-3.5 h-3.5 text-green-500 animate-in fade-in duration-200" />
+                  )}
+                </span>
               ) : (
                 <span className="text-xs text-foreground">{document.clientName || "—"}</span>
               )}

@@ -563,12 +563,12 @@ export function KnowledgeBase() {
   }, [documents])
 
   // Change document client assignment
-  const handleClientChange = useCallback(async (clientId: string | null) => {
-    if (!selectedDocument) return
+  const handleClientChange = useCallback(async (clientId: string | null): Promise<boolean> => {
+    if (!selectedDocument) return false
     const docId = selectedDocument.id
 
     // Skip mock documents
-    if (docId.startsWith('doc-') || docId.startsWith('drive-')) return
+    if (docId.startsWith('doc-') || docId.startsWith('drive-')) return false
 
     const clientName = clientId ? clients.find(c => c.id === clientId)?.name : undefined
 
@@ -588,9 +588,12 @@ export function KnowledgeBase() {
 
       if (!response.ok) {
         toast({ title: "Failed to update client", variant: "destructive" })
+        return false
       }
+      return true
     } catch {
       toast({ title: "Failed to update client", variant: "destructive" })
+      return false
     }
   }, [selectedDocument, clients, toast])
 
