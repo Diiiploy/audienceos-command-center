@@ -148,12 +148,12 @@ export function DocumentUploadModal({ isOpen, onClose, clientId }: DocumentUploa
           {clients.length > 0 && (
             <div className="space-y-2">
               <label className="text-sm font-medium">Client <span className="text-muted-foreground font-normal">(optional)</span></label>
-              <Select value={selectedClientId} onValueChange={setSelectedClientId} disabled={isUploading}>
+              <Select value={selectedClientId || '__none__'} onValueChange={(val) => setSelectedClientId(val === '__none__' ? '' : val)} disabled={isUploading}>
                 <SelectTrigger>
                   <SelectValue placeholder="No client — global document" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No client — global document</SelectItem>
+                  <SelectItem value="__none__">No client — global document</SelectItem>
                   {clients.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.name}

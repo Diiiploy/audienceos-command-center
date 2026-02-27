@@ -271,14 +271,14 @@ export function DocumentPreviewPanel({
             <span>
               {onClientChange && clients && clients.length > 0 ? (
                 <Select
-                  value={document.clientId || ''}
-                  onValueChange={(val) => onClientChange(val || null)}
+                  value={document.clientId || '__none__'}
+                  onValueChange={(val) => onClientChange(val === '__none__' ? null : val)}
                 >
                   <SelectTrigger className="h-6 text-xs w-[140px] border-dashed">
                     <SelectValue placeholder="None" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="__none__">None</SelectItem>
                     {clients.map((c) => (
                       <SelectItem key={c.id} value={c.id} className="text-xs">
                         {c.name}
