@@ -386,7 +386,7 @@ export function SupportTickets() {
                 timestamp={ticket.updatedAt}
                 unread={ticket.status === "open"}
                 selected={selectedTicket?.id === ticket.id}
-                compact={!!selectedTicket}
+                compact={false}
                 onClick={() => setSelectedTicket(ticket)}
               />
             ))
