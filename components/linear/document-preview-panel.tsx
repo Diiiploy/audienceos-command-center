@@ -38,6 +38,8 @@ interface Document {
   description?: string
   thumbnail?: string
   content?: string
+  previewUrl?: string
+  storageMimeType?: string
   updatedAt: string
   createdAt: string
   updatedBy?: string
@@ -161,7 +163,19 @@ export function DocumentPreviewPanel({
 
       {/* Preview area - fills available space */}
       <div className="flex-1 bg-secondary/50 flex items-center justify-center min-h-0">
-        {document.thumbnail ? (
+        {document.previewUrl && document.storageMimeType === 'application/pdf' ? (
+          <iframe
+            src={document.previewUrl}
+            title={document.name}
+            className="w-full h-full border-0"
+          />
+        ) : document.previewUrl && document.storageMimeType?.startsWith('text/') ? (
+          <iframe
+            src={document.previewUrl}
+            title={document.name}
+            className="w-full h-full border-0 bg-white"
+          />
+        ) : document.thumbnail ? (
           <div className="relative w-full h-full">
             <Image
               src={document.thumbnail}
@@ -174,6 +188,16 @@ export function DocumentPreviewPanel({
           <div className="text-center text-muted-foreground">
             <FileText className="w-16 h-16 mx-auto mb-2 opacity-50" />
             <p className="text-sm">Preview not available</p>
+            {document.previewUrl && (
+              <a
+                href={document.previewUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary hover:underline mt-1 inline-block"
+              >
+                Open in new tab
+              </a>
+            )}
           </div>
         )}
       </div>

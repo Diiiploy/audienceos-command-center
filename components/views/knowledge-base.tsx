@@ -108,6 +108,7 @@ function apiDocToDocument(apiDoc: Record<string, unknown>): Document {
     tags: (apiDoc.tags as string[]) || [],
     clientName: (apiDoc.client as { name?: string })?.name || undefined,
     viewCount: 0,
+    storageMimeType: (apiDoc.mime_type as string) || undefined,
   }
 }
 
@@ -344,6 +345,38 @@ export function KnowledgeBase() {
     loadDocuments()
     return () => { cancelled = true }
   }, [])
+
+  // Fetch signed preview URL when a real document is selected
+  useEffect(() => {
+    if (!selectedDocument) return
+    // Skip mock documents (they have prefixed IDs)
+    if (selectedDocument.id.startsWith('doc-') || selectedDocument.id.startsWith('drive-') || selectedDocument.id.startsWith('temp-')) return
+    // Skip if already has a preview URL
+    if (selectedDocument.previewUrl) return
+
+    let cancelled = false
+    async function fetchPreviewUrl() {
+      try {
+        const response = await fetchWithCsrf(`/api/v1/documents/${selectedDocument!.id}/download`, {
+          method: 'POST',
+        })
+        if (!response.ok || cancelled) return
+        const { data } = await response.json()
+        if (cancelled || !data?.url) return
+
+        // Update the selected document with the preview URL
+        setSelectedDocument(prev =>
+          prev?.id === selectedDocument!.id
+            ? { ...prev, previewUrl: data.url }
+            : prev
+        )
+      } catch {
+        // Preview will show "not available" fallback
+      }
+    }
+    fetchPreviewUrl()
+    return () => { cancelled = true }
+  }, [selectedDocument?.id])
 
   // Get unique clients for filter dropdown
   const availableClients = useMemo(() => getUniqueClients(documents), [documents])
@@ -736,7 +769,7 @@ export function KnowledgeBase() {
         style={{ minWidth: selectedDocument ? 400 : undefined, flexShrink: selectedDocument ? 0 : undefined }}
       >
         <ListHeader
-          title="X Knowledge Base"
+          title="Knowledge Base"
           count={activeTab === "documents" ? filteredDocuments.length : undefined}
           onSearch={activeTab === "documents" ? setSearchQuery : undefined}
           searchValue={activeTab === "documents" ? searchQuery : ""}

@@ -142,7 +142,7 @@ export function ProcessingPanel({ onProcessingComplete }: ProcessingPanelProps) 
               variant={getStatusColor(statusType, count)}
               className="flex items-center gap-1 text-xs"
             >
-              {getStatusIcon(statusType)}
+              {count > 0 && getStatusIcon(statusType)}
               <span className="capitalize">{statusType}: {count}</span>
             </Badge>
           ))}

@@ -29,7 +29,7 @@ export function useDocumentProcessing() {
   const fetchStatus = useCallback(async () => {
     try {
       setError(null)
-      const response = await fetch('/api/v1/documents/process')
+      const response = await fetch('/api/v1/documents/process', { credentials: 'include' })
 
       // Handle auth/server errors gracefully - return empty status instead of throwing
       if (response.status === 401 || response.status === 500) {
