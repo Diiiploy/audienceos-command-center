@@ -55,10 +55,11 @@ export const POST = withPermission({ resource: 'cartridges', action: 'write' })(
         )
       }
 
-      if (result && !result.success) {
-        console.error('[Set Default Cartridge] Function error:', result.error)
+      const rpcResult = result as { success?: boolean; error?: string } | null
+      if (rpcResult && !rpcResult.success) {
+        console.error('[Set Default Cartridge] Function error:', rpcResult.error)
         return NextResponse.json(
-          { error: result.error || 'Failed to set default cartridge' },
+          { error: rpcResult.error || 'Failed to set default cartridge' },
           { status: 400 }
         )
       }
