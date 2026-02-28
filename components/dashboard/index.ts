@@ -10,3 +10,8 @@ export { LinearKPICard, LinearKPICardSkeleton, type LinearKPIData } from "./line
 export { FirehoseItem, FirehoseItemSkeleton, type FirehoseItemData, type FirehoseSeverity, type FirehoseTab } from "./firehose-item"
 export { FirehoseFeed } from "./firehose-feed"
 export { DashboardTabs, type DashboardTab } from "./dashboard-tabs"
+
+// Ad Performance components
+export { AdPerformanceCards, AdPerformanceCardsSkeleton } from "./ad-performance-cards"
+export { AdSpendChart, AdSpendChartSkeleton } from "./ad-spend-chart"
+export { PlatformBreakdown, PlatformBreakdownSkeleton } from "./platform-breakdown"

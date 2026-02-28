@@ -6,11 +6,18 @@ import {
   LinearKPICard,
   FirehoseFeed,
   DashboardTabs,
+  AdPerformanceCards,
+  AdPerformanceCardsSkeleton,
+  AdSpendChart,
+  AdSpendChartSkeleton,
+  PlatformBreakdown,
+  PlatformBreakdownSkeleton,
   type LinearKPIData,
   type FirehoseItemData,
   type DashboardTab,
   type FirehoseTab,
 } from "./dashboard"
+import { useAdPerformance } from "@/hooks/use-ad-performance"
 import { type MinimalClient, getOwnerData } from "@/types/client"
 import { useDashboardStore } from "@/stores/dashboard-store"
 import { cn } from "@/lib/utils"
@@ -895,6 +902,11 @@ export function DashboardView({ clients, onClientClick, onOpenClientDetail, onSe
     fetchKPIs()
   }, [fetchKPIs])
 
+  // Ad performance data (fetched via React Query, only when performance tab active or overview)
+  const { data: adPerformance, isLoading: adPerfLoading } = useAdPerformance({
+    enabled: activeTab === "performance" || activeTab === "overview",
+  })
+
   // Reduced motion support
   const prefersReducedMotion = useReducedMotion()
   const slideTransition = prefersReducedMotion
@@ -1264,62 +1276,93 @@ export function DashboardView({ clients, onClientClick, onOpenClientDetail, onSe
             </AnimatePresence>
           </div>
         ) : activeTab === "performance" ? (
-          <div className="flex">
-            {/* List - natural flow */}
-            <div className="flex-1 pr-3 pb-5">
-              <div className="space-y-2">
-                <h3 className="text-sm font-medium text-foreground mb-3">Performance ({perfItems.length})</h3>
-                {perfItems.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No performance alerts</p>
-                ) : (
-                  perfItems.map(item => (
-                    <button
-                      key={item.id}
-                      onClick={() => setSelectedPerfId(item.id)}
-                      className={cn(
-                        "w-full text-left bg-card border rounded-lg p-3 transition-colors cursor-pointer",
-                        selectedPerfId === item.id
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary/30"
-                      )}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={cn(
-                          "w-2 h-2 rounded-full",
-                          item.severity === "critical" ? "bg-red-500" :
-                          item.severity === "warning" ? "bg-amber-500" : "bg-blue-500"
-                        )} />
-                        <span className="text-sm font-medium text-foreground">{item.title}</span>
-                        {item.clientName && (
-                          <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded">{item.clientName}</span>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground">{item.description}</p>
-                    </button>
-                  ))
-                )}
+          <div className="pb-5 space-y-3">
+            {/* Ad Performance KPI Cards */}
+            {adPerfLoading ? (
+              <AdPerformanceCardsSkeleton />
+            ) : adPerformance && adPerformance.totalSpend > 0 ? (
+              <AdPerformanceCards data={adPerformance} />
+            ) : null}
+
+            {/* Charts Row */}
+            {adPerfLoading ? (
+              <div className="grid grid-cols-5 gap-3">
+                <div className="col-span-3"><AdSpendChartSkeleton /></div>
+                <div className="col-span-2"><PlatformBreakdownSkeleton /></div>
               </div>
-            </div>
-            {/* Drawer */}
-            <AnimatePresence mode="wait">
-              {selectedPerf && (
-                <motion.div
-                  key="perf-drawer"
-                  initial={{ width: 0, opacity: 0 }}
-                  animate={{ width: 384, opacity: 1 }}
-                  exit={{ width: 0, opacity: 0 }}
-                  transition={slideTransition}
-                  className="shrink-0 overflow-hidden"
-                >
-                  <PerformanceDetailDrawer
-                    item={selectedPerf}
-                    onClose={() => setSelectedPerfId(null)}
-                    onMarkComplete={handleMarkComplete}
-                    onSendToAI={onSendToAI}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
+            ) : adPerformance && adPerformance.totalSpend > 0 ? (
+              <div className="grid grid-cols-5 gap-3">
+                <div className="col-span-3">
+                  <AdSpendChart data={adPerformance} />
+                </div>
+                <div className="col-span-2">
+                  <PlatformBreakdown data={adPerformance} />
+                </div>
+              </div>
+            ) : !adPerfLoading ? (
+              <div className="bg-card border border-border rounded-lg p-8 text-center">
+                <TrendingUp className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+                <h3 className="text-sm font-medium text-foreground mb-1">No Ad Performance Data</h3>
+                <p className="text-sm text-muted-foreground">
+                  Connect Google Ads or Meta Ads in the Integrations tab to see performance metrics here.
+                </p>
+              </div>
+            ) : null}
+
+            {/* Performance Alerts (from firehose) */}
+            {perfItems.length > 0 && (
+              <div className="flex">
+                <div className="flex-1 pr-3">
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-medium text-foreground mb-3">Performance Alerts ({perfItems.length})</h3>
+                    {perfItems.map(item => (
+                      <button
+                        key={item.id}
+                        onClick={() => setSelectedPerfId(item.id)}
+                        className={cn(
+                          "w-full text-left bg-card border rounded-lg p-3 transition-colors cursor-pointer",
+                          selectedPerfId === item.id
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/30"
+                        )}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={cn(
+                            "w-2 h-2 rounded-full",
+                            item.severity === "critical" ? "bg-red-500" :
+                            item.severity === "warning" ? "bg-amber-500" : "bg-blue-500"
+                          )} />
+                          <span className="text-sm font-medium text-foreground">{item.title}</span>
+                          {item.clientName && (
+                            <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded">{item.clientName}</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{item.description}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <AnimatePresence mode="wait">
+                  {selectedPerf && (
+                    <motion.div
+                      key="perf-drawer"
+                      initial={{ width: 0, opacity: 0 }}
+                      animate={{ width: 384, opacity: 1 }}
+                      exit={{ width: 0, opacity: 0 }}
+                      transition={slideTransition}
+                      className="shrink-0 overflow-hidden"
+                    >
+                      <PerformanceDetailDrawer
+                        item={selectedPerf}
+                        onClose={() => setSelectedPerfId(null)}
+                        onMarkComplete={handleMarkComplete}
+                        onSendToAI={onSendToAI}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
           </div>
         ) : null}
       </div>

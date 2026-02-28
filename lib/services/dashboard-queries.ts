@@ -237,6 +237,144 @@ export function getClientsNeedingAttention(
   )
 }
 
+// =============================================================================
+// AD PERFORMANCE QUERIES
+// =============================================================================
+
+export interface AdPerformanceSummary {
+  totalSpend: number
+  totalImpressions: number
+  totalClicks: number
+  totalConversions: number
+  ctr: number
+  cpc: number
+  platforms: Record<string, {
+    spend: number
+    impressions: number
+    clicks: number
+    conversions: number
+  }>
+  dailyTrend: Array<{
+    date: string
+    spend: number
+    impressions: number
+    clicks: number
+  }>
+  previousPeriod: {
+    totalSpend: number
+    totalImpressions: number
+    totalClicks: number
+    totalConversions: number
+  }
+}
+
+/**
+ * Fetch ad performance summary for dashboard KPI cards and charts
+ */
+export async function fetchAdPerformanceSummary(
+  supabase: SupabaseClient<Database>,
+  agencyId: string,
+  days: number = 30
+): Promise<AdPerformanceSummary> {
+  const startDate = new Date()
+  startDate.setDate(startDate.getDate() - days)
+
+  const previousStart = new Date()
+  previousStart.setDate(previousStart.getDate() - days * 2)
+
+  // Fetch current period data
+  const { data: currentData, error } = await supabase
+    .from('ad_performance')
+    .select('platform, date, spend, impressions, clicks, conversions')
+    .eq('agency_id', agencyId)
+    .gte('date', startDate.toISOString().split('T')[0])
+    .order('date', { ascending: true })
+
+  if (error) {
+    console.error('[dashboard-queries] fetchAdPerformanceSummary error:', error)
+  }
+
+  const records = currentData || []
+
+  // Fetch previous period for comparison
+  const { data: previousData } = await supabase
+    .from('ad_performance')
+    .select('spend, impressions, clicks, conversions')
+    .eq('agency_id', agencyId)
+    .gte('date', previousStart.toISOString().split('T')[0])
+    .lt('date', startDate.toISOString().split('T')[0])
+
+  const prevRecords = previousData || []
+
+  // Aggregate current period
+  let totalSpend = 0
+  let totalImpressions = 0
+  let totalClicks = 0
+  let totalConversions = 0
+  const platforms: Record<string, { spend: number; impressions: number; clicks: number; conversions: number }> = {}
+  const dailyMap = new Map<string, { spend: number; impressions: number; clicks: number }>()
+
+  for (const r of records) {
+    const spend = Number(r.spend) || 0
+    const impressions = Number(r.impressions) || 0
+    const clicks = Number(r.clicks) || 0
+    const conversions = Number(r.conversions) || 0
+
+    totalSpend += spend
+    totalImpressions += impressions
+    totalClicks += clicks
+    totalConversions += conversions
+
+    // Platform breakdown
+    const plat = r.platform || 'unknown'
+    if (!platforms[plat]) {
+      platforms[plat] = { spend: 0, impressions: 0, clicks: 0, conversions: 0 }
+    }
+    platforms[plat].spend += spend
+    platforms[plat].impressions += impressions
+    platforms[plat].clicks += clicks
+    platforms[plat].conversions += conversions
+
+    // Daily trend
+    const dateKey = r.date || 'unknown'
+    const existing = dailyMap.get(dateKey) || { spend: 0, impressions: 0, clicks: 0 }
+    existing.spend += spend
+    existing.impressions += impressions
+    existing.clicks += clicks
+    dailyMap.set(dateKey, existing)
+  }
+
+  // Aggregate previous period
+  let prevSpend = 0, prevImpressions = 0, prevClicks = 0, prevConversions = 0
+  for (const r of prevRecords) {
+    prevSpend += Number(r.spend) || 0
+    prevImpressions += Number(r.impressions) || 0
+    prevClicks += Number(r.clicks) || 0
+    prevConversions += Number(r.conversions) || 0
+  }
+
+  const dailyTrend = Array.from(dailyMap.entries())
+    .map(([date, data]) => ({ date, ...data }))
+    .sort((a, b) => a.date.localeCompare(b.date))
+
+  return {
+    totalSpend,
+    totalImpressions,
+    totalClicks,
+    totalConversions,
+    ctr: totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0,
+    cpc: totalClicks > 0 ? totalSpend / totalClicks : 0,
+    platforms,
+    dailyTrend,
+    previousPeriod: {
+      totalSpend: prevSpend,
+      totalImpressions: prevImpressions,
+      totalClicks: prevClicks,
+      totalConversions: prevConversions,
+    },
+  }
+}
+
 /**
  * Map integration status for API Uptime widget
  */

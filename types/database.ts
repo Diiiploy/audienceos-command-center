@@ -122,6 +122,116 @@ export type Database = {
         }
         Relationships: []
       }
+      airbyte_account_mapping: {
+        Row: {
+          agency_id: string
+          airbyte_connection_id: string | null
+          airbyte_source_id: string | null
+          client_id: string
+          created_at: string
+          external_account_id: string
+          id: string
+          is_active: boolean
+          platform: string
+          table_prefix: string
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          airbyte_connection_id?: string | null
+          airbyte_source_id?: string | null
+          client_id: string
+          created_at?: string
+          external_account_id: string
+          id?: string
+          is_active?: boolean
+          platform: string
+          table_prefix: string
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          airbyte_connection_id?: string | null
+          airbyte_source_id?: string | null
+          client_id?: string
+          created_at?: string
+          external_account_id?: string
+          id?: string
+          is_active?: boolean
+          platform?: string
+          table_prefix?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "airbyte_account_mapping_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agency"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "airbyte_account_mapping_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      airbyte_sync_log: {
+        Row: {
+          agency_id: string
+          airbyte_job_id: string | null
+          completed_at: string | null
+          connection_id: string
+          created_at: string
+          error_message: string | null
+          id: string
+          platform: string
+          records_extracted: number | null
+          records_transformed: number | null
+          started_at: string
+          status: string
+        }
+        Insert: {
+          agency_id: string
+          airbyte_job_id?: string | null
+          completed_at?: string | null
+          connection_id: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          platform: string
+          records_extracted?: number | null
+          records_transformed?: number | null
+          started_at?: string
+          status: string
+        }
+        Update: {
+          agency_id?: string
+          airbyte_job_id?: string | null
+          completed_at?: string | null
+          connection_id?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          platform?: string
+          records_extracted?: number | null
+          records_transformed?: number | null
+          started_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "airbyte_sync_log_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agency"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alert: {
         Row: {
           agency_id: string
@@ -922,6 +1032,7 @@ export type Database = {
           category: Database["public"]["Enums"]["document_category"]
           client_id: string | null
           created_at: string
+          download_count: number
           drive_file_id: string | null
           drive_url: string | null
           file_name: string
@@ -940,6 +1051,7 @@ export type Database = {
           updated_at: string
           uploaded_by: string
           use_for_training: boolean
+          view_count: number
           word_count: number | null
         }
         Insert: {
@@ -947,6 +1059,7 @@ export type Database = {
           category: Database["public"]["Enums"]["document_category"]
           client_id?: string | null
           created_at?: string
+          download_count?: number
           drive_file_id?: string | null
           drive_url?: string | null
           file_name: string
@@ -965,6 +1078,7 @@ export type Database = {
           updated_at?: string
           uploaded_by: string
           use_for_training?: boolean
+          view_count?: number
           word_count?: number | null
         }
         Update: {
@@ -972,6 +1086,7 @@ export type Database = {
           category?: Database["public"]["Enums"]["document_category"]
           client_id?: string | null
           created_at?: string
+          download_count?: number
           drive_file_id?: string | null
           drive_url?: string | null
           file_name?: string
@@ -990,6 +1105,7 @@ export type Database = {
           updated_at?: string
           uploaded_by?: string
           use_for_training?: boolean
+          view_count?: number
           word_count?: number | null
         }
         Relationships: [
@@ -2602,16 +2718,14 @@ export type Database = {
           count: number
         }[]
       }
+      /** Manually added — not in PostgREST introspection (SECURITY DEFINER function) */
       set_cartridge_default: {
-        Args: {
-          p_cartridge_id: string
-          p_agency_id: string
-          p_type: string
-        }
-        Returns: {
-          success: boolean
-          error?: string
-        }
+        Args: { p_agency_id: string; p_cartridge_id: string; p_type: string }
+        Returns: Json
+      }
+      transform_airbyte_ads_data: {
+        Args: { p_agency_id?: string; p_connection_id: string }
+        Returns: Json
       }
     }
     Enums: {
@@ -2843,68 +2957,18 @@ export const Constants = {
   },
 } as const
 
-// ─── Convenience type aliases (used throughout the codebase) ──────────
-// These are manually maintained shortcuts for Database["public"]["Enums"][...]
-// so callers can `import type { HealthStatus } from '@/types/database'`
-// instead of the verbose nested path.
-
-export type HealthStatus = 'green' | 'yellow' | 'red'
-export type TicketStatus = 'new' | 'in_progress' | 'waiting_client' | 'resolved'
-export type TicketPriority = 'low' | 'medium' | 'high' | 'critical'
-export type TicketCategory = string
-export type DocumentCategory = string
-export type IndexStatus = 'pending' | 'processing' | 'indexing' | 'indexed' | 'completed' | 'failed'
-export type CommunicationPlatform = 'email' | 'slack'
-export type IntegrationProvider = 'slack' | 'gmail' | 'google_ads' | 'meta_ads'
-export type OAuthProvider = 'gmail' | 'slack' | 'meta' | 'stripe' | 'linkedin'
-export type PreferenceCategory = string
-export type UserRole = 'owner' | 'admin' | 'manager' | 'member' | 'user'
-export type WorkflowStatus = 'active' | 'paused' | 'disabled'
-
-// Onboarding types (from database enums)
-export type FieldType = 'text' | 'email' | 'url' | 'number' | 'textarea' | 'select'
-export type OnboardingStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled'
-export type StageStatus = 'pending' | 'in_progress' | 'completed' | 'blocked'
-
-// Cartridges
-export interface Cartridge {
-  id: string
-  agency_id: string
-  name: string
-  description?: string
-  type: 'voice' | 'brand' | 'style' | 'instructions'
-  tier: 'system' | 'agency' | 'client' | 'user'
-  is_active: boolean
-  is_default: boolean
-  client_id?: string
-  user_id?: string
-  parent_id?: string
-
-  // Voice
-  voice_tone?: string
-  voice_style?: string
-  voice_personality?: string
-  voice_vocabulary?: string
-
-  // Brand
-  brand_name?: string
-  brand_tagline?: string
-  brand_values?: string[]
-  brand_logo_url?: string
-
-  // Style
-  style_primary_color?: string
-  style_secondary_color?: string
-  style_fonts?: string[]
-
-  // Instructions
-  instructions_system_prompt?: string
-  instructions_rules?: string[]
-
-  created_by: string
-  created_at: string
-  updated_at: string
-}
-
-export type CartridgeType = 'voice' | 'brand' | 'style' | 'instructions'
-export type CartridgeTier = 'system' | 'agency' | 'client' | 'user'
+// Convenience type aliases (manually maintained for backwards compatibility)
+export type Cartridge = Database['public']['Tables']['cartridges']['Row']
+export type CartridgeTier = 'agency' | 'team' | 'personal'
+export type CartridgeType = 'brand' | 'voice' | 'style' | 'instruction' | 'composite'
+export type CommunicationPlatform = Database['public']['Enums']['communication_platform']
+export type DocumentCategory = Database['public']['Enums']['document_category']
+export type HealthStatus = Database['public']['Enums']['health_status']
+export type IndexStatus = Database['public']['Enums']['index_status']
+export type IntegrationProvider = Database['public']['Enums']['integration_provider']
+export type PreferenceCategory = Database['public']['Enums']['preference_category']
+export type TicketCategory = Database['public']['Enums']['ticket_category']
+export type TicketPriority = Database['public']['Enums']['ticket_priority']
+export type TicketStatus = Database['public']['Enums']['ticket_status']
+export type UserRole = Database['public']['Enums']['user_role']
+export type WorkflowStatus = Database['public']['Enums']['workflow_status']

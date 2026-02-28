@@ -138,6 +138,14 @@ export const serverEnv = {
     tenantId: optional('DIIIPLOY_TENANT_ID'),
   },
 
+  // Airbyte Cloud (ad platform ETL)
+  airbyte: {
+    apiKey: optional('AIRBYTE_API_KEY'),
+    workspaceId: optional('AIRBYTE_WORKSPACE_ID'),
+    destinationId: optional('AIRBYTE_DESTINATION_ID'),
+    webhookSecret: optional('AIRBYTE_WEBHOOK_SECRET'),
+  },
+
   // Monitoring
   sentryDsn: optional('SENTRY_DSN'),
 } as const
