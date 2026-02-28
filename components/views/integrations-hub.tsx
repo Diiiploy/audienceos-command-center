@@ -54,6 +54,7 @@ interface Integration {
   status: IntegrationStatus
   lastSync?: string
   accounts?: number
+  airbyteManaged?: boolean
 }
 
 // Integration metadata for all 8 integrations (4 MVP + 4 future)
@@ -233,6 +234,12 @@ function IntegrationCardComponent({ integration, onClick, onConnect }: Integrati
             <p className="text-xs text-muted-foreground mb-3">
               {integration.accounts} account{integration.accounts > 1 ? "s" : ""} connected
             </p>
+          )}
+          {integration.airbyteManaged && integration.status === "connected" && (
+            <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 dark:text-blue-400 font-medium mb-2">
+              <RefreshCw className="w-2.5 h-2.5" />
+              Airbyte ETL
+            </span>
           )}
           {showConnectButton && (
             <Button
@@ -416,6 +423,9 @@ export function IntegrationsHub() {
         }
       }
 
+      // Check if this integration is managed by Airbyte ETL
+      const airbyteManaged = !!(dbRecord?.config?.airbyte_connection_id)
+
       integrations.push({
         id: dbRecord?.id || provider,
         provider,
@@ -426,6 +436,7 @@ export function IntegrationsHub() {
         category: metadata.category,
         status,
         lastSync,
+        airbyteManaged,
       })
     }
 

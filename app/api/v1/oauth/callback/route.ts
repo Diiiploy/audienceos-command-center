@@ -208,7 +208,47 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Success logged via integrationLogger if needed
+    // Airbyte provisioning for ad platforms (non-blocking)
+    // Creates Airbyte source + connection after successful OAuth
+    if (provider === 'google_ads' || provider === 'meta_ads') {
+      try {
+        const { provisionAirbyteConnection } = await import('@/lib/airbyte/provision')
+        const integrationConfig = (updateData.config as Record<string, unknown>) || {}
+
+        // Fetch agency_id from integration record (not in state payload)
+        const { data: integrationRecord } = await supabase
+          .from('integration')
+          .select('agency_id')
+          .eq('id', integrationId)
+          .single()
+
+        const agencyId = integrationRecord?.agency_id || ''
+
+        // Fire-and-forget: don't block the OAuth redirect
+        provisionAirbyteConnection(
+          {
+            agencyId,
+            clientId: (integrationConfig.clientId as string) || agencyId,
+            platform: provider as 'google_ads' | 'meta_ads',
+            externalAccountId: (integrationConfig.accountId as string) || '',
+            accessToken: access_token,
+            refreshToken: refresh_token,
+            googleAds: provider === 'google_ads' ? {
+              customerId: (integrationConfig.customerId as string) || '',
+            } : undefined,
+            metaAds: provider === 'meta_ads' ? {
+              accountId: (integrationConfig.accountId as string) || '',
+            } : undefined,
+          },
+          supabase,
+          integrationId
+        ).catch((err: unknown) => {
+          integrationLogger.error({ err, integrationId, provider }, 'Airbyte provisioning failed (non-fatal)')
+        })
+      } catch (err) {
+        integrationLogger.warn({ err, provider }, 'Airbyte module not available - skipping provisioning')
+      }
+    }
 
     // Redirect to integrations page with success message
     return NextResponse.redirect(

@@ -125,9 +125,44 @@ export const POST = withPermission({ resource: 'integrations', action: 'manage' 
 
     let syncResult: SyncResult
 
+    // Check if this integration is Airbyte-managed (has connection ID in config)
+    const airbyteConnectionId = integrationConfig.airbyte_connection_id as string | undefined
+
     // Execute provider-specific sync
     switch (integration.provider) {
       case 'google_ads': {
+        // If Airbyte-managed, delegate to Airbyte API
+        if (airbyteConnectionId) {
+          const { getAirbyteClient } = await import('@/lib/airbyte/client')
+          const airbyteClient = getAirbyteClient()
+          const { data: job, error: airbyteError } = await airbyteClient.triggerSync(airbyteConnectionId)
+
+          if (airbyteError) {
+            syncResult = {
+              success: false,
+              provider: 'google_ads',
+              recordsProcessed: 0,
+              recordsCreated: 0,
+              recordsUpdated: 0,
+              errors: [`Airbyte sync failed: ${airbyteError.detail}`],
+              syncedAt: new Date().toISOString(),
+            }
+          } else {
+            syncResult = {
+              success: true,
+              provider: 'google_ads',
+              recordsProcessed: 0,
+              recordsCreated: 0,
+              recordsUpdated: 0,
+              errors: [],
+              syncedAt: new Date().toISOString(),
+            }
+            // Note: actual data arrives via Airbyte webhook after sync completes
+          }
+          break
+        }
+
+        // Legacy fallback: direct sync via diiiploy-gateway
         const { records, result } = await syncGoogleAds(syncConfig!)
         syncResult = result
 
@@ -218,18 +253,47 @@ export const POST = withPermission({ resource: 'integrations', action: 'manage' 
         break
       }
 
-      case 'meta_ads':
-        // TODO: Implement Meta Ads sync
-        syncResult = {
-          success: true,
-          provider: 'meta_ads',
-          recordsProcessed: 0,
-          recordsCreated: 0,
-          recordsUpdated: 0,
-          errors: ['Meta Ads sync not yet implemented'],
-          syncedAt: new Date().toISOString(),
+      case 'meta_ads': {
+        // Meta Ads syncs exclusively via Airbyte
+        if (airbyteConnectionId) {
+          const { getAirbyteClient } = await import('@/lib/airbyte/client')
+          const airbyteClient = getAirbyteClient()
+          const { data: job, error: airbyteError } = await airbyteClient.triggerSync(airbyteConnectionId)
+
+          if (airbyteError) {
+            syncResult = {
+              success: false,
+              provider: 'meta_ads',
+              recordsProcessed: 0,
+              recordsCreated: 0,
+              recordsUpdated: 0,
+              errors: [`Airbyte sync failed: ${airbyteError.detail}`],
+              syncedAt: new Date().toISOString(),
+            }
+          } else {
+            syncResult = {
+              success: true,
+              provider: 'meta_ads',
+              recordsProcessed: 0,
+              recordsCreated: 0,
+              recordsUpdated: 0,
+              errors: [],
+              syncedAt: new Date().toISOString(),
+            }
+          }
+        } else {
+          syncResult = {
+            success: false,
+            provider: 'meta_ads',
+            recordsProcessed: 0,
+            recordsCreated: 0,
+            recordsUpdated: 0,
+            errors: ['Meta Ads sync requires Airbyte connection. Please reconnect the integration.'],
+            syncedAt: new Date().toISOString(),
+          }
         }
         break
+      }
 
       default:
         syncResult = {

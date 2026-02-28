@@ -4,6 +4,11 @@
  *
  * Uses diiiploy-gateway (NOT chi-gateway) for multi-tenant SaaS infrastructure
  * See RUNBOOK.md for gateway documentation
+ *
+ * @deprecated This module is being replaced by Airbyte Cloud managed ETL.
+ * New integrations should use lib/airbyte/provision.ts instead.
+ * This file is retained for backwards compatibility with agencies
+ * that haven't been migrated to Airbyte yet.
  */
 
 import type { SyncResult, AdPerformanceRecord, SyncJobConfig } from './types'
