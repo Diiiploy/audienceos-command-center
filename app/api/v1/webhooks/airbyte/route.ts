@@ -2,46 +2,105 @@
  * Airbyte Webhook Handler
  * POST /api/v1/webhooks/airbyte
  *
- * Receives sync completion events from Airbyte Cloud.
- * - Validates HMAC signature (AIRBYTE_WEBHOOK_SECRET)
- * - On success: runs transform_airbyte_ads_data() RPC
- * - Updates integration.last_sync_at (preserving existing config)
- * - Logs to airbyte_sync_log
- *
- * NO user auth required — secured via webhook secret.
+ * Receives sync completion events from Airbyte Cloud notifications.
+ * Auth: URL token (?token=AIRBYTE_WEBHOOK_SECRET) — Airbyte Cloud
+ *       notifications don't support HMAC signing.
+ * On success: runs transform_airbyte_ads_data() RPC
+ * Updates integration.last_sync_at (preserving existing config)
+ * Logs to airbyte_sync_log
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createHmac, timingSafeEqual } from 'crypto'
+import { timingSafeEqual } from 'crypto'
 import { serverEnv } from '@/lib/env'
 import { createServiceRoleClient } from '@/lib/supabase'
-import type { AirbyteWebhookPayload } from '@/lib/airbyte/types'
 
 // =============================================================================
-// HMAC VALIDATION
+// AUTH VALIDATION
 // =============================================================================
 
-function validateWebhookSignature(
-  body: string,
-  signature: string | null
-): boolean {
+/**
+ * Validate the webhook request via URL token.
+ * Airbyte Cloud notifications don't support HMAC signing or custom headers,
+ * so we use a secret token in the URL query string.
+ * URL: /api/v1/webhooks/airbyte?token=SECRET
+ */
+function validateWebhookToken(request: NextRequest): boolean {
   const secret = serverEnv.airbyte.webhookSecret
-  if (!secret || !signature) return false
+  if (!secret) return false
+
+  const token = request.nextUrl.searchParams.get('token')
+  if (!token) return false
 
   try {
-    const hmac = createHmac('sha256', secret)
-    hmac.update(body)
-    const expected = hmac.digest('hex')
-
-    // Constant-time comparison
-    const sigBuffer = Buffer.from(signature, 'utf8')
-    const expectedBuffer = Buffer.from(expected, 'utf8')
-
-    if (sigBuffer.length !== expectedBuffer.length) return false
-    return timingSafeEqual(sigBuffer, expectedBuffer)
+    const tokenBuffer = Buffer.from(token, 'utf8')
+    const secretBuffer = Buffer.from(secret, 'utf8')
+    if (tokenBuffer.length !== secretBuffer.length) return false
+    return timingSafeEqual(tokenBuffer, secretBuffer)
   } catch {
     return false
   }
+}
+
+// =============================================================================
+// PAYLOAD NORMALIZATION
+// =============================================================================
+
+/**
+ * Airbyte Cloud notification payloads differ from the API webhook format.
+ * Cloud sends: { connection: {id, name, url}, success: true, jobId: 123, ... }
+ * We normalize both formats into a common shape.
+ */
+interface NormalizedPayload {
+  webhookType: 'connection.sync.succeeded' | 'connection.sync.failed'
+  connectionId: string
+  jobId: string | null
+  recordsSynced: number
+  startTime: string | null
+  endTime: string | null
+  errorMessage: string | null
+}
+
+function normalizePayload(raw: Record<string, unknown>): NormalizedPayload | null {
+  // Format 1: Airbyte Cloud notifications
+  // { connection: {id: "..."}, success: true/false, jobId: 123, ... }
+  if (raw.connection && typeof raw.connection === 'object') {
+    const conn = raw.connection as Record<string, unknown>
+    const connectionId = conn.id as string
+    if (!connectionId) return null
+
+    return {
+      webhookType: raw.success === true
+        ? 'connection.sync.succeeded'
+        : 'connection.sync.failed',
+      connectionId,
+      jobId: raw.jobId != null ? String(raw.jobId) : null,
+      recordsSynced: (raw.recordsCommitted as number) || (raw.recordsEmitted as number) || 0,
+      startTime: (raw.startedAt as string) || null,
+      endTime: (raw.finishedAt as string) || null,
+      errorMessage: (raw.errorMessage as string) || null,
+    }
+  }
+
+  // Format 2: Original API webhook format (future-proofing)
+  // { webhook_type: "connection.sync.succeeded", data: { connection_id: "..." } }
+  if (raw.webhook_type && raw.data && typeof raw.data === 'object') {
+    const data = raw.data as Record<string, unknown>
+    const connectionId = data.connection_id as string
+    if (!connectionId) return null
+
+    return {
+      webhookType: raw.webhook_type as NormalizedPayload['webhookType'],
+      connectionId,
+      jobId: data.job_id != null ? String(data.job_id) : null,
+      recordsSynced: (data.records_synced as number) || 0,
+      startTime: (data.start_time as string) || null,
+      endTime: (data.end_time as string) || null,
+      errorMessage: (data.error_message as string) || null,
+    }
+  }
+
+  return null
 }
 
 // =============================================================================
@@ -49,28 +108,30 @@ function validateWebhookSignature(
 // =============================================================================
 
 export async function POST(request: NextRequest) {
-  const rawBody = await request.text()
-
-  // Validate HMAC signature
-  const signature = request.headers.get('x-airbyte-signature') ||
-    request.headers.get('x-webhook-signature')
-
-  if (!validateWebhookSignature(rawBody, signature)) {
-    console.error('[airbyte-webhook] Invalid signature')
-    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+  // Validate token auth
+  if (!validateWebhookToken(request)) {
+    console.error('[airbyte-webhook] Invalid or missing token')
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  let payload: AirbyteWebhookPayload
+  const rawBody = await request.text()
+
+  let rawPayload: Record<string, unknown>
   try {
-    payload = JSON.parse(rawBody)
+    rawPayload = JSON.parse(rawBody)
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { webhook_type, data } = payload
-  const connectionId = data.connection_id
+  const payload = normalizePayload(rawPayload)
+  if (!payload) {
+    console.error('[airbyte-webhook] Unrecognized payload format:', Object.keys(rawPayload))
+    return NextResponse.json({ error: 'Unrecognized payload format' }, { status: 400 })
+  }
 
-  console.log(`[airbyte-webhook] Received ${webhook_type} for connection ${connectionId}`)
+  const { webhookType, connectionId } = payload
+
+  console.log(`[airbyte-webhook] Received ${webhookType} for connection ${connectionId}`)
 
   // Use service client for writes (no user context needed)
   const supabase = createServiceRoleClient()
@@ -116,17 +177,17 @@ export async function POST(request: NextRequest) {
       agency_id: agencyId,
       connection_id: connectionId,
       platform: platform || 'unknown',
-      status: webhook_type === 'connection.sync.succeeded' ? 'succeeded' : 'failed',
-      records_extracted: data.records_synced || 0,
-      airbyte_job_id: data.job_id?.toString(),
-      started_at: data.start_time || new Date().toISOString(),
-      completed_at: data.end_time || new Date().toISOString(),
-      error_message: data.error_message || null,
+      status: webhookType === 'connection.sync.succeeded' ? 'succeeded' : 'failed',
+      records_extracted: payload.recordsSynced,
+      airbyte_job_id: payload.jobId,
+      started_at: payload.startTime || new Date().toISOString(),
+      completed_at: payload.endTime || new Date().toISOString(),
+      error_message: payload.errorMessage,
     })
   }
 
   // Handle sync completion
-  if (webhook_type === 'connection.sync.succeeded') {
+  if (webhookType === 'connection.sync.succeeded') {
     // Run the transform function to move data from staging to ad_performance
     const { data: transformResult, error: transformError } = await supabase.rpc(
       'transform_airbyte_ads_data',
@@ -164,16 +225,14 @@ export async function POST(request: NextRequest) {
 
     console.log(`[airbyte-webhook] Transform complete: ${recordsTransformed} records`)
 
-    // Bug 1 fix: Preserve existing config when updating integration
+    // Preserve existing config when updating integration
     if (agencyId) {
-      // Fetch existing config to spread into update
       const { data: existingIntegrations } = await supabase
         .from('integration')
         .select('id, config')
         .eq('agency_id', agencyId)
         .in('provider', ['google_ads', 'meta_ads'])
 
-      // Update each matching integration, preserving its config
       for (const integration of existingIntegrations || []) {
         const existingConfig = (integration.config as Record<string, unknown>) || {}
         await supabase
@@ -186,7 +245,7 @@ export async function POST(request: NextRequest) {
               lastSyncResult: {
                 success: true,
                 recordsTransformed,
-                jobId: data.job_id,
+                jobId: payload.jobId,
               },
             },
           })
@@ -198,10 +257,10 @@ export async function POST(request: NextRequest) {
         connection_id: connectionId,
         platform: platform || 'unknown',
         status: 'transformed',
-        records_extracted: data.records_synced || 0,
+        records_extracted: payload.recordsSynced,
         records_transformed: recordsTransformed,
-        airbyte_job_id: data.job_id?.toString(),
-        started_at: data.start_time || new Date().toISOString(),
+        airbyte_job_id: payload.jobId,
+        started_at: payload.startTime || new Date().toISOString(),
         completed_at: new Date().toISOString(),
       })
     }
@@ -214,11 +273,11 @@ export async function POST(request: NextRequest) {
   }
 
   // Handle sync failure
-  if (webhook_type === 'connection.sync.failed') {
-    console.error(`[airbyte-webhook] Sync failed for ${connectionId}: ${data.error_message}`)
+  if (webhookType === 'connection.sync.failed') {
+    console.error(`[airbyte-webhook] Sync failed for ${connectionId}: ${payload.errorMessage}`)
     return NextResponse.json({ received: true, status: 'failure_logged' })
   }
 
-  // Other event types (started, incomplete)
+  // Other event types
   return NextResponse.json({ received: true })
 }
