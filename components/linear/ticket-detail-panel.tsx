@@ -2,6 +2,14 @@
 
 import React, { useState } from "react"
 import { cn } from "@/lib/utils"
+
+// Decode HTML entities like &#x2F; → /
+function decodeHtmlEntities(text: string): string {
+  if (typeof document === "undefined") return text
+  const textarea = document.createElement("textarea")
+  textarea.innerHTML = text
+  return textarea.value
+}
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ActivityFeed, CommentInput, type ActivityType } from "./activity-feed"
 import { type TicketPriority, type TicketStatus } from "./inbox-item"
@@ -324,9 +332,9 @@ export function TicketDetailPanel({
         {/* Title and description */}
         <div className="px-4 py-4 border-b border-border">
           <h2 className="text-lg font-semibold text-foreground mb-2">
-            {ticket.title}
+            {decodeHtmlEntities(ticket.title)}
           </h2>
-          <p className="text-sm text-muted-foreground">{ticket.description}</p>
+          <p className="text-sm text-muted-foreground">{decodeHtmlEntities(ticket.description)}</p>
         </div>
 
         {/* Properties - using fixed-width label pattern */}

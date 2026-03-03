@@ -5,12 +5,22 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/use-auth"
 import { useTicketDetail } from "@/hooks/use-ticket-detail"
 import { useToast } from "@/hooks/use-toast"
 import { useSettingsStore } from "@/stores/settings-store"
+import { usePipelineStore } from "@/stores/pipeline-store"
 import { fetchWithCsrf } from "@/lib/csrf"
 import { ActivityFeed, CommentInput } from "@/components/linear"
 import {
@@ -42,14 +52,25 @@ import {
   Building2,
   Calendar,
   AlertCircle,
-  Edit,
+  Pencil,
   Copy,
   Trash2,
   UserPlus,
   Flag,
   CircleDot,
   Loader2,
+  Check,
+  X,
+  History,
 } from "lucide-react"
+
+// Decode HTML entities like &#x2F; → /
+function decodeHtmlEntities(text: string): string {
+  if (typeof document === "undefined") return text
+  const textarea = document.createElement("textarea")
+  textarea.innerHTML = text
+  return textarea.value
+}
 
 // Priority display config
 const priorityColors: Record<string, string> = {
@@ -98,9 +119,21 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
   useAuth()
   const { ticket, isLoading, error, refetch } = useTicketDetail(ticketId)
   const { teamMembers: rawTeamMembers, fetchTeamMembers } = useSettingsStore()
+  const { clients, fetchClients } = usePipelineStore()
 
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  // Edit mode state
+  const [isEditing, setIsEditing] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [editTitle, setEditTitle] = useState("")
+  const [editDescription, setEditDescription] = useState("")
+  const [editCategory, setEditCategory] = useState("")
+  const [editPriority, setEditPriority] = useState("")
+  const [editStatus, setEditStatus] = useState("")
+  const [editAssigneeId, setEditAssigneeId] = useState("")
+  const [editDueDate, setEditDueDate] = useState("")
 
   // Notes/activity state
   const [activities, setActivities] = useState<Array<{
@@ -122,10 +155,11 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
     }))
   }, [rawTeamMembers])
 
-  // Fetch team members on mount
+  // Fetch team members and clients on mount
   useEffect(() => {
     fetchTeamMembers()
-  }, [fetchTeamMembers])
+    fetchClients()
+  }, [fetchTeamMembers, fetchClients])
 
   // Load notes when ticket loads
   useEffect(() => {
@@ -167,7 +201,73 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
     loadNotes()
   }, [ticket])
 
-  // Handlers
+  // Populate edit form when entering edit mode
+  const enterEditMode = () => {
+    if (!ticket) return
+    setEditTitle(ticket.title)
+    setEditDescription(ticket.description || "")
+    setEditCategory(ticket.category)
+    setEditPriority(ticket.priority)
+    setEditStatus(ticket.status)
+    setEditAssigneeId(ticket.assignee_id || "")
+    setEditDueDate(ticket.due_date ? ticket.due_date.split("T")[0] : "")
+    setIsEditing(true)
+  }
+
+  const cancelEdit = () => {
+    setIsEditing(false)
+  }
+
+  const handleSave = async () => {
+    if (!ticket || !editTitle.trim()) return
+    setIsSaving(true)
+
+    try {
+      // PATCH the main fields
+      const patchResponse = await fetchWithCsrf(`/api/v1/tickets/${ticket.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          title: editTitle.trim(),
+          description: editDescription.trim(),
+          category: editCategory,
+          priority: editPriority,
+          assignee_id: editAssigneeId && editAssigneeId !== "unassigned" ? editAssigneeId : null,
+          due_date: editDueDate || null,
+        }),
+      })
+
+      if (!patchResponse.ok) {
+        const errorData = await patchResponse.json().catch(() => ({}))
+        throw new Error(errorData.error || "Failed to update ticket")
+      }
+
+      // If status changed, update via the status endpoint
+      if (editStatus !== ticket.status) {
+        const statusResponse = await fetchWithCsrf(`/api/v1/tickets/${ticket.id}/status`, {
+          method: "PATCH",
+          body: JSON.stringify({ status: editStatus }),
+        })
+        if (!statusResponse.ok) {
+          const errorData = await statusResponse.json().catch(() => ({}))
+          throw new Error(errorData.error || "Failed to update status")
+        }
+      }
+
+      toast({ title: "Ticket updated", description: "Changes saved successfully" })
+      setIsEditing(false)
+      await refetch()
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to save changes",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // Quick action handlers (for Actions dropdown when not in edit mode)
   const handleStatusChange = async (newStatus: string) => {
     if (!ticket) return
     try {
@@ -219,6 +319,27 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
     }
   }
 
+  const reloadNotes = async () => {
+    if (!ticket) return
+    const notesResponse = await fetch(`/api/v1/tickets/${ticket.id}/notes`, { credentials: "include" })
+    if (notesResponse.ok) {
+      const { data: notes } = await notesResponse.json()
+      setActivities(
+        notes.map((note: any) => ({
+          id: note.id,
+          type: "comment" as const,
+          actor: {
+            name: `${note.author?.first_name || ""} ${note.author?.last_name || ""}`.trim() || "Unknown",
+            initials: `${note.author?.first_name?.[0] || ""}${note.author?.last_name?.[0] || ""}`.toUpperCase() || "U",
+            color: "bg-blue-600",
+          },
+          timestamp: new Date(note.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+          content: note.content,
+        }))
+      )
+    }
+  }
+
   const handleComment = async (content: string) => {
     if (!ticket || !content.trim()) return
     try {
@@ -228,25 +349,13 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
       })
       if (!response.ok) throw new Error("Failed to post comment")
       toast({ title: "Comment posted" })
-
-      // Reload notes
-      const notesResponse = await fetch(`/api/v1/tickets/${ticket.id}/notes`, { credentials: "include" })
-      if (notesResponse.ok) {
-        const { data: notes } = await notesResponse.json()
-        setActivities(
-          notes.map((note: any) => ({
-            id: note.id,
-            type: "comment" as const,
-            actor: {
-              name: `${note.author?.first_name || ""} ${note.author?.last_name || ""}`.trim() || "Unknown",
-              initials: `${note.author?.first_name?.[0] || ""}${note.author?.last_name?.[0] || ""}`.toUpperCase() || "U",
-              color: "bg-blue-600",
-            },
-            timestamp: new Date(note.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-            content: note.content,
-          }))
-        )
-      }
+      await reloadNotes()
+      // Also touch the ticket updated_at by doing a no-op patch
+      await fetchWithCsrf(`/api/v1/tickets/${ticket.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ title: ticket.title }),
+      }).catch(() => {})
+      await refetch()
     } catch (err) {
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to post comment", variant: "destructive" })
     }
@@ -272,6 +381,33 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
     } finally {
       setIsDeleting(false)
     }
+  }
+
+  // Compute "last edited" as max of ticket.updated_at and latest note
+  const lastEdited = useMemo(() => {
+    if (!ticket) return null
+    let latest = new Date(ticket.updated_at).getTime()
+    for (const activity of activities) {
+      const activityTime = new Date(activity.timestamp).getTime()
+      if (!isNaN(activityTime) && activityTime > latest) {
+        latest = activityTime
+      }
+    }
+    return new Date(latest)
+  }, [ticket, activities])
+
+  const formatLastEdited = (date: Date): string => {
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return "Just now"
+    if (diffMins < 60) return `${diffMins}m ago`
+    if (diffHours < 24) return `${diffHours}h ago`
+    if (diffDays < 7) return `${diffDays}d ago`
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
   }
 
   // Loading state
@@ -323,94 +459,143 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
               </Button>
 
               <div>
-                <h1 className="text-lg font-semibold text-foreground">{ticket.title}</h1>
+                {isEditing ? (
+                  <Input
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="text-lg font-semibold h-8 w-[400px]"
+                    autoFocus
+                  />
+                ) : (
+                  <h1 className="text-lg font-semibold text-foreground">{decodeHtmlEntities(ticket.title)}</h1>
+                )}
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="text-xs text-muted-foreground">#{ticket.number}</span>
                   <Badge
                     variant="outline"
-                    className={cn("text-[9px] px-1 py-0", statusColors[ticket.status])}
+                    className={cn("text-[9px] px-1 py-0", statusColors[isEditing ? editStatus : ticket.status])}
                   >
-                    {statusLabels[ticket.status] || ticket.status}
+                    {statusLabels[isEditing ? editStatus : ticket.status] || (isEditing ? editStatus : ticket.status)}
                   </Badge>
                   <Badge
                     variant="outline"
-                    className={cn("text-[9px] px-1 py-0", priorityColors[ticket.priority])}
+                    className={cn("text-[9px] px-1 py-0", priorityColors[isEditing ? editPriority : ticket.priority])}
                   >
-                    {priorityLabels[ticket.priority] || ticket.priority}
+                    {priorityLabels[isEditing ? editPriority : ticket.priority] || (isEditing ? editPriority : ticket.priority)}
                   </Badge>
                 </div>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Actions dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2 bg-transparent">
-                    <MoreHorizontal className="h-4 w-4" />
-                    Actions
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleCopyLink}>
-                    <Copy className="w-4 h-4 mr-2" />
-                    Copy Link
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>
-                      <CircleDot className="w-4 h-4 mr-2" />
-                      Change Status
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent>
-                      <DropdownMenuItem onClick={() => handleStatusChange("new")}>New</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleStatusChange("in_progress")}>In Progress</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleStatusChange("waiting_client")}>Waiting on Client</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleStatusChange("resolved")}>Resolved</DropdownMenuItem>
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>
-                      <Flag className="w-4 h-4 mr-2" />
-                      Change Priority
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent>
-                      <DropdownMenuItem onClick={() => handlePriorityChange("critical")}>Critical</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handlePriorityChange("high")}>High</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handlePriorityChange("medium")}>Medium</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handlePriorityChange("low")}>Low</DropdownMenuItem>
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>
-                      <UserPlus className="w-4 h-4 mr-2" />
-                      Assign to
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent>
-                      {teamMembers.length > 0 ? (
-                        teamMembers.map((member) => (
-                          <DropdownMenuItem
-                            key={member.id}
-                            onClick={() => handleAssign(member.id, member.name)}
-                          >
-                            {member.name}
-                          </DropdownMenuItem>
-                        ))
-                      ) : (
-                        <DropdownMenuItem disabled>No team members</DropdownMenuItem>
-                      )}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="text-destructive"
-                    onClick={() => setTimeout(() => setShowDeleteModal(true), 0)}
+              {isEditing ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={cancelEdit}
+                    disabled={isSaving}
+                    className="gap-2"
                   >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    <X className="h-4 w-4" />
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSave}
+                    disabled={isSaving || !editTitle.trim()}
+                    className="gap-2"
+                  >
+                    {isSaving ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Check className="h-4 w-4" />
+                    )}
+                    {isSaving ? "Saving..." : "Save"}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={enterEditMode}
+                    className="gap-2 bg-transparent"
+                  >
+                    <Pencil className="h-4 w-4" />
+                    Edit
+                  </Button>
+
+                  {/* Actions dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+                        <MoreHorizontal className="h-4 w-4" />
+                        Actions
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={handleCopyLink}>
+                        <Copy className="w-4 h-4 mr-2" />
+                        Copy Link
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                          <CircleDot className="w-4 h-4 mr-2" />
+                          Change Status
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                          <DropdownMenuItem onClick={() => handleStatusChange("new")}>New</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleStatusChange("in_progress")}>In Progress</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleStatusChange("waiting_client")}>Waiting on Client</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleStatusChange("resolved")}>Resolved</DropdownMenuItem>
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                          <Flag className="w-4 h-4 mr-2" />
+                          Change Priority
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                          <DropdownMenuItem onClick={() => handlePriorityChange("critical")}>Critical</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handlePriorityChange("high")}>High</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handlePriorityChange("medium")}>Medium</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handlePriorityChange("low")}>Low</DropdownMenuItem>
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                          <UserPlus className="w-4 h-4 mr-2" />
+                          Assign to
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                          {teamMembers.length > 0 ? (
+                            teamMembers.map((member) => (
+                              <DropdownMenuItem
+                                key={member.id}
+                                onClick={() => handleAssign(member.id, member.name)}
+                              >
+                                {member.name}
+                              </DropdownMenuItem>
+                            ))
+                          ) : (
+                            <DropdownMenuItem disabled>No team members</DropdownMenuItem>
+                          )}
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive"
+                        onClick={() => setTimeout(() => setShowDeleteModal(true), 0)}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -424,9 +609,18 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
             {/* Description */}
             <Card className="p-6">
               <h3 className="text-sm font-medium text-foreground mb-3">Description</h3>
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                {ticket.description || "No description provided."}
-              </p>
+              {isEditing ? (
+                <Textarea
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  placeholder="Detailed description of the issue..."
+                  className="min-h-[120px] resize-none"
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  {decodeHtmlEntities(ticket.description || "No description provided.")}
+                </p>
+              )}
             </Card>
 
             {/* Activity */}
@@ -465,9 +659,22 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
                     <CircleDot className="w-4 h-4" />
                     <span>Status</span>
                   </div>
-                  <span className={cn("text-xs px-2 py-0.5 rounded border font-medium", statusColors[ticket.status])}>
-                    {statusLabels[ticket.status] || ticket.status}
-                  </span>
+                  {isEditing ? (
+                    <Select value={editStatus} onValueChange={setEditStatus}>
+                      <SelectTrigger className="h-7 w-[140px] text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(statusLabels).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <span className={cn("text-xs px-2 py-0.5 rounded border font-medium", statusColors[ticket.status])}>
+                      {statusLabels[ticket.status] || ticket.status}
+                    </span>
+                  )}
                 </div>
 
                 {/* Priority */}
@@ -476,9 +683,22 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
                     <AlertCircle className="w-4 h-4" />
                     <span>Priority</span>
                   </div>
-                  <span className={cn("text-xs px-2 py-0.5 rounded border font-medium", priorityColors[ticket.priority])}>
-                    {priorityLabels[ticket.priority] || ticket.priority}
-                  </span>
+                  {isEditing ? (
+                    <Select value={editPriority} onValueChange={setEditPriority}>
+                      <SelectTrigger className="h-7 w-[140px] text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(priorityLabels).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <span className={cn("text-xs px-2 py-0.5 rounded border font-medium", priorityColors[ticket.priority])}>
+                      {priorityLabels[ticket.priority] || ticket.priority}
+                    </span>
+                  )}
                 </div>
 
                 {/* Category */}
@@ -487,9 +707,22 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
                     <Tag className="w-4 h-4" />
                     <span>Category</span>
                   </div>
-                  <span className="text-xs px-2 py-0.5 rounded border border-border font-medium text-foreground capitalize">
-                    {categoryLabels[ticket.category] || ticket.category}
-                  </span>
+                  {isEditing ? (
+                    <Select value={editCategory} onValueChange={setEditCategory}>
+                      <SelectTrigger className="h-7 w-[140px] text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(categoryLabels).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <span className="text-xs px-2 py-0.5 rounded border border-border font-medium text-foreground capitalize">
+                      {categoryLabels[ticket.category] || ticket.category}
+                    </span>
+                  )}
                 </div>
 
                 {/* Assignee */}
@@ -498,7 +731,21 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
                     <User className="w-4 h-4" />
                     <span>Assignee</span>
                   </div>
-                  {assigneeName ? (
+                  {isEditing ? (
+                    <Select value={editAssigneeId} onValueChange={setEditAssigneeId}>
+                      <SelectTrigger className="h-7 w-[140px] text-xs">
+                        <SelectValue placeholder="Unassigned" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        {teamMembers.map((member) => (
+                          <SelectItem key={member.id} value={member.id}>
+                            {member.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : assigneeName ? (
                     <div className="flex items-center gap-1.5">
                       <Avatar className="h-5 w-5 bg-emerald-500">
                         <AvatarFallback className="bg-emerald-500 text-[10px] font-medium text-white">
@@ -513,17 +760,37 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
                 </div>
 
                 {/* Due date */}
-                {ticket.due_date && (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Calendar className="w-4 h-4" />
-                      <span>Due date</span>
-                    </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Calendar className="w-4 h-4" />
+                    <span>Due date</span>
+                  </div>
+                  {isEditing ? (
+                    <Input
+                      type="date"
+                      value={editDueDate}
+                      onChange={(e) => setEditDueDate(e.target.value)}
+                      className="h-7 w-[140px] text-xs"
+                    />
+                  ) : ticket.due_date ? (
                     <span className="text-sm text-foreground">
                       {new Date(ticket.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                     </span>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">No due date</span>
+                  )}
+                </div>
+
+                {/* Last edited */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <History className="w-4 h-4" />
+                    <span>Last edited</span>
                   </div>
-                )}
+                  <span className="text-sm text-foreground" title={lastEdited?.toLocaleString()}>
+                    {lastEdited ? formatLastEdited(lastEdited) : "Unknown"}
+                  </span>
+                </div>
 
                 {/* Created */}
                 <div className="flex items-center justify-between">
@@ -539,7 +806,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
                 {/* Created by */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Edit className="w-4 h-4" />
+                    <Pencil className="w-4 h-4" />
                     <span>Created by</span>
                   </div>
                   <span className="text-sm text-foreground">{creatorName}</span>

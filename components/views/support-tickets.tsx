@@ -26,6 +26,14 @@ import {
   Plus,
 } from "lucide-react"
 
+// Decode HTML entities like &#x2F; → /
+function decodeHtmlEntities(text: string): string {
+  if (typeof document === "undefined") return text
+  const textarea = document.createElement("textarea")
+  textarea.innerHTML = text
+  return textarea.value
+}
+
 // Map store status to UI status
 function mapStatus(storeStatus: string): "open" | "in_progress" | "waiting" | "resolved" {
   switch (storeStatus) {
@@ -52,8 +60,8 @@ function mapPriority(storePriority: string): "low" | "medium" | "high" | "urgent
 function transformStoreTicket(storeTicket: StoreTicket): Ticket {
   return {
     id: storeTicket.id,
-    title: storeTicket.title,
-    description: storeTicket.description || "",
+    title: decodeHtmlEntities(storeTicket.title),
+    description: decodeHtmlEntities(storeTicket.description || ""),
     client: {
       name: storeTicket.client?.name || "Unknown Client",
       initials: storeTicket.client?.name?.substring(0, 2).toUpperCase() || "UC",
