@@ -274,7 +274,7 @@ export function SupportTickets() {
     }
 
     try {
-      const response = await fetchWithCsrf(`/api/v1/tickets/${selectedTicketId}`, {
+      const response = await fetchWithCsrf(`/api/v1/tickets/${selectedTicketId}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status: statusMap[newStatus] }),
       })
@@ -305,10 +305,18 @@ export function SupportTickets() {
   const handlePriorityChange = async (newPriority: "low" | "medium" | "high" | "urgent") => {
     if (!selectedTicketId) return
 
+    // Map UI priority to DB enum (UI uses "urgent", DB uses "critical")
+    const priorityMap: Record<string, string> = {
+      'urgent': 'critical',
+      'high': 'high',
+      'medium': 'medium',
+      'low': 'low',
+    }
+
     try {
       const response = await fetchWithCsrf(`/api/v1/tickets/${selectedTicketId}`, {
         method: 'PATCH',
-        body: JSON.stringify({ priority: newPriority }),
+        body: JSON.stringify({ priority: priorityMap[newPriority] }),
       })
 
       if (!response.ok) {

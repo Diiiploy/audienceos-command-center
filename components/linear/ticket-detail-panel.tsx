@@ -461,7 +461,7 @@ export function TicketDetailPanel({
 
       {/* Delete confirmation modal */}
       <AlertDialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
-        <AlertDialogContent>
+        <AlertDialogContent onCloseAutoFocus={(e) => e.preventDefault()}>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete ticket</AlertDialogTitle>
             <AlertDialogDescription>

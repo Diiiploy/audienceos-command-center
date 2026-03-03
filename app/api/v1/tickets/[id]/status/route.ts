@@ -83,11 +83,6 @@ export const PATCH = withPermission({ resource: 'tickets', action: 'write' })(
       )
     }
 
-    // Special handling for resolved status - require resolution notes
-    if (newStatus === 'resolved') {
-      return createErrorResponse(400, 'Use /api/v1/tickets/[id]/resolve endpoint to resolve tickets')
-    }
-
     // Update status
     const { data: ticket, error: updateError } = await supabase
       .from('ticket')
