@@ -65,9 +65,9 @@ export const POST = withPermission({ resource: 'integrations', action: 'manage' 
     // Note: integration is agency-scoped. clientId comes from config or defaults to agency
     const integrationConfig = (integration.config as Record<string, unknown>) || {}
 
-    // Gmail uses gateway proxy (tokens in gateway KV, not in DB)
+    // Gmail and Slack use gateway proxy (tokens in gateway KV, not in DB)
     // Other providers store encrypted tokens in the integration table
-    const gatewayProxiedProviders = ['gmail']
+    const gatewayProxiedProviders = ['gmail', 'slack']
     const isGatewayProxied = gatewayProxiedProviders.includes(integration.provider)
 
     let syncConfig: SyncJobConfig | null = null
@@ -193,44 +193,77 @@ export const POST = withPermission({ resource: 'integrations', action: 'manage' 
       }
 
       case 'slack': {
-        const { records, result } = await syncSlack(syncConfig!)
-        syncResult = result
+        if (isGatewayProxied) {
+          // Gateway-proxied Slack: use the same sync service as the cron job
+          // This syncs all linked channels via the gateway API
+          const { createClient } = await import('@supabase/supabase-js')
+          const serviceSupabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+          )
+          const { syncAllChannels } = await import('@/lib/integrations/slack-channel-sync-service')
+          const channelResults = await syncAllChannels(agencyId, serviceSupabase)
+          const totalMessages = channelResults.reduce((sum, r) => sum + r.messagesAdded, 0)
 
-        // Upsert communication records if we have any
-        if (records.length > 0) {
-          const { error: upsertError } = await supabase
-            .from('communication')
-            .upsert(
-              records.map((r) => ({
-                id: r.id,
-                agency_id: r.agency_id,
-                client_id: r.client_id,
-                platform: r.platform,
-                message_id: r.message_id,
-                sender_name: r.sender_name,
-                sender_email: r.sender_email,
-                subject: r.subject,
-                content: r.content,
-                created_at: r.created_at,
-                received_at: r.received_at,
-                thread_id: r.thread_id,
-                is_inbound: r.is_inbound,
-                needs_reply: r.needs_reply,
-                replied_at: r.replied_at,
-                replied_by: r.replied_by,
-              })),
-              {
-                onConflict: 'agency_id,client_id,platform,message_id',
-                ignoreDuplicates: false,
-              }
-            )
+          syncResult = {
+            success: true,
+            provider: 'slack',
+            recordsProcessed: totalMessages,
+            recordsCreated: totalMessages,
+            recordsUpdated: 0,
+            errors: [],
+            syncedAt: new Date().toISOString(),
+          }
 
-          if (upsertError) {
-            console.error('[sync] communication upsert error:', upsertError)
-            syncResult.errors.push(`Database upsert failed: ${upsertError.message}`)
-            syncResult.success = false
-          } else {
-            syncResult.recordsCreated = records.length
+          // Check if any channels had errors
+          const channelErrors = channelResults.filter(r => r.error)
+          if (channelErrors.length > 0) {
+            syncResult.errors = channelErrors.map(r => `Channel ${r.channelId}: ${r.error}`)
+            if (channelErrors.length === channelResults.length) {
+              syncResult.success = false
+            }
+          }
+        } else {
+          // Legacy path: direct sync with local tokens
+          const { records, result } = await syncSlack(syncConfig!)
+          syncResult = result
+
+          // Upsert communication records if we have any
+          if (records.length > 0) {
+            const { error: upsertError } = await supabase
+              .from('communication')
+              .upsert(
+                records.map((r) => ({
+                  id: r.id,
+                  agency_id: r.agency_id,
+                  client_id: r.client_id,
+                  platform: r.platform,
+                  message_id: r.message_id,
+                  sender_name: r.sender_name,
+                  sender_email: r.sender_email,
+                  subject: r.subject,
+                  content: r.content,
+                  created_at: r.created_at,
+                  received_at: r.received_at,
+                  thread_id: r.thread_id,
+                  is_inbound: r.is_inbound,
+                  needs_reply: r.needs_reply,
+                  replied_at: r.replied_at,
+                  replied_by: r.replied_by,
+                })),
+                {
+                  onConflict: 'agency_id,client_id,platform,message_id',
+                  ignoreDuplicates: false,
+                }
+              )
+
+            if (upsertError) {
+              console.error('[sync] communication upsert error:', upsertError)
+              syncResult.errors.push(`Database upsert failed: ${upsertError.message}`)
+              syncResult.success = false
+            } else {
+              syncResult.recordsCreated = records.length
+            }
           }
         }
         break

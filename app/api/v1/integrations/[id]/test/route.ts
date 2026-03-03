@@ -51,7 +51,7 @@ export const POST = withPermission({ resource: 'integrations', action: 'manage' 
       return NextResponse.json({ error: 'Integration not found' }, { status: 404 })
     }
 
-    if (!integration.is_connected || !integration.access_token) {
+    if (!integration.is_connected) {
       return NextResponse.json({
         data: {
           status: 'unhealthy',
@@ -63,11 +63,32 @@ export const POST = withPermission({ resource: 'integrations', action: 'manage' 
       })
     }
 
-    // Test connection based on provider
-    const result = await testProviderConnection(
-      integration.provider as IntegrationProvider,
-      integration.access_token
-    )
+    // Check if this integration is gateway-proxied (tokens in gateway KV, not DB)
+    const integrationConfig = (integration.config as Record<string, unknown>) || {}
+    const isGatewayProvider = integrationConfig.connected_via === 'diiiploy-gateway'
+
+    let result: TestResult
+
+    if (isGatewayProvider) {
+      // Gateway providers: test via gateway status endpoint
+      result = await testGatewayConnection(integration.provider as IntegrationProvider)
+    } else if (!integration.access_token) {
+      return NextResponse.json({
+        data: {
+          status: 'unhealthy',
+          responseTime: 0,
+          lastChecked: new Date().toISOString(),
+          error: 'No access token available',
+          suggestedAction: 'Please reconnect the integration',
+        } as TestResult,
+      })
+    } else {
+      // Non-gateway providers: test directly with local token
+      result = await testProviderConnection(
+        integration.provider as IntegrationProvider,
+        integration.access_token
+      )
+    }
 
     // Update last sync time on success
     if (result.status === 'healthy') {
@@ -203,6 +224,93 @@ async function testProviderConnection(
       responseTime: Date.now() - startTime,
       lastChecked: new Date().toISOString(),
       error: error instanceof Error ? error.message : 'Connection failed',
+      suggestedAction: 'Check network connectivity and try again',
+    }
+  }
+}
+
+const GATEWAY_URL = process.env.DIIIPLOY_GATEWAY_URL || 'https://diiiploy-gateway.diiiploy.workers.dev'
+const GATEWAY_API_KEY = process.env.DIIIPLOY_GATEWAY_API_KEY || ''
+const TENANT_ID = process.env.DIIIPLOY_TENANT_ID || ''
+
+async function testGatewayConnection(provider: IntegrationProvider): Promise<TestResult> {
+  const startTime = Date.now()
+
+  const gatewayStatusEndpoints: Record<string, string> = {
+    slack: '/oauth/slack/status',
+    gmail: '/oauth/google/status',
+  }
+
+  const statusEndpoint = gatewayStatusEndpoints[provider]
+  if (!statusEndpoint) {
+    return {
+      status: 'unhealthy',
+      responseTime: Date.now() - startTime,
+      lastChecked: new Date().toISOString(),
+      error: `No gateway status endpoint for provider: ${provider}`,
+    }
+  }
+
+  if (!GATEWAY_API_KEY || !TENANT_ID) {
+    return {
+      status: 'unhealthy',
+      responseTime: Date.now() - startTime,
+      lastChecked: new Date().toISOString(),
+      error: 'Gateway configuration missing',
+      suggestedAction: 'Check DIIIPLOY_GATEWAY_API_KEY and DIIIPLOY_TENANT_ID environment variables',
+    }
+  }
+
+  try {
+    const response = await fetch(`${GATEWAY_URL}${statusEndpoint}`, {
+      headers: {
+        'Authorization': `Bearer ${GATEWAY_API_KEY}`,
+        'X-Tenant-ID': TENANT_ID,
+      },
+      signal: AbortSignal.timeout(10000),
+    })
+
+    const responseTime = Date.now() - startTime
+
+    if (!response.ok) {
+      return {
+        status: 'unhealthy',
+        responseTime,
+        lastChecked: new Date().toISOString(),
+        error: `Gateway returned ${response.status}`,
+        suggestedAction: 'Check gateway configuration or try reconnecting',
+      }
+    }
+
+    const status = await response.json() as { connected?: boolean; status?: string; team?: string; user?: string; email?: string }
+
+    if (status.connected || status.status === 'connected') {
+      return {
+        status: 'healthy',
+        responseTime,
+        lastChecked: new Date().toISOString(),
+        details: {
+          connectedVia: 'diiiploy-gateway',
+          ...(status.team ? { team: status.team } : {}),
+          ...(status.user ? { user: status.user } : {}),
+          ...(status.email ? { email: status.email } : {}),
+        },
+      }
+    }
+
+    return {
+      status: 'unhealthy',
+      responseTime,
+      lastChecked: new Date().toISOString(),
+      error: 'Provider reports not connected via gateway',
+      suggestedAction: 'Try reconnecting the integration',
+    }
+  } catch (error) {
+    return {
+      status: 'unhealthy',
+      responseTime: Date.now() - startTime,
+      lastChecked: new Date().toISOString(),
+      error: error instanceof Error ? error.message : 'Gateway connection failed',
       suggestedAction: 'Check network connectivity and try again',
     }
   }

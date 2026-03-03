@@ -53,6 +53,7 @@ interface Integration {
   category: IntegrationCategory
   status: IntegrationStatus
   lastSync?: string
+  lastSyncRaw?: string // ISO timestamp for modal's formatDate()
   accounts?: number
   airbyteManaged?: boolean
 }
@@ -436,6 +437,7 @@ export function IntegrationsHub() {
         category: metadata.category,
         status,
         lastSync,
+        lastSyncRaw: dbRecord?.last_sync_at || undefined,
         airbyteManaged,
       })
     }
@@ -587,6 +589,7 @@ export function IntegrationsHub() {
           provider: selectedIntegration.provider || selectedIntegration.id, // provider ID
           status: selectedIntegration.status,
           lastSync: selectedIntegration.lastSync,
+          lastSyncRaw: selectedIntegration.lastSyncRaw,
           accounts: selectedIntegration.accounts,
           icon: selectedIntegration.icon,
           color: selectedIntegration.color.replace('bg-[', '').replace(']', ''),

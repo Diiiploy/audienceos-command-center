@@ -31,6 +31,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { fetchWithCsrf } from '@/lib/csrf'
 
 interface IntegrationSettingsModalProps {
   integration: {
@@ -39,6 +40,7 @@ interface IntegrationSettingsModalProps {
     provider: string
     status: 'connected' | 'disconnected' | 'error' | 'syncing'
     lastSync?: string
+    lastSyncRaw?: string // ISO timestamp for accurate date formatting
     accounts?: number
     icon: React.ReactNode
     color: string
@@ -102,12 +104,8 @@ export function IntegrationSettingsModal({
   const handleTest = async () => {
     setIsTesting(true)
     try {
-      const response = await fetch(`/api/v1/integrations/${integration.id}/test`, {
+      const response = await fetchWithCsrf(`/api/v1/integrations/${integration.id}/test`, {
         method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
       })
 
       if (!response.ok) {
@@ -116,9 +114,16 @@ export function IntegrationSettingsModal({
       }
 
       const result = await response.json()
-      toast.success('Connection test successful', {
-        description: result.message || 'Integration is working correctly',
-      })
+      const testData = result.data
+      if (testData?.status === 'healthy') {
+        toast.success('Connection test successful', {
+          description: `Integration is working correctly (${testData.responseTime}ms)`,
+        })
+      } else {
+        toast.error('Connection test failed', {
+          description: testData?.error || testData?.suggestedAction || 'Unknown error',
+        })
+      }
       onRefetch()
     } catch (error) {
       toast.error('Connection test failed', {
@@ -132,12 +137,8 @@ export function IntegrationSettingsModal({
   const handleSync = async () => {
     setIsSyncing(true)
     try {
-      const response = await fetch(`/api/v1/integrations/${integration.id}/sync`, {
+      const response = await fetchWithCsrf(`/api/v1/integrations/${integration.id}/sync`, {
         method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
       })
 
       if (!response.ok) {
@@ -146,9 +147,20 @@ export function IntegrationSettingsModal({
       }
 
       const result = await response.json()
-      toast.success('Sync started', {
-        description: result.message || 'Integration is now syncing',
-      })
+      const syncData = result.data
+      if (syncData?.status === 'completed') {
+        toast.success('Sync completed', {
+          description: syncData.message || `${syncData.recordsCreated || 0} records synced`,
+        })
+      } else if (syncData?.status === 'failed') {
+        toast.error('Sync failed', {
+          description: syncData.message || 'Sync encountered errors',
+        })
+      } else {
+        toast.success('Sync started', {
+          description: syncData?.message || 'Integration is now syncing',
+        })
+      }
       onRefetch()
     } catch (error) {
       toast.error('Sync failed', {
@@ -162,9 +174,8 @@ export function IntegrationSettingsModal({
   const handleDisconnect = async () => {
     setIsDisconnecting(true)
     try {
-      const response = await fetch(`/api/v1/integrations/${integration.id}`, {
+      const response = await fetchWithCsrf(`/api/v1/integrations/${integration.id}`, {
         method: 'DELETE',
-        credentials: 'include',
       })
 
       if (!response.ok) {
@@ -246,7 +257,7 @@ export function IntegrationSettingsModal({
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-muted-foreground">Last Sync</span>
-                    <span className="font-medium">{formatDate(integration.lastSync)}</span>
+                    <span className="font-medium">{formatDate(integration.lastSyncRaw)}</span>
                   </div>
                   {integration.accounts !== undefined && (
                     <div className="flex justify-between items-center text-sm">
@@ -307,13 +318,17 @@ export function IntegrationSettingsModal({
               <h3 className="text-sm font-medium">Recent Activity</h3>
               <div className="space-y-2">
                 <div className="text-sm text-muted-foreground p-3 bg-secondary/50 rounded-md">
-                  {integration.status === 'connected' && integration.lastSync
-                    ? `Last synced ${formatDate(integration.lastSync)}`
-                    : integration.status === 'disconnected'
-                      ? 'Integration is not connected'
-                      : integration.status === 'error'
-                        ? 'Connection error - please test connection'
-                        : 'Sync in progress...'}
+                  {integration.status === 'syncing'
+                    ? 'Sync in progress...'
+                    : integration.status === 'connected' && integration.lastSyncRaw
+                      ? `Last synced ${formatDate(integration.lastSyncRaw)}`
+                      : integration.status === 'connected'
+                        ? 'No sync activity yet'
+                        : integration.status === 'disconnected'
+                          ? 'Integration is not connected'
+                          : integration.status === 'error'
+                            ? 'Connection error - please test connection'
+                            : 'No sync activity yet'}
                 </div>
               </div>
             </div>

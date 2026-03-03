@@ -44,6 +44,14 @@ export async function GET(request: NextRequest) {
       try {
         const channelResults = await syncAllChannels(agencyId, supabase)
         const totalMessages = channelResults.reduce((sum, r) => sum + r.messagesAdded, 0)
+
+        // Update integration.last_sync_at (mirrors gmail cron pattern)
+        await supabase
+          .from('integration')
+          .update({ last_sync_at: new Date().toISOString() })
+          .eq('agency_id', agencyId)
+          .eq('provider', 'slack')
+
         results.push({ agencyId, channels: channelResults.length, messages: totalMessages })
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error'

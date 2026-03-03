@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation"
 import { ThemeProvider } from "next-themes"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import "./globals.css"
+import { Toaster } from "sonner"
 import { ChatInterface } from "@/components/chat/chat-interface"
 import { ThemeSync } from "@/components/theme-sync"
 import { useAuth } from "@/hooks/use-auth"
@@ -93,6 +94,7 @@ export default function RootLayout({
           >
             <ThemeSync />
             {children}
+            <Toaster richColors position="top-right" />
             {shouldShowChat && (
               <>
                 {console.log('[CHAT-PORTAL] Rendering ChatInterface into portal')}
