@@ -12,12 +12,8 @@ import {
   ExternalLink,
   CheckCircle2,
   Circle,
-  TrendingUp,
-  TrendingDown,
-  Minus,
   Send,
   Sparkles,
-  RefreshCw,
   Play,
   Check,
   Share2,
@@ -25,9 +21,14 @@ import {
 import { owners } from "@/lib/constants/pipeline"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 import { useClientDetail } from "@/hooks/use-client-detail"
 import { useAuth } from "@/hooks/use-auth"
+import { useClientAdPerformance } from "@/hooks/use-client-ad-performance"
+import type { AdPerformancePeriod, AdPlatformFilter } from "@/types/dashboard"
+import { AdPerformanceCards, AdPerformanceCardsSkeleton } from "@/components/dashboard/ad-performance-cards"
+import { AdSpendChart, AdSpendChartSkeleton } from "@/components/dashboard/ad-spend-chart"
+import { PlatformBreakdown, PlatformBreakdownSkeleton } from "@/components/dashboard/platform-breakdown"
+import { AdAccountsSection } from "@/components/client/ad-accounts-section"
 
 export default function ClientPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
@@ -60,10 +61,6 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
     contact_name: detailedClient.contact_name,
     notes: detailedClient.notes,
     tags: detailedClient.tags,
-    // Placeholder fields - will be fetched from dedicated APIs later
-    metaAds: null as { spend: number; roas: number; cpa: number; trend: 'up' | 'down' | 'flat' } | null,
-    googleAds: null as { impressions: number; clicks: number; conversions: number; trend: 'up' | 'down' | 'flat' } | null,
-    performanceData: [] as { date: string; adSpend: number; roas: number }[],
     onboardingData: null as { shopifyUrl: string; gtmContainerId: string; metaPixelId: string; klaviyoApiKey: string } | null,
   } : null
 
@@ -72,6 +69,16 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
     meta: false,
     gtm: false,
     shopify: false,
+  })
+
+  // Ad performance state
+  const [adPeriod, setAdPeriod] = useState<AdPerformancePeriod>(30)
+  const [adPlatform, setAdPlatform] = useState<AdPlatformFilter>('all')
+  const { data: adPerformance, isLoading: adPerfLoading } = useClientAdPerformance({
+    clientId,
+    days: adPeriod,
+    platform: adPlatform,
+    enabled: !!client,
   })
 
   // Show loading state while fetching
@@ -422,142 +429,94 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
           </TabsContent>
 
           <TabsContent value="performance" className="space-y-4">
-            {/* Performance charts and metrics */}
-            {!client.metaAds && !client.googleAds && client.performanceData.length === 0 ? (
+            {/* Filter Bar */}
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex gap-1 flex-wrap" role="group" aria-label="Select date range">
+                {([
+                  { value: 1 as AdPerformancePeriod, label: "Today" },
+                  { value: 7 as AdPerformancePeriod, label: "Past Week" },
+                  { value: 14 as AdPerformancePeriod, label: "Past 2 Weeks" },
+                  { value: 30 as AdPerformancePeriod, label: "Past 30 Days" },
+                  { value: 90 as AdPerformancePeriod, label: "Past 3 Months" },
+                  { value: 180 as AdPerformancePeriod, label: "Past 6 Months" },
+                  { value: 365 as AdPerformancePeriod, label: "Past 1 Year" },
+                ]).map(({ value, label }) => (
+                  <Button
+                    key={value}
+                    variant={adPeriod === value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setAdPeriod(value)}
+                    aria-pressed={adPeriod === value}
+                    className="text-xs"
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+              <div className="flex gap-1" role="group" aria-label="Select platform">
+                {([
+                  { value: "all" as AdPlatformFilter, label: "All Platforms" },
+                  { value: "google_ads" as AdPlatformFilter, label: "Google Ads" },
+                  { value: "meta_ads" as AdPlatformFilter, label: "Meta Ads" },
+                ]).map(({ value, label }) => (
+                  <Button
+                    key={value}
+                    variant={adPlatform === value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setAdPlatform(value)}
+                    aria-pressed={adPlatform === value}
+                    className="text-xs"
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* KPI Cards */}
+            {adPerfLoading ? (
+              <AdPerformanceCardsSkeleton />
+            ) : adPerformance && (adPerformance.totalSpend > 0 || adPerformance.totalImpressions > 0) ? (
+              <AdPerformanceCards data={adPerformance} />
+            ) : null}
+
+            {/* Charts */}
+            {adPerfLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                <div className="md:col-span-3"><AdSpendChartSkeleton /></div>
+                <div className="md:col-span-2"><PlatformBreakdownSkeleton /></div>
+              </div>
+            ) : adPerformance && (adPerformance.totalSpend > 0 || adPerformance.totalImpressions > 0) ? (
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                <div className="md:col-span-3">
+                  <AdSpendChart
+                    data={adPerformance}
+                    periodLabel={([
+                      { value: 1, label: "Today" },
+                      { value: 7, label: "Past Week" },
+                      { value: 14, label: "Past 2 Weeks" },
+                      { value: 30, label: "Past 30 Days" },
+                      { value: 90, label: "Past 3 Months" },
+                      { value: 180, label: "Past 6 Months" },
+                      { value: 365, label: "Past 1 Year" },
+                    ]).find(o => o.value === adPeriod)?.label || "Past 30 Days"}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <PlatformBreakdown data={adPerformance} />
+                </div>
+              </div>
+            ) : !adPerfLoading ? (
               <Card className="p-8 text-center">
                 <p className="text-sm text-muted-foreground">No performance data yet.</p>
-                <p className="text-xs text-muted-foreground mt-1">Connect Google Ads or Meta to sync performance metrics.</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Link an ad account below, then connect Google Ads or Meta to sync performance metrics.
+                </p>
               </Card>
-            ) : (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {client.metaAds && (
-                    <Card className="p-6 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-medium text-foreground">Meta Ads</h4>
-                        {client.metaAds.trend === "up" ? (
-                          <TrendingUp className="h-4 w-4 text-emerald-500" />
-                        ) : client.metaAds.trend === "down" ? (
-                          <TrendingDown className="h-4 w-4 text-rose-500" />
-                        ) : (
-                          <Minus className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Spend</p>
-                          <p className="text-lg font-semibold text-foreground">${client.metaAds.spend.toLocaleString()}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">ROAS</p>
-                          <p
-                            className={cn(
-                              "text-lg font-semibold",
-                              client.metaAds.roas >= 2 ? "text-emerald-400" : "text-rose-400",
-                            )}
-                          >
-                            {client.metaAds.roas}x
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">CPA</p>
-                          <p className="text-lg font-semibold text-foreground">${client.metaAds.cpa}</p>
-                        </div>
-                      </div>
-                    </Card>
-                  )}
+            ) : null}
 
-                  {client.googleAds && (
-                    <Card className="p-6 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-medium text-foreground">Google Ads</h4>
-                        {client.googleAds.trend === "up" ? (
-                          <TrendingUp className="h-4 w-4 text-emerald-500" />
-                        ) : client.googleAds.trend === "down" ? (
-                          <TrendingDown className="h-4 w-4 text-rose-500" />
-                        ) : (
-                          <Minus className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Impressions</p>
-                          <p className="text-lg font-semibold text-foreground">
-                            {(client.googleAds.impressions / 1000).toFixed(0)}k
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Clicks</p>
-                          <p className="text-lg font-semibold text-foreground">
-                            {(client.googleAds.clicks / 1000).toFixed(1)}k
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Conversions</p>
-                          <p className="text-lg font-semibold text-foreground">{client.googleAds.conversions}</p>
-                        </div>
-                      </div>
-                    </Card>
-                  )}
-                </div>
-
-                {client.performanceData.length > 0 && (
-                  <Card className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-sm font-medium text-foreground">Performance Over Time</h4>
-                      <Button variant="outline" size="sm">
-                        <RefreshCw className="h-3.5 w-3.5 mr-2" />
-                        Sync Now
-                      </Button>
-                    </div>
-                    <div className="h-80 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={client.performanceData}>
-                          <defs>
-                            <linearGradient id="adSpendGradient" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-                              <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                            </linearGradient>
-                            <linearGradient id="roasGradient" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
-                              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                          <XAxis dataKey="date" tick={{ fill: "#71717a", fontSize: 10 }} />
-                          <YAxis yAxisId="left" tick={{ fill: "#71717a", fontSize: 10 }} />
-                          <YAxis yAxisId="right" orientation="right" tick={{ fill: "#71717a", fontSize: 10 }} />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: "#18181b",
-                              border: "1px solid #27272a",
-                              borderRadius: "8px",
-                            }}
-                          />
-                          <Legend />
-                          <Area
-                            yAxisId="left"
-                            type="monotone"
-                            dataKey="adSpend"
-                            stroke="#10b981"
-                            fill="url(#adSpendGradient)"
-                            name="Ad Spend"
-                          />
-                          <Area
-                            yAxisId="right"
-                            type="monotone"
-                            dataKey="roas"
-                            stroke="#3b82f6"
-                            fill="url(#roasGradient)"
-                            name="ROAS"
-                          />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </Card>
-                )}
-              </>
-            )}
+            {/* Ad Accounts Section */}
+            <AdAccountsSection clientId={clientId} />
           </TabsContent>
 
           <TabsContent value="media" className="space-y-4">
