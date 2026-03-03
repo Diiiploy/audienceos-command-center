@@ -204,8 +204,8 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
   // Populate edit form when entering edit mode
   const enterEditMode = () => {
     if (!ticket) return
-    setEditTitle(ticket.title)
-    setEditDescription(ticket.description || "")
+    setEditTitle(decodeHtmlEntities(ticket.title))
+    setEditDescription(decodeHtmlEntities(ticket.description || ""))
     setEditCategory(ticket.category)
     setEditPriority(ticket.priority)
     setEditStatus(ticket.status)
