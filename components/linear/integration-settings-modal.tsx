@@ -313,25 +313,6 @@ export function IntegrationSettingsModal({
               </div>
             </div>
 
-            {/* Activity Section */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium">Recent Activity</h3>
-              <div className="space-y-2">
-                <div className="text-sm text-muted-foreground p-3 bg-secondary/50 rounded-md">
-                  {integration.status === 'syncing'
-                    ? 'Sync in progress...'
-                    : integration.status === 'connected' && integration.lastSyncRaw
-                      ? `Last synced ${formatDate(integration.lastSyncRaw)}`
-                      : integration.status === 'connected'
-                        ? 'No sync activity yet'
-                        : integration.status === 'disconnected'
-                          ? 'Integration is not connected'
-                          : integration.status === 'error'
-                            ? 'Connection error - please test connection'
-                            : 'No sync activity yet'}
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Footer */}
