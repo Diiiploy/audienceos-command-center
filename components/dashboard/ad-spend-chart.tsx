@@ -18,9 +18,10 @@ import type { AdPerformanceSummary } from "@/lib/services/dashboard-queries"
 interface AdSpendChartProps {
   data: AdPerformanceSummary
   className?: string
+  periodLabel?: string
 }
 
-export function AdSpendChart({ data, className }: AdSpendChartProps) {
+export function AdSpendChart({ data, className, periodLabel }: AdSpendChartProps) {
   const chartData = data.dailyTrend.map((point) => ({
     ...point,
     formattedDate: format(new Date(point.date), "MMM dd"),
@@ -29,7 +30,7 @@ export function AdSpendChart({ data, className }: AdSpendChartProps) {
   if (chartData.length === 0) {
     return (
       <div className={cn("bg-card border border-border rounded-lg p-6", className)}>
-        <h3 className="text-sm font-medium text-foreground mb-2">Ad Spend Trend</h3>
+        <h3 className="text-sm font-medium text-foreground mb-2">Ad Spend Trend ({periodLabel || "30 Days"})</h3>
         <p className="text-sm text-muted-foreground">No spend data available yet</p>
       </div>
     )
@@ -37,7 +38,7 @@ export function AdSpendChart({ data, className }: AdSpendChartProps) {
 
   return (
     <div className={cn("bg-card border border-border rounded-lg p-4", className)}>
-      <h3 className="text-sm font-medium text-foreground mb-4">Ad Spend Trend (30 Days)</h3>
+      <h3 className="text-sm font-medium text-foreground mb-4">Ad Spend Trend ({periodLabel || "30 Days"})</h3>
       <div className="h-[240px]">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>

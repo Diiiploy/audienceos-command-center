@@ -274,7 +274,8 @@ export interface AdPerformanceSummary {
 export async function fetchAdPerformanceSummary(
   supabase: SupabaseClient<Database>,
   agencyId: string,
-  days: number = 30
+  days: number = 30,
+  platform?: string
 ): Promise<AdPerformanceSummary> {
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - days)
@@ -283,12 +284,18 @@ export async function fetchAdPerformanceSummary(
   previousStart.setDate(previousStart.getDate() - days * 2)
 
   // Fetch current period data
-  const { data: currentData, error } = await supabase
+  let currentQuery = supabase
     .from('ad_performance')
     .select('platform, date, spend, impressions, clicks, conversions')
     .eq('agency_id', agencyId)
     .gte('date', startDate.toISOString().split('T')[0])
     .order('date', { ascending: true })
+
+  if (platform) {
+    currentQuery = currentQuery.eq('platform', platform as 'google_ads' | 'meta_ads')
+  }
+
+  const { data: currentData, error } = await currentQuery
 
   if (error) {
     console.error('[dashboard-queries] fetchAdPerformanceSummary error:', error)
@@ -297,12 +304,18 @@ export async function fetchAdPerformanceSummary(
   const records = currentData || []
 
   // Fetch previous period for comparison
-  const { data: previousData } = await supabase
+  let previousQuery = supabase
     .from('ad_performance')
     .select('spend, impressions, clicks, conversions')
     .eq('agency_id', agencyId)
     .gte('date', previousStart.toISOString().split('T')[0])
     .lt('date', startDate.toISOString().split('T')[0])
+
+  if (platform) {
+    previousQuery = previousQuery.eq('platform', platform as 'google_ads' | 'meta_ads')
+  }
+
+  const { data: previousData } = await previousQuery
 
   const prevRecords = previousData || []
 

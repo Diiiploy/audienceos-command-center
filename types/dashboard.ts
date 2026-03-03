@@ -118,3 +118,9 @@ export interface CacheEntry<T> {
   timestamp: number
   expiresAt: number
 }
+
+// Ad performance time periods (in days)
+export type AdPerformancePeriod = 1 | 7 | 14 | 30 | 90 | 180 | 365
+
+// Ad platform filter
+export type AdPlatformFilter = 'all' | 'google_ads' | 'meta_ads'

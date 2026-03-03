@@ -18,6 +18,7 @@ import {
   type FirehoseTab,
 } from "./dashboard"
 import { useAdPerformance } from "@/hooks/use-ad-performance"
+import type { AdPerformancePeriod, AdPlatformFilter } from "@/types/dashboard"
 import { type MinimalClient, getOwnerData } from "@/types/client"
 import { useDashboardStore } from "@/stores/dashboard-store"
 import { cn } from "@/lib/utils"
@@ -902,8 +903,14 @@ export function DashboardView({ clients, onClientClick, onOpenClientDetail, onSe
     fetchKPIs()
   }, [fetchKPIs])
 
+  // Ad performance filters
+  const [adPeriod, setAdPeriod] = useState<AdPerformancePeriod>(30)
+  const [adPlatform, setAdPlatform] = useState<AdPlatformFilter>('all')
+
   // Ad performance data (fetched via React Query, only when performance tab active or overview)
   const { data: adPerformance, isLoading: adPerfLoading } = useAdPerformance({
+    days: adPeriod,
+    platform: adPlatform,
     enabled: activeTab === "performance" || activeTab === "overview",
   })
 
@@ -1277,6 +1284,50 @@ export function DashboardView({ clients, onClientClick, onOpenClientDetail, onSe
           </div>
         ) : activeTab === "performance" ? (
           <div className="pb-5 space-y-3">
+            {/* Filter Bar */}
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex gap-1 flex-wrap" role="group" aria-label="Select date range">
+                {([
+                  { value: 1 as AdPerformancePeriod, label: "Today" },
+                  { value: 7 as AdPerformancePeriod, label: "Past Week" },
+                  { value: 14 as AdPerformancePeriod, label: "Past 2 Weeks" },
+                  { value: 30 as AdPerformancePeriod, label: "Past 30 Days" },
+                  { value: 90 as AdPerformancePeriod, label: "Past 3 Months" },
+                  { value: 180 as AdPerformancePeriod, label: "Past 6 Months" },
+                  { value: 365 as AdPerformancePeriod, label: "Past 1 Year" },
+                ]).map(({ value, label }) => (
+                  <Button
+                    key={value}
+                    variant={adPeriod === value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setAdPeriod(value)}
+                    aria-pressed={adPeriod === value}
+                    className="text-xs"
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+              <div className="flex gap-1" role="group" aria-label="Select platform">
+                {([
+                  { value: "all" as AdPlatformFilter, label: "All Platforms" },
+                  { value: "google_ads" as AdPlatformFilter, label: "Google Ads" },
+                  { value: "meta_ads" as AdPlatformFilter, label: "Meta Ads" },
+                ]).map(({ value, label }) => (
+                  <Button
+                    key={value}
+                    variant={adPlatform === value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setAdPlatform(value)}
+                    aria-pressed={adPlatform === value}
+                    className="text-xs"
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
             {/* Ad Performance KPI Cards */}
             {adPerfLoading ? (
               <AdPerformanceCardsSkeleton />
@@ -1293,7 +1344,18 @@ export function DashboardView({ clients, onClientClick, onOpenClientDetail, onSe
             ) : adPerformance && (adPerformance.totalSpend > 0 || adPerformance.totalImpressions > 0) ? (
               <div className="grid grid-cols-5 gap-3">
                 <div className="col-span-3">
-                  <AdSpendChart data={adPerformance} />
+                  <AdSpendChart
+                    data={adPerformance}
+                    periodLabel={([
+                      { value: 1, label: "Today" },
+                      { value: 7, label: "Past Week" },
+                      { value: 14, label: "Past 2 Weeks" },
+                      { value: 30, label: "Past 30 Days" },
+                      { value: 90, label: "Past 3 Months" },
+                      { value: 180, label: "Past 6 Months" },
+                      { value: 365, label: "Past 1 Year" },
+                    ]).find(o => o.value === adPeriod)?.label || "Past 30 Days"}
+                  />
                 </div>
                 <div className="col-span-2">
                   <PlatformBreakdown data={adPerformance} />
