@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useMemo, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "motion/react"
 import { useSlideTransition } from "@/hooks/use-slide-transition"
 import { useToast } from "@/hooks/use-toast"
@@ -94,6 +95,7 @@ export function SupportTickets() {
   const [editTicketModalOpen, setEditTicketModalOpen] = useState(false)
   const [editTicketId, setEditTicketId] = useState<string | null>(null)
 
+  const router = useRouter()
   const slideTransition = useSlideTransition()
   const { toast } = useToast()
 
@@ -361,6 +363,11 @@ export function SupportTickets() {
     }
   }
 
+  const handleOpenTicket = () => {
+    if (!selectedTicketId) return
+    router.push(`/tickets/${selectedTicketId}`)
+  }
+
   const handleEditTicket = () => {
     if (!selectedTicketId) return
     setEditTicketId(selectedTicketId)
@@ -488,6 +495,7 @@ export function SupportTickets() {
               onComment={handleComment}
               onStatusChange={handleStatusChange}
               onPriorityChange={handlePriorityChange}
+              onOpen={handleOpenTicket}
               onEdit={handleEditTicket}
               onAssign={handleAssignTicket}
               teamMembers={teamMembers}

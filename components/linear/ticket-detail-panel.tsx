@@ -10,6 +10,7 @@ import { fetchWithCsrf } from "@/lib/csrf"
 import {
   X,
   MoreHorizontal,
+  ExternalLink,
   Clock,
   User,
   Tag,
@@ -101,6 +102,7 @@ interface TicketDetailPanelProps {
   onStatusChange?: (status: TicketStatus) => void
   onPriorityChange?: (priority: TicketPriority) => void
   onComment?: (content: string) => void
+  onOpen?: () => void
   onEdit?: () => void
   onAssign?: (userId: string, userName: string) => void
   teamMembers?: TeamMember[]
@@ -143,6 +145,7 @@ export function TicketDetailPanel({
   onStatusChange,
   onPriorityChange,
   onComment,
+  onOpen,
   onEdit,
   onAssign,
   teamMembers,
@@ -230,6 +233,15 @@ export function TicketDetailPanel({
           </span>
         </div>
         <div className="flex items-center gap-1">
+          {onOpen && (
+            <button
+              onClick={onOpen}
+              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded transition-colors cursor-pointer"
+              title="Open in full page"
+            >
+              <ExternalLink className="w-4 h-4" />
+            </button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-7 w-7">
