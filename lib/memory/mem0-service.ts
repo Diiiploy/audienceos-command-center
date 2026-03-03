@@ -258,8 +258,8 @@ export class Mem0Service {
       memories = memories.filter((m) => request.types!.includes(m.metadata.type));
     }
 
-    // Limit results
-    const limit = request.limit || 5;
+    // Limit results (default to 100 — the UI passes pageSize=100)
+    const limit = request.limit || 100;
     memories = memories.slice(0, limit);
 
     return {
