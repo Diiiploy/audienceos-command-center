@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
+import React, { useState } from "react"
 import {
   SettingsLayout,
   SettingsContentSection,
@@ -8,12 +8,13 @@ import {
   IntegrationCard,
   integrationIcons,
   intelligenceSettingsGroups,
-  ActivityFeed,
-  type ActivityType,
 } from "@/components/linear"
+import { useChatSessions, useChatMessages } from "@/hooks/intelligence/use-chat-history"
+import { useTrainingDocuments, useUploadTrainingDocument, useDeleteTrainingDocument } from "@/hooks/intelligence/use-training-documents"
+import { useCustomPrompts, useCreatePrompt, useUpdatePrompt, useDeletePrompt, type CustomPromptRow } from "@/hooks/intelligence/use-custom-prompts"
+import { useActivityFeed } from "@/hooks/intelligence/use-activity-feed"
 import {
   FirehoseFeed,
-  type FirehoseItemData,
 } from "@/components/dashboard"
 import { cn } from "@/lib/utils"
 import { CartridgesPage } from "@/components/cartridges"
@@ -46,79 +47,10 @@ import {
   History,
   Bot,
   User,
-  Settings,
+  Loader2,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react"
-
-// Types for Training Data
-interface TrainingDocument {
-  id: string
-  name: string
-  type: "pdf" | "docx" | "txt" | "md"
-  size: string
-  uploadedAt: string
-  status: "indexed" | "pending" | "failed"
-}
-
-// Types for Custom Prompts
-interface CustomPrompt {
-  id: string
-  name: string
-  description: string
-  prompt: string
-  category: "communication" | "analysis" | "automation" | "other"
-  createdAt: string
-  updatedAt: string
-}
-
-// Mock training documents
-const mockTrainingDocs: TrainingDocument[] = [
-  {
-    id: "td-1",
-    name: "Agency SOPs.pdf",
-    type: "pdf",
-    size: "2.4 MB",
-    uploadedAt: "2024-01-10",
-    status: "indexed",
-  },
-  {
-    id: "td-2",
-    name: "Client Communication Guidelines.docx",
-    type: "docx",
-    size: "456 KB",
-    uploadedAt: "2024-01-08",
-    status: "indexed",
-  },
-  {
-    id: "td-3",
-    name: "Ad Platform Best Practices.md",
-    type: "md",
-    size: "128 KB",
-    uploadedAt: "2024-01-05",
-    status: "pending",
-  },
-]
-
-// Mock custom prompts
-const mockPrompts: CustomPrompt[] = [
-  {
-    id: "p-1",
-    name: "Client Status Summary",
-    description: "Generate a weekly status summary for a client",
-    prompt: "Summarize the past week's performance for {{client_name}}, including key metrics, wins, and areas for improvement. Keep it concise and actionable.",
-    category: "communication",
-    createdAt: "2024-01-10",
-    updatedAt: "2024-01-10",
-  },
-  {
-    id: "p-2",
-    name: "Ad Performance Analysis",
-    description: "Analyze ad campaign performance and suggest optimizations",
-    prompt: "Analyze the performance of {{campaign_name}} campaign. Identify top performing ads, underperformers, and provide 3-5 specific optimization recommendations.",
-    category: "analysis",
-    createdAt: "2024-01-08",
-    updatedAt: "2024-01-09",
-  },
-]
 
 const PROMPT_CATEGORIES = [
   { value: "communication", label: "Communication" },
@@ -127,213 +59,9 @@ const PROMPT_CATEGORIES = [
   { value: "other", label: "Other" },
 ]
 
-// Chat filter types for conversation view
-type ChatFilterTab = "all" | "chat" | "ai" | "system"
+// Chat filter types for conversation view (System tab removed — DB only has user/assistant roles)
+type ChatFilterTab = "all" | "chat" | "ai"
 
-// Chat sessions with timestamps for history view
-interface ChatSession {
-  id: string
-  title: string
-  timestamp: string
-  activities: {
-    id: string
-    type: ActivityType
-    actor: { name: string; initials: string; color?: string }
-    timestamp: string
-    content?: string
-    metadata?: { from?: string; to?: string; fileName?: string }
-  }[]
-}
-
-const mockChatSessions: ChatSession[] = [
-  {
-    id: "session-1",
-    title: "Client Risk Analysis",
-    timestamp: "Today, 2:30 PM",
-    activities: [
-      {
-        id: "ai-1",
-        type: "comment" as ActivityType,
-        actor: { name: "You", initials: "YU", color: "bg-blue-600" },
-        timestamp: "2:30 PM",
-        content: "Show me clients at risk of churning",
-      },
-      {
-        id: "ai-2",
-        type: "mention" as ActivityType,
-        actor: { name: "Diii Assistant", initials: "AI", color: "bg-primary" },
-        timestamp: "2:30 PM",
-        content: "Found 3 at-risk clients: Beardbrand (6d in Needs Support), Allbirds (high urgency ticket), MVMT Watches (120d in Live with declining engagement).",
-      },
-    ],
-  },
-  {
-    id: "session-2",
-    title: "Support Ticket Review",
-    timestamp: "Today, 1:15 PM",
-    activities: [
-      {
-        id: "ai-3",
-        type: "comment" as ActivityType,
-        actor: { name: "You", initials: "YU", color: "bg-blue-600" },
-        timestamp: "1:15 PM",
-        content: "What are my open support tickets?",
-      },
-      {
-        id: "ai-4",
-        type: "mention" as ActivityType,
-        actor: { name: "Diii Assistant", initials: "AI", color: "bg-primary" },
-        timestamp: "1:16 PM",
-        content: "You have 5 open tickets. 2 are urgent: TKT-001 (Pixel tracking) and TKT-004 (Page speed). Would you like me to summarize them?",
-      },
-    ],
-  },
-  {
-    id: "session-3",
-    title: "Document Indexing",
-    timestamp: "Today, 10:00 AM",
-    activities: [
-      {
-        id: "ai-5",
-        type: "status_change" as ActivityType,
-        actor: { name: "System", initials: "SY", color: "bg-slate-500" },
-        timestamp: "10:00 AM",
-        metadata: { from: "Pending", to: "Indexed" },
-      },
-      {
-        id: "ai-6",
-        type: "attachment" as ActivityType,
-        actor: { name: "System", initials: "SY", color: "bg-slate-500" },
-        timestamp: "9:45 AM",
-        metadata: { fileName: "Q4 Strategy Deck.pdf" },
-      },
-    ],
-  },
-  {
-    id: "session-4",
-    title: "Email Draft Request",
-    timestamp: "Yesterday, 4:30 PM",
-    activities: [
-      {
-        id: "ai-7",
-        type: "comment" as ActivityType,
-        actor: { name: "You", initials: "YU", color: "bg-blue-600" },
-        timestamp: "4:30 PM",
-        content: "Draft a follow-up email for Brooklinen about their campaign performance",
-      },
-      {
-        id: "ai-8",
-        type: "mention" as ActivityType,
-        actor: { name: "Diii Assistant", initials: "AI", color: "bg-primary" },
-        timestamp: "4:31 PM",
-        content: "I've drafted an email highlighting their 23% CTR improvement and suggesting next steps for Q1. Would you like to review it?",
-      },
-    ],
-  },
-]
-
-// Note: Chat activities are computed inline per session
-
-// Generate mock firehose items for Intelligence Center Activity
-function generateMockActivityFirehose(): FirehoseItemData[] {
-  const now = new Date()
-  const items: FirehoseItemData[] = [
-    {
-      id: "task-1",
-      severity: "warning" as const,
-      title: "Review Weekly Report",
-      description: "RTA Outdoor Living weekly performance report ready for review",
-      timestamp: new Date(now.getTime() - 30 * 60 * 1000),
-      clientName: "RTA Outdoor Living",
-      assignee: "Trevor",
-      targetTab: "tasks" as const,
-    },
-    {
-      id: "task-2",
-      severity: "info" as const,
-      title: "Approve Draft Reply",
-      description: "AI drafted response to Allbirds iOS tracking question",
-      timestamp: new Date(now.getTime() - 60 * 60 * 1000),
-      clientName: "Allbirds",
-      assignee: "Brent",
-      targetTab: "tasks" as const,
-    },
-    {
-      id: "alert-1",
-      severity: "critical" as const,
-      title: "Client at Risk",
-      description: "Beardbrand needs immediate attention - Conversion tracking broken",
-      timestamp: new Date(now.getTime() - 1 * 60 * 60 * 1000),
-      clientName: "Beardbrand",
-      targetTab: "alerts" as const,
-    },
-    {
-      id: "alert-2",
-      severity: "critical" as const,
-      title: "Client at Risk",
-      description: "Brooklinen needs immediate attention - Theme compatibility issues",
-      timestamp: new Date(now.getTime() - 1 * 60 * 60 * 1000),
-      clientName: "Brooklinen",
-      targetTab: "alerts" as const,
-    },
-    {
-      id: "client-1",
-      severity: "warning" as const,
-      title: "Needs Attention",
-      description: "RTA Outdoor Living - review recommended",
-      timestamp: new Date(now.getTime() - 2 * 60 * 60 * 1000),
-      clientName: "RTA Outdoor Living",
-      targetTab: "clients" as const,
-    },
-    {
-      id: "client-2",
-      severity: "info" as const,
-      title: "Stage Move",
-      description: "Beardbrand moved to Needs Support",
-      timestamp: new Date(now.getTime() - 4 * 60 * 60 * 1000),
-      clientName: "Beardbrand",
-      targetTab: "clients" as const,
-    },
-    {
-      id: "perf-1",
-      severity: "critical" as const,
-      title: "Budget Cap Hit",
-      description: "Beardbrand hit daily budget cap at 2PM. Campaigns paused.",
-      timestamp: new Date(now.getTime() - 4 * 60 * 60 * 1000),
-      clientName: "Beardbrand",
-      targetTab: "performance" as const,
-    },
-    {
-      id: "perf-2",
-      severity: "warning" as const,
-      title: "ROAS Dropped 10%",
-      description: "Brooklinen ROAS decreased from 3.2 to 2.9 this week",
-      timestamp: new Date(now.getTime() - 6 * 60 * 60 * 1000),
-      clientName: "Brooklinen",
-      targetTab: "performance" as const,
-    },
-    {
-      id: "client-3",
-      severity: "info" as const,
-      title: "Installation Complete",
-      description: "RTA Outdoor Living installation finished, awaiting DNS",
-      timestamp: new Date(now.getTime() - 20 * 60 * 60 * 1000),
-      clientName: "RTA Outdoor Living",
-      targetTab: "clients" as const,
-    },
-    {
-      id: "task-3",
-      severity: "info" as const,
-      title: "Monthly Report Due",
-      description: "MVMT Watches monthly performance report due tomorrow",
-      timestamp: new Date(now.getTime() - 22 * 60 * 60 * 1000),
-      clientName: "MVMT Watches",
-      assignee: "Trevor",
-      targetTab: "tasks" as const,
-    },
-  ]
-  return items.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-}
 
 interface IntelligenceCenterProps {
   onBack?: () => void
@@ -344,49 +72,41 @@ interface IntelligenceCenterProps {
 export function IntelligenceCenter({ onBack, initialSection = "overview", initialCartridgeTab }: IntelligenceCenterProps) {
   const [activeSection, setActiveSection] = useState(initialSection)
   const [chatFilter, setChatFilter] = useState<ChatFilterTab>("all")
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null)
 
-  // Training Data state
-  const [trainingDocs, setTrainingDocs] = useState<TrainingDocument[]>(mockTrainingDocs)
+  // Chat History — real data from Supabase
+  const roleFilter = chatFilter === "chat" ? "user" as const : chatFilter === "ai" ? "assistant" as const : undefined
+  const { data: sessionsData, isLoading: isLoadingSessions } = useChatSessions()
+  const { data: messagesData, isLoading: isLoadingMessages } = useChatMessages(expandedSessionId, roleFilter)
+
+  // Training Documents — real data from /api/v1/documents
+  const { data: docsData, isLoading: isLoadingDocs } = useTrainingDocuments()
+  const uploadDoc = useUploadTrainingDocument()
+  const deleteDoc = useDeleteTrainingDocument()
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
 
-  // Custom Prompts state
-  const [prompts, setPrompts] = useState<CustomPrompt[]>(mockPrompts)
+  // Custom Prompts — real data from /api/v1/prompts
+  const { data: promptsData, isLoading: isLoadingPrompts } = useCustomPrompts()
+  const createPrompt = useCreatePrompt()
+  const updatePrompt = useUpdatePrompt()
+  const deletePromptMutation = useDeletePrompt()
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false)
-  const [editingPrompt, setEditingPrompt] = useState<CustomPrompt | null>(null)
+  const [editingPrompt, setEditingPrompt] = useState<CustomPromptRow | null>(null)
   const [promptForm, setPromptForm] = useState({
     name: "",
     description: "",
     prompt: "",
-    category: "other" as CustomPrompt["category"],
+    category: "other",
   })
 
-  // Training Data handlers
-  const handleDeleteTrainingDoc = (id: string) => {
-    setTrainingDocs((prev) => prev.filter((doc) => doc.id !== id))
-  }
-
-  const handleUploadComplete = () => {
-    // Simulate adding a new document
-    const newDoc: TrainingDocument = {
-      id: `td-${Date.now()}`,
-      name: "New Document.pdf",
-      type: "pdf",
-      size: "1.2 MB",
-      uploadedAt: new Date().toISOString().split("T")[0],
-      status: "pending",
-    }
-    setTrainingDocs((prev) => [newDoc, ...prev])
-    setIsUploadModalOpen(false)
-  }
-
   // Custom Prompts handlers
-  const handleOpenPromptModal = (prompt?: CustomPrompt) => {
+  const handleOpenPromptModal = (prompt?: CustomPromptRow) => {
     if (prompt) {
       setEditingPrompt(prompt)
       setPromptForm({
         name: prompt.name,
-        description: prompt.description,
-        prompt: prompt.prompt,
+        description: prompt.description || "",
+        prompt: prompt.prompt_template,
         category: prompt.category,
       })
     } else {
@@ -415,38 +135,30 @@ export function IntelligenceCenter({ onBack, initialSection = "overview", initia
   const handleSavePrompt = () => {
     if (!promptForm.name.trim() || !promptForm.prompt.trim()) return
 
-    if (editingPrompt) {
-      // Update existing prompt
-      setPrompts((prev) =>
-        prev.map((p) =>
-          p.id === editingPrompt.id
-            ? {
-                ...p,
-                ...promptForm,
-                updatedAt: new Date().toISOString().split("T")[0],
-              }
-            : p
-        )
-      )
-    } else {
-      // Create new prompt
-      const newPrompt: CustomPrompt = {
-        id: `p-${Date.now()}`,
-        ...promptForm,
-        createdAt: new Date().toISOString().split("T")[0],
-        updatedAt: new Date().toISOString().split("T")[0],
-      }
-      setPrompts((prev) => [newPrompt, ...prev])
+    const input = {
+      name: promptForm.name,
+      description: promptForm.description,
+      prompt_template: promptForm.prompt,
+      category: promptForm.category,
     }
-    handleClosePromptModal()
+
+    if (editingPrompt) {
+      updatePrompt.mutate({ id: editingPrompt.id, ...input }, {
+        onSuccess: () => handleClosePromptModal(),
+      })
+    } else {
+      createPrompt.mutate(input, {
+        onSuccess: () => handleClosePromptModal(),
+      })
+    }
   }
 
   const handleDeletePrompt = (id: string) => {
-    setPrompts((prev) => prev.filter((p) => p.id !== id))
+    deletePromptMutation.mutate(id)
   }
 
-  // Generate firehose items for Activity feed
-  const firehoseItems = useMemo(() => generateMockActivityFirehose(), [])
+  // Activity Feed — real data from /api/v1/activity (polls every 30s)
+  const { data: activityItems, isLoading: isLoadingActivity } = useActivityFeed()
 
   // Note: Filtered activities are computed inline in the JSX for each session
 
@@ -576,7 +288,6 @@ export function IntelligenceCenter({ onBack, initialSection = "overview", initia
               { id: "all" as const, label: "All", icon: <History className="w-3.5 h-3.5" /> },
               { id: "chat" as const, label: "Your Messages", icon: <User className="w-3.5 h-3.5" /> },
               { id: "ai" as const, label: "AI Responses", icon: <Bot className="w-3.5 h-3.5" /> },
-              { id: "system" as const, label: "System", icon: <Settings className="w-3.5 h-3.5" /> },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -594,67 +305,158 @@ export function IntelligenceCenter({ onBack, initialSection = "overview", initia
             ))}
           </div>
 
-          {/* Sessions grouped by timestamp */}
-          <div className="space-y-4">
-            {mockChatSessions.map((session) => {
-              // Filter activities within session based on chat filter
-              const filteredActivities = session.activities.filter((activity) => {
-                if (chatFilter === "all") return true
-                if (chatFilter === "chat") return activity.actor.name === "You"
-                if (chatFilter === "ai") return activity.actor.name === "Diii Assistant"
-                if (chatFilter === "system") return activity.actor.name === "System"
-                return true
-              })
-
-              if (filteredActivities.length === 0) return null
-
-              return (
-                <div key={session.id} className="bg-card border border-border rounded-lg overflow-hidden">
-                  {/* Session Header */}
-                  <div className="px-4 py-2 bg-secondary/30 border-b border-border flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">{session.title}</span>
-                    <span className="text-xs text-muted-foreground">{session.timestamp}</span>
+          {/* Loading state */}
+          {isLoadingSessions && (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-card border border-border rounded-lg overflow-hidden animate-pulse">
+                  <div className="px-4 py-3 bg-secondary/30 border-b border-border">
+                    <div className="h-4 bg-muted rounded w-1/3" />
                   </div>
-                  {/* Session Activities */}
-                  <div className="p-4">
-                    <ActivityFeed activities={filteredActivities} />
+                  <div className="p-4 space-y-2">
+                    <div className="h-3 bg-muted rounded w-3/4" />
+                    <div className="h-3 bg-muted rounded w-1/2" />
                   </div>
                 </div>
-              )
-            })}
+              ))}
+            </div>
+          )}
 
-            {/* Empty state */}
-            {mockChatSessions.every((session) => {
-              const filteredActivities = session.activities.filter((activity) => {
-                if (chatFilter === "all") return true
-                if (chatFilter === "chat") return activity.actor.name === "You"
-                if (chatFilter === "ai") return activity.actor.name === "Diii Assistant"
-                if (chatFilter === "system") return activity.actor.name === "System"
-                return true
-              })
-              return filteredActivities.length === 0
-            }) && (
-              <div className="bg-card border border-border rounded-lg p-8 text-center">
-                <History className="w-8 h-8 mx-auto mb-2 text-muted-foreground opacity-50" />
-                <p className="text-sm text-muted-foreground">No sessions found for this filter.</p>
-              </div>
-            )}
-          </div>
+          {/* Sessions from real data */}
+          {!isLoadingSessions && sessionsData?.data && sessionsData.data.length > 0 && (
+            <div className="space-y-3">
+              {sessionsData.data.map((session) => {
+                const isExpanded = expandedSessionId === session.id
+                const sessionDate = session.last_message_at
+                  ? new Date(session.last_message_at)
+                  : new Date(session.created_at)
+                const isToday = new Date().toDateString() === sessionDate.toDateString()
+                const timeStr = sessionDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+                const dateStr = isToday ? `Today, ${timeStr}` : sessionDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + `, ${timeStr}`
+
+                return (
+                  <div key={session.id} className="bg-card border border-border rounded-lg overflow-hidden">
+                    {/* Session Header — clickable to expand */}
+                    <button
+                      onClick={() => setExpandedSessionId(isExpanded ? null : session.id)}
+                      className="w-full px-4 py-2.5 bg-secondary/30 border-b border-border flex items-center justify-between hover:bg-secondary/50 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        {isExpanded ? (
+                          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                        )}
+                        <span className="text-sm font-medium text-foreground">
+                          {session.title || "Untitled Chat"}
+                        </span>
+                        {session.is_active && (
+                          <Badge variant="secondary" className="text-[10px] bg-green-500/10 text-green-600">
+                            Active
+                          </Badge>
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">{dateStr}</span>
+                    </button>
+
+                    {/* Expanded: Show messages */}
+                    {isExpanded && (
+                      <div className="p-4">
+                        {isLoadingMessages ? (
+                          <div className="flex items-center justify-center py-4">
+                            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                            <span className="ml-2 text-xs text-muted-foreground">Loading messages...</span>
+                          </div>
+                        ) : messagesData?.data && messagesData.data.length > 0 ? (
+                          <div className="space-y-3">
+                            {messagesData.data.map((message) => (
+                              <div key={message.id} className="flex gap-3">
+                                {/* Avatar */}
+                                <div
+                                  className={cn(
+                                    "w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-medium text-white shrink-0 mt-0.5",
+                                    message.role === "user" ? "bg-blue-600" : "bg-primary"
+                                  )}
+                                >
+                                  {message.role === "user" ? (
+                                    <User className="w-3.5 h-3.5" />
+                                  ) : (
+                                    <Bot className="w-3.5 h-3.5" />
+                                  )}
+                                </div>
+                                {/* Message content */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-0.5">
+                                    <span className="text-xs font-medium">
+                                      {message.role === "user" ? "You" : "AI Assistant"}
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground">
+                                      {new Date(message.created_at).toLocaleTimeString("en-US", {
+                                        hour: "numeric",
+                                        minute: "2-digit",
+                                      })}
+                                    </span>
+                                    {message.route_used && (
+                                      <Badge variant="outline" className="text-[9px] h-4 px-1">
+                                        {message.route_used}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">
+                                    {message.content}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground text-center py-4">
+                            No messages match this filter.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Empty state — no sessions at all */}
+          {!isLoadingSessions && (!sessionsData?.data || sessionsData.data.length === 0) && (
+            <div className="bg-card border border-border rounded-lg p-8 text-center">
+              <History className="w-8 h-8 mx-auto mb-2 text-muted-foreground opacity-50" />
+              <p className="text-sm font-medium mb-1">No chat sessions yet</p>
+              <p className="text-xs text-muted-foreground">
+                Start a conversation with the AI assistant to see your history here.
+              </p>
+            </div>
+          )}
         </SettingsContentSection>
       )}
 
       {activeSection === "activity" && (
         <SettingsContentSection title="Activity">
           <div className="h-[500px]">
-            <FirehoseFeed
-              items={firehoseItems}
-              onItemClick={(item) => {
-                // Navigate to appropriate section based on target tab
-                if (item.targetTab === "alerts") {
-                  setActiveSection("history")
-                }
-              }}
-            />
+            {isLoadingActivity ? (
+              <div className="flex items-center justify-center h-full">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : activityItems && activityItems.length > 0 ? (
+              <FirehoseFeed
+                items={activityItems}
+                onItemClick={(item) => {
+                  if (item.targetTab === "alerts") {
+                    setActiveSection("history")
+                  }
+                }}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                <Zap className="h-8 w-8 mb-2 opacity-50" />
+                <p className="text-sm">No recent activity</p>
+              </div>
+            )}
           </div>
         </SettingsContentSection>
       )}
@@ -675,9 +477,22 @@ export function IntelligenceCenter({ onBack, initialSection = "overview", initia
             </Button>
           }
         >
-          {prompts.length > 0 ? (
+          {/* Loading state */}
+          {isLoadingPrompts && (
             <div className="space-y-3">
-              {prompts.map((prompt) => (
+              {[1, 2].map((i) => (
+                <div key={i} className="bg-card border border-border rounded-lg p-4 animate-pulse">
+                  <div className="h-4 bg-muted rounded w-1/3 mb-2" />
+                  <div className="h-3 bg-muted rounded w-2/3 mb-2" />
+                  <div className="h-6 bg-muted rounded w-full" />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!isLoadingPrompts && promptsData?.data && promptsData.data.length > 0 ? (
+            <div className="space-y-3">
+              {promptsData.data.map((prompt) => (
                 <div
                   key={prompt.id}
                   onClick={() => handleOpenPromptModal(prompt)}
@@ -693,7 +508,7 @@ export function IntelligenceCenter({ onBack, initialSection = "overview", initia
                       </div>
                       <p className="text-xs text-muted-foreground mb-2">{prompt.description}</p>
                       <p className="text-xs text-muted-foreground/70 font-mono bg-secondary/50 px-2 py-1 rounded truncate">
-                        {prompt.prompt}
+                        {prompt.prompt_template}
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
@@ -701,7 +516,10 @@ export function IntelligenceCenter({ onBack, initialSection = "overview", initia
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7"
-                        onClick={() => handleOpenPromptModal(prompt)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleOpenPromptModal(prompt)
+                        }}
                       >
                         <Edit2 className="h-3.5 w-3.5" />
                       </Button>
@@ -709,7 +527,11 @@ export function IntelligenceCenter({ onBack, initialSection = "overview", initia
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 text-destructive hover:text-destructive"
-                        onClick={() => handleDeletePrompt(prompt.id)}
+                        disabled={deletePromptMutation.isPending}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeletePrompt(prompt.id)
+                        }}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -718,7 +540,7 @@ export function IntelligenceCenter({ onBack, initialSection = "overview", initia
                 </div>
               ))}
             </div>
-          ) : (
+          ) : !isLoadingPrompts ? (
             <div className="bg-card border border-border rounded-lg p-8 text-center">
               <FileSearch className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-medium mb-2">No Custom Prompts</h3>
@@ -730,7 +552,7 @@ export function IntelligenceCenter({ onBack, initialSection = "overview", initia
                 Create Your First Prompt
               </Button>
             </div>
-          )}
+          ) : null}
 
           {/* Prompt Modal */}
           <Dialog open={isPromptModalOpen} onOpenChange={handleClosePromptModal}>
@@ -774,7 +596,7 @@ export function IntelligenceCenter({ onBack, initialSection = "overview", initia
                       <button
                         key={cat.value}
                         onClick={() =>
-                          setPromptForm({ ...promptForm, category: cat.value as CustomPrompt["category"] })
+                          setPromptForm({ ...promptForm, category: cat.value })
                         }
                         className={cn(
                           "px-3 py-1.5 text-[11px] rounded-md transition-colors cursor-pointer",
@@ -810,9 +632,12 @@ export function IntelligenceCenter({ onBack, initialSection = "overview", initia
                 </Button>
                 <Button
                   onClick={handleSavePrompt}
-                  disabled={!promptForm.name.trim() || !promptForm.prompt.trim()}
+                  disabled={!promptForm.name.trim() || !promptForm.prompt.trim() || createPrompt.isPending || updatePrompt.isPending}
                   className="h-8 text-[11px]"
                 >
+                  {(createPrompt.isPending || updatePrompt.isPending) ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                  ) : null}
                   {editingPrompt ? "Save Changes" : "Create Prompt"}
                 </Button>
               </DialogFooter>
@@ -825,71 +650,107 @@ export function IntelligenceCenter({ onBack, initialSection = "overview", initia
         <SettingsContentSection
           title="AI Training Data"
           action={
-            <Button size="sm" onClick={() => setIsUploadModalOpen(true)} className="h-7 gap-1.5">
-              <Upload className="h-3.5 w-3.5" />
+            <Button size="sm" onClick={() => setIsUploadModalOpen(true)} className="h-7 gap-1.5" disabled={uploadDoc.isPending}>
+              {uploadDoc.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
               Upload
             </Button>
           }
         >
           <p className="text-xs text-muted-foreground mb-4">
-            Upload documents for AI to reference. This is separate from the main Knowledge Base.
+            Documents uploaded here are indexed by the AI for reference during conversations.
           </p>
 
-          {trainingDocs.length > 0 ? (
+          {/* Loading state */}
+          {isLoadingDocs && (
             <div className="space-y-2">
-              {trainingDocs.map((doc) => (
-                <div
-                  key={doc.id}
-                  onClick={() => console.log("View training doc:", doc.id)}
-                  className="flex items-center gap-3 p-3 bg-card border border-border rounded-lg hover:border-primary/30 transition-colors cursor-pointer"
-                >
-                  <div
-                    className={cn(
-                      "w-8 h-8 rounded-md flex items-center justify-center text-xs font-medium",
-                      doc.type === "pdf" && "bg-red-500/10 text-red-500",
-                      doc.type === "docx" && "bg-blue-500/10 text-blue-500",
-                      doc.type === "txt" && "bg-gray-500/10 text-gray-500",
-                      doc.type === "md" && "bg-purple-500/10 text-purple-500"
-                    )}
-                  >
-                    <FileText className="h-4 w-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{doc.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {doc.size} • Uploaded {doc.uploadedAt}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {doc.status === "indexed" && (
-                      <Badge variant="secondary" className="text-[10px] bg-green-500/10 text-green-600 gap-1">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Indexed
-                      </Badge>
-                    )}
-                    {doc.status === "pending" && (
-                      <Badge variant="secondary" className="text-[10px] bg-amber-500/10 text-amber-600">
-                        Pending
-                      </Badge>
-                    )}
-                    {doc.status === "failed" && (
-                      <Badge variant="secondary" className="text-[10px] bg-red-500/10 text-red-600">
-                        Failed
-                      </Badge>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-destructive hover:text-destructive"
-                      onClick={() => handleDeleteTrainingDoc(doc.id)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center gap-3 p-3 bg-card border border-border rounded-lg animate-pulse">
+                  <div className="w-8 h-8 rounded-md bg-muted" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-3.5 bg-muted rounded w-1/3" />
+                    <div className="h-3 bg-muted rounded w-1/4" />
                   </div>
                 </div>
               ))}
             </div>
-          ) : (
+          )}
+
+          {!isLoadingDocs && docsData?.data && docsData.data.length > 0 ? (
+            <div className="space-y-2">
+              {docsData.data.map((doc) => {
+                const mimeType = doc.mime_type || ""
+                const isDocx = mimeType.includes("document") || mimeType.includes("msword")
+                const isPdf = mimeType.includes("pdf")
+                const isMd = doc.file_name?.endsWith(".md")
+                const fileSizeStr = doc.file_size
+                  ? doc.file_size > 1024 * 1024
+                    ? `${(doc.file_size / (1024 * 1024)).toFixed(1)} MB`
+                    : `${(doc.file_size / 1024).toFixed(0)} KB`
+                  : "Unknown"
+
+                return (
+                  <div
+                    key={doc.id}
+                    className="flex items-center gap-3 p-3 bg-card border border-border rounded-lg hover:border-primary/30 transition-colors"
+                  >
+                    <div
+                      className={cn(
+                        "w-8 h-8 rounded-md flex items-center justify-center text-xs font-medium",
+                        isPdf && "bg-red-500/10 text-red-500",
+                        isDocx && "bg-blue-500/10 text-blue-500",
+                        isMd && "bg-purple-500/10 text-purple-500",
+                        !isPdf && !isDocx && !isMd && "bg-gray-500/10 text-gray-500"
+                      )}
+                    >
+                      <FileText className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{doc.title || doc.file_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {fileSizeStr} • {new Date(doc.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {doc.index_status === "indexed" && (
+                        <Badge variant="secondary" className="text-[10px] bg-green-500/10 text-green-600 gap-1">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Indexed
+                        </Badge>
+                      )}
+                      {doc.index_status === "indexing" && (
+                        <Badge variant="secondary" className="text-[10px] bg-blue-500/10 text-blue-600 gap-1">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Indexing
+                        </Badge>
+                      )}
+                      {doc.index_status === "pending" && (
+                        <Badge variant="secondary" className="text-[10px] bg-amber-500/10 text-amber-600">
+                          Pending
+                        </Badge>
+                      )}
+                      {doc.index_status === "failed" && (
+                        <Badge variant="secondary" className="text-[10px] bg-red-500/10 text-red-600">
+                          Failed
+                        </Badge>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive hover:text-destructive"
+                        disabled={deleteDoc.isPending}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          deleteDoc.mutate(doc.id)
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : !isLoadingDocs ? (
             <div className="bg-card border border-border rounded-lg p-8 text-center">
               <FileSearch className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-medium mb-2">No Training Data</h3>
@@ -901,9 +762,9 @@ export function IntelligenceCenter({ onBack, initialSection = "overview", initia
                 Upload First Document
               </Button>
             </div>
-          )}
+          ) : null}
 
-          {/* Upload Modal */}
+          {/* Upload Modal — real file input */}
           <Dialog open={isUploadModalOpen} onOpenChange={setIsUploadModalOpen}>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
@@ -914,25 +775,46 @@ export function IntelligenceCenter({ onBack, initialSection = "overview", initia
               </DialogHeader>
 
               <div className="py-4">
-                <div
-                  className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center hover:border-muted-foreground/50 transition-colors cursor-pointer"
-                  onClick={() => {
-                    // Trigger file input (simulated)
-                    handleUploadComplete()
-                  }}
+                <label
+                  className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center hover:border-muted-foreground/50 transition-colors cursor-pointer block"
                 >
-                  <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground mb-1">
-                    Click to upload or drag and drop
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    PDF, DOCX, TXT, MD (max 10MB)
-                  </p>
-                </div>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,.doc,.docx,.txt,.md"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        uploadDoc.mutate(file, {
+                          onSuccess: () => setIsUploadModalOpen(false),
+                        })
+                      }
+                    }}
+                  />
+                  {uploadDoc.isPending ? (
+                    <>
+                      <Loader2 className="w-8 h-8 mx-auto mb-2 text-muted-foreground animate-spin" />
+                      <p className="text-sm text-muted-foreground">Uploading...</p>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground mb-1">
+                        Click to select a file
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        PDF, DOCX, TXT, MD (max 50MB)
+                      </p>
+                    </>
+                  )}
+                </label>
+                {uploadDoc.isError && (
+                  <p className="text-xs text-destructive mt-2">{uploadDoc.error.message}</p>
+                )}
               </div>
 
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsUploadModalOpen(false)} className="h-8 text-[11px]">
+                <Button variant="outline" onClick={() => setIsUploadModalOpen(false)} className="h-8 text-[11px]" disabled={uploadDoc.isPending}>
                   Cancel
                 </Button>
               </DialogFooter>

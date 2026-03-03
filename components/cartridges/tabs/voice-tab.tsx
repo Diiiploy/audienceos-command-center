@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -39,6 +39,25 @@ export function VoiceTab() {
   const [voiceParams, setVoiceParams] = useState<VoiceParams>(getDefaultVoiceParams())
   const [isCreating, setIsCreating] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isLoadingCartridges, setIsLoadingCartridges] = useState(true)
+
+  // Load existing voice cartridges on mount
+  useEffect(() => {
+    const loadCartridges = async () => {
+      try {
+        const response = await fetch('/api/v1/cartridges/by-type/voice', { credentials: 'include' })
+        if (response.ok) {
+          const result = await response.json()
+          setVoiceCartridges(result.data || [])
+        }
+      } catch (error) {
+        console.error('[VoiceTab] Failed to load cartridges:', error)
+      } finally {
+        setIsLoadingCartridges(false)
+      }
+    }
+    loadCartridges()
+  }, [])
 
   const updateVoiceParams = (updates: Partial<VoiceParams>) => {
     setVoiceParams((prev) => ({
@@ -117,6 +136,14 @@ export function VoiceTab() {
     } finally {
       setIsSaving(false)
     }
+  }
+
+  if (isLoadingCartridges) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    )
   }
 
   return (

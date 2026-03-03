@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -33,6 +33,25 @@ export function InstructionsTab() {
   const [isUploading, setIsUploading] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteInstructionId, setDeleteInstructionId] = useState<string | null>(null)
+  const [isLoadingCartridges, setIsLoadingCartridges] = useState(true)
+
+  // Load existing instruction cartridges on mount
+  useEffect(() => {
+    const loadCartridges = async () => {
+      try {
+        const response = await fetch('/api/v1/cartridges/instructions', { credentials: 'include' })
+        if (response.ok) {
+          const result = await response.json()
+          setInstructionCartridges(result.cartridges || [])
+        }
+      } catch (error) {
+        console.error('[InstructionsTab] Failed to load cartridges:', error)
+      } finally {
+        setIsLoadingCartridges(false)
+      }
+    }
+    loadCartridges()
+  }, [])
 
   const handleCreate = async () => {
     if (!newName.trim()) return
@@ -225,6 +244,14 @@ export function InstructionsTab() {
       default:
         return "outline"
     }
+  }
+
+  if (isLoadingCartridges) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    )
   }
 
   return (

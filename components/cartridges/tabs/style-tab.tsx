@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,6 +30,25 @@ export function StyleTab() {
   const [isUploading, setIsUploading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [isLoadingCartridge, setIsLoadingCartridge] = useState(true)
+
+  // Load existing style cartridge on mount
+  useEffect(() => {
+    const loadCartridge = async () => {
+      try {
+        const response = await fetch('/api/v1/cartridges/style', { credentials: 'include' })
+        if (response.ok) {
+          const result = await response.json()
+          setStyleCartridge(result.style || null)
+        }
+      } catch (error) {
+        console.error('[StyleTab] Failed to load cartridge:', error)
+      } finally {
+        setIsLoadingCartridge(false)
+      }
+    }
+    loadCartridge()
+  }, [])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
@@ -155,6 +174,14 @@ export function StyleTab() {
     } finally {
       setIsDeleting(false)
     }
+  }
+
+  if (isLoadingCartridge) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    )
   }
 
   return (

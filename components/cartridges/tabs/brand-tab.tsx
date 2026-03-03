@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { fetchWithCsrf } from "@/lib/csrf"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -31,6 +31,38 @@ export function BrandTab() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [isUploadingLogo, setIsUploadingLogo] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [isLoadingCartridge, setIsLoadingCartridge] = useState(true)
+
+  // Load existing brand cartridge on mount
+  useEffect(() => {
+    const loadCartridge = async () => {
+      try {
+        const response = await fetch('/api/v1/cartridges/brand', { credentials: 'include' })
+        if (response.ok) {
+          const result = await response.json()
+          const brand = result.brand || result.data || null
+          if (brand) {
+            setBrandCartridge(brand)
+            setFormData({
+              name: brand.name || '',
+              companyName: brand.companyName || brand.company_name || '',
+              companyDescription: brand.companyDescription || brand.company_description || '',
+              companyTagline: brand.companyTagline || brand.company_tagline || '',
+              industry: brand.industry || '',
+              targetAudience: brand.targetAudience || brand.target_audience || '',
+              coreMessaging: brand.coreMessaging || brand.core_messaging || '',
+            })
+          }
+        }
+      } catch (error) {
+        console.error('[BrandTab] Failed to load cartridge:', error)
+      } finally {
+        setIsLoadingCartridge(false)
+      }
+    }
+    loadCartridge()
+  }, [])
+
   const [formData, setFormData] = useState({
     name: "",
     companyName: "",
@@ -193,6 +225,14 @@ export function BrandTab() {
   // Calculate word count for core messaging
   const wordCount = formData.coreMessaging.split(/\s+/).filter(Boolean).length
   const charCount = formData.coreMessaging.length
+
+  if (isLoadingCartridge) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">

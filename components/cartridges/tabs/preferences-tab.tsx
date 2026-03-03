@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -35,6 +35,38 @@ export function PreferencesTab() {
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [isLoadingCartridge, setIsLoadingCartridge] = useState(true)
+
+  // Load existing preferences cartridge on mount
+  useEffect(() => {
+    const loadCartridge = async () => {
+      try {
+        const response = await fetch('/api/v1/cartridges/preferences', { credentials: 'include' })
+        if (response.ok) {
+          const result = await response.json()
+          const prefs = Array.isArray(result) ? result[0] : null
+          if (prefs) {
+            setPreferencesCartridge(prefs)
+            setFormData({
+              language: prefs.language || 'English',
+              platform: prefs.platform || 'LinkedIn',
+              tone: prefs.tone || 'Professional',
+              contentLength: prefs.contentLength || prefs.content_length || 'Medium',
+              hashtagCount: prefs.hashtagCount || prefs.hashtag_count || 3,
+              emojiUsage: prefs.emojiUsage || prefs.emoji_usage || 'Moderate',
+              callToAction: prefs.callToAction || prefs.call_to_action || 'Subtle',
+              personalizationLevel: prefs.personalizationLevel || prefs.personalization_level || 'Medium',
+            })
+          }
+        }
+      } catch (error) {
+        console.error('[PreferencesTab] Failed to load cartridge:', error)
+      } finally {
+        setIsLoadingCartridge(false)
+      }
+    }
+    loadCartridge()
+  }, [])
 
   const handleSave = async () => {
     setIsSaving(true)
@@ -113,6 +145,14 @@ export function PreferencesTab() {
     value: typeof formData[K]
   ) => {
     setFormData((prev) => ({ ...prev, [key]: value }))
+  }
+
+  if (isLoadingCartridge) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    )
   }
 
   return (

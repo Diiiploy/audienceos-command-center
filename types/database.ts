@@ -1026,6 +1026,60 @@ export type Database = {
           },
         ]
       }
+      custom_prompt: {
+        Row: {
+          agency_id: string
+          category: string
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          prompt_template: string
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          category?: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          prompt_template: string
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          category?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          prompt_template?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_prompt_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agency"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_prompt_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document: {
         Row: {
           agency_id: string
