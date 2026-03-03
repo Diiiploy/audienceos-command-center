@@ -60,6 +60,7 @@ function transformStoreTicket(storeTicket: StoreTicket): Ticket {
     },
     priority: mapPriority(storeTicket.priority),
     status: mapStatus(storeTicket.status),
+    category: storeTicket.category,
     assignee: storeTicket.assignee ? {
       name: `${storeTicket.assignee.first_name || ""} ${storeTicket.assignee.last_name || ""}`.trim() || "Unassigned",
       initials: `${storeTicket.assignee.first_name?.[0] || ""}${storeTicket.assignee.last_name?.[0] || ""}`.toUpperCase() || "U",
@@ -407,8 +408,8 @@ export function SupportTickets() {
         <ListHeader
           title="Support Tickets"
           count={filteredTickets.length}
-          onSearch={!selectedTicketId ? setSearchQuery : undefined}
-          searchValue={!selectedTicketId ? searchQuery : undefined}
+          onSearch={setSearchQuery}
+          searchValue={searchQuery}
           searchPlaceholder="Search tickets..."
           actions={
             <Button
@@ -422,27 +423,25 @@ export function SupportTickets() {
           }
         />
 
-        {/* Filter tabs - hide when compact */}
-        {!selectedTicketId && (
-          <div className="flex items-center gap-1 px-4 py-2 border-b border-border overflow-x-auto">
-            {filterTabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveFilter(tab.id)}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap cursor-pointer",
-                  activeFilter === tab.id
-                    ? "bg-secondary text-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                )}
-              >
-                {tab.icon}
-                <span>{tab.label}</span>
-                <span className="text-xs text-muted-foreground">({tab.count})</span>
-              </button>
-            ))}
-          </div>
-        )}
+        {/* Filter tabs */}
+        <div className="flex items-center gap-1 px-4 py-2 border-b border-border overflow-x-auto">
+          {filterTabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveFilter(tab.id)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap cursor-pointer",
+                activeFilter === tab.id
+                  ? "bg-secondary text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+              )}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+              <span className="text-xs text-muted-foreground">({tab.count})</span>
+            </button>
+          ))}
+        </div>
 
         {/* Ticket list - scrollable */}
         <div className="flex-1 overflow-y-auto">

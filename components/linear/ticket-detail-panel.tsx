@@ -10,7 +10,6 @@ import { fetchWithCsrf } from "@/lib/csrf"
 import {
   X,
   MoreHorizontal,
-  ExternalLink,
   Clock,
   User,
   Tag,
@@ -76,6 +75,7 @@ interface Ticket {
   }
   priority: TicketPriority
   status: TicketStatus
+  category?: string
   assignee?: {
     name: string
     initials: string
@@ -208,9 +208,6 @@ export function TicketDetailPanel({
     setTimeout(() => setShowDeleteModal(true), 0)
   }
 
-  const handleOpenExternal = () => {
-    window.open(`/tickets/${ticket.id}`, '_blank')
-  }
 
   return (
     <div
@@ -233,12 +230,6 @@ export function TicketDetailPanel({
           </span>
         </div>
         <div className="flex items-center gap-1">
-          <button
-            onClick={handleOpenExternal}
-            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded transition-colors cursor-pointer"
-          >
-            <ExternalLink className="w-4 h-4" />
-          </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-7 w-7">
@@ -388,6 +379,19 @@ export function TicketDetailPanel({
             >
               {priorityLabels[ticket.priority]}
             </span>
+
+            {/* Category */}
+            {ticket.category && (
+              <>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Tag className="w-4 h-4" />
+                  <span>Category</span>
+                </div>
+                <span className="text-xs px-2 py-0.5 rounded border border-border font-medium w-fit text-foreground capitalize">
+                  {ticket.category}
+                </span>
+              </>
+            )}
 
             {/* Due date */}
             {ticket.dueDate && (
