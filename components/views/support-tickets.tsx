@@ -81,7 +81,8 @@ interface FilterTabConfig {
 }
 
 export function SupportTickets() {
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null)
+  const [ticketActivities, setTicketActivities] = useState<Ticket["activities"]>([])
   const [activeFilter, setActiveFilter] = useState<FilterTab>("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [isSubmittingComment, setIsSubmittingComment] = useState(false)
@@ -99,15 +100,30 @@ export function SupportTickets() {
     fetchTickets()
   }, [fetchTickets])
 
-  // Load ticket notes when a ticket is selected
+  // Transform store tickets to display format
+  const displayTickets = useMemo(() => {
+    return storeTickets.map(transformStoreTicket)
+  }, [storeTickets])
+
+  // Derive selectedTicket from the live store data + separately-loaded activities
+  const selectedTicket = useMemo(() => {
+    const ticket = displayTickets.find(t => t.id === selectedTicketId) ?? null
+    if (!ticket) return null
+    return { ...ticket, activities: ticketActivities }
+  }, [displayTickets, selectedTicketId, ticketActivities])
+
+  // Load ticket notes when a different ticket is selected
   useEffect(() => {
-    if (!selectedTicket) return
+    if (!selectedTicketId) {
+      setTicketActivities([])
+      return
+    }
 
     const loadTicketNotes = async () => {
       setIsLoadingNotes(true)
       try {
         const response = await fetch(
-          `/api/v1/tickets/${selectedTicket.id}/notes`,
+          `/api/v1/tickets/${selectedTicketId}/notes`,
           { credentials: 'include' }
         )
 
@@ -127,8 +143,7 @@ export function SupportTickets() {
             content: note.content,
           }))
 
-          // Update selected ticket with loaded notes
-          setSelectedTicket((prev) => prev ? { ...prev, activities } : null)
+          setTicketActivities(activities)
         }
       } catch (error) {
         console.error('Failed to load ticket notes:', error)
@@ -138,12 +153,7 @@ export function SupportTickets() {
     }
 
     loadTicketNotes()
-  }, [selectedTicket?.id])
-
-  // Transform store tickets to display format
-  const displayTickets = useMemo(() => {
-    return storeTickets.map(transformStoreTicket)
-  }, [storeTickets])
+  }, [selectedTicketId])
 
   // Calculate counts
   const counts = useMemo(() => {
@@ -191,12 +201,12 @@ export function SupportTickets() {
   }, [activeFilter, searchQuery, displayTickets])
 
   const handleComment = async (content: string) => {
-    if (!selectedTicket || !content.trim()) return
+    if (!selectedTicketId || !content.trim()) return
 
     setIsSubmittingComment(true)
     try {
       const response = await fetchWithCsrf(
-        `/api/v1/tickets/${selectedTicket.id}/notes`,
+        `/api/v1/tickets/${selectedTicketId}/notes`,
         {
           method: 'POST',
           body: JSON.stringify({
@@ -219,7 +229,7 @@ export function SupportTickets() {
 
       // Reload notes for the selected ticket to show the new comment
       const notesResponse = await fetch(
-        `/api/v1/tickets/${selectedTicket.id}/notes`,
+        `/api/v1/tickets/${selectedTicketId}/notes`,
         { credentials: 'include' }
       )
 
@@ -237,7 +247,7 @@ export function SupportTickets() {
           content: note.content,
         }))
 
-        setSelectedTicket((prev) => prev ? { ...prev, activities } : null)
+        setTicketActivities(activities)
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to post comment'
@@ -252,7 +262,7 @@ export function SupportTickets() {
   }
 
   const handleStatusChange = async (newStatus: "open" | "in_progress" | "waiting" | "resolved" | "closed") => {
-    if (!selectedTicket) return
+    if (!selectedTicketId) return
 
     // Map UI status to API status
     const statusMap: Record<string, string> = {
@@ -264,7 +274,7 @@ export function SupportTickets() {
     }
 
     try {
-      const response = await fetchWithCsrf(`/api/v1/tickets/${selectedTicket.id}`, {
+      const response = await fetchWithCsrf(`/api/v1/tickets/${selectedTicketId}`, {
         method: 'PATCH',
         body: JSON.stringify({ status: statusMap[newStatus] }),
       })
@@ -274,14 +284,14 @@ export function SupportTickets() {
         throw new Error(errorData.error || 'Failed to update status')
       }
 
-      // Update local state
-      setSelectedTicket((prev) => prev ? { ...prev, status: newStatus } : null)
-
       toast({
         title: 'Status updated',
         description: `Ticket status changed to ${newStatus}`,
         variant: 'default',
       })
+
+      // Refresh store so panel and list both reflect the new status
+      await fetchTickets()
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update status'
       toast({
@@ -293,10 +303,10 @@ export function SupportTickets() {
   }
 
   const handlePriorityChange = async (newPriority: "low" | "medium" | "high" | "urgent") => {
-    if (!selectedTicket) return
+    if (!selectedTicketId) return
 
     try {
-      const response = await fetchWithCsrf(`/api/v1/tickets/${selectedTicket.id}`, {
+      const response = await fetchWithCsrf(`/api/v1/tickets/${selectedTicketId}`, {
         method: 'PATCH',
         body: JSON.stringify({ priority: newPriority }),
       })
@@ -306,14 +316,14 @@ export function SupportTickets() {
         throw new Error(errorData.error || 'Failed to update priority')
       }
 
-      // Update local state
-      setSelectedTicket((prev) => prev ? { ...prev, priority: newPriority } : null)
-
       toast({
         title: 'Priority updated',
         description: `Ticket priority changed to ${newPriority}`,
         variant: 'default',
       })
+
+      // Refresh store so panel and list both reflect the new priority
+      await fetchTickets()
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update priority'
       toast({
@@ -334,8 +344,8 @@ export function SupportTickets() {
         <ListHeader
           title="Support Tickets"
           count={filteredTickets.length}
-          onSearch={!selectedTicket ? setSearchQuery : undefined}
-          searchValue={!selectedTicket ? searchQuery : undefined}
+          onSearch={!selectedTicketId ? setSearchQuery : undefined}
+          searchValue={!selectedTicketId ? searchQuery : undefined}
           searchPlaceholder="Search tickets..."
           actions={
             <Button
@@ -350,7 +360,7 @@ export function SupportTickets() {
         />
 
         {/* Filter tabs - hide when compact */}
-        {!selectedTicket && (
+        {!selectedTicketId && (
           <div className="flex items-center gap-1 px-4 py-2 border-b border-border overflow-x-auto">
             {filterTabs.map((tab) => (
               <button
@@ -385,9 +395,9 @@ export function SupportTickets() {
                 status={ticket.status}
                 timestamp={ticket.updatedAt}
                 unread={ticket.status === "open"}
-                selected={selectedTicket?.id === ticket.id}
+                selected={selectedTicketId === ticket.id}
                 compact={false}
-                onClick={() => setSelectedTicket(ticket)}
+                onClick={() => setSelectedTicketId(ticket.id)}
               />
             ))
           ) : (
@@ -412,7 +422,7 @@ export function SupportTickets() {
           >
             <TicketDetailPanel
               ticket={selectedTicket}
-              onClose={() => setSelectedTicket(null)}
+              onClose={() => setSelectedTicketId(null)}
               onComment={handleComment}
               onStatusChange={handleStatusChange}
               onPriorityChange={handlePriorityChange}
