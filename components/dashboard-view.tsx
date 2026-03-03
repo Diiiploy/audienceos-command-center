@@ -1280,7 +1280,7 @@ export function DashboardView({ clients, onClientClick, onOpenClientDetail, onSe
             {/* Ad Performance KPI Cards */}
             {adPerfLoading ? (
               <AdPerformanceCardsSkeleton />
-            ) : adPerformance && adPerformance.totalSpend > 0 ? (
+            ) : adPerformance && (adPerformance.totalSpend > 0 || adPerformance.totalImpressions > 0) ? (
               <AdPerformanceCards data={adPerformance} />
             ) : null}
 
@@ -1290,7 +1290,7 @@ export function DashboardView({ clients, onClientClick, onOpenClientDetail, onSe
                 <div className="col-span-3"><AdSpendChartSkeleton /></div>
                 <div className="col-span-2"><PlatformBreakdownSkeleton /></div>
               </div>
-            ) : adPerformance && adPerformance.totalSpend > 0 ? (
+            ) : adPerformance && (adPerformance.totalSpend > 0 || adPerformance.totalImpressions > 0) ? (
               <div className="grid grid-cols-5 gap-3">
                 <div className="col-span-3">
                   <AdSpendChart data={adPerformance} />

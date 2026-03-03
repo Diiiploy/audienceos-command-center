@@ -125,8 +125,9 @@ export async function POST(request: NextRequest) {
 
   const payload = normalizePayload(rawPayload)
   if (!payload) {
-    console.error('[airbyte-webhook] Unrecognized payload format:', Object.keys(rawPayload))
-    return NextResponse.json({ error: 'Unrecognized payload format' }, { status: 400 })
+    // Airbyte Cloud test webhooks send minimal/empty payloads — return 200 so the test passes
+    console.log('[airbyte-webhook] Test/ping received:', Object.keys(rawPayload))
+    return NextResponse.json({ received: true, test: true })
   }
 
   const { webhookType, connectionId } = payload
