@@ -446,6 +446,16 @@ export function IntegrationsHub() {
     return [...integrations, ...futureIntegrations]
   }, [dbIntegrations])
 
+  // Keep selectedIntegration in sync when allIntegrations rebuilds (e.g. after refetch)
+  useEffect(() => {
+    if (selectedIntegration) {
+      const updated = allIntegrations.find(i => i.id === selectedIntegration.id)
+      if (updated && (updated.lastSyncRaw !== selectedIntegration.lastSyncRaw || updated.status !== selectedIntegration.status)) {
+        setSelectedIntegration(updated)
+      }
+    }
+  }, [allIntegrations, selectedIntegration])
+
   // Filter integrations by search and category
   const filteredIntegrations = useMemo(() => {
     let result = allIntegrations
