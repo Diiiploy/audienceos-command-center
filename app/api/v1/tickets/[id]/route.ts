@@ -3,7 +3,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createRouteHandlerClient } from '@/lib/supabase'
-import { withRateLimit, withCsrfProtection, isValidUUID, sanitizeString, createErrorResponse } from '@/lib/security'
+import { withRateLimit, withCsrfProtection, isValidUUID, isValidTicketNumber, sanitizeString, createErrorResponse } from '@/lib/security'
 import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission'
 import type { TicketCategory, TicketPriority } from '@/types/database'
 
@@ -24,9 +24,9 @@ export const GET = withPermission({ resource: 'tickets', action: 'read' })(
     try {
       const { id } = await params
 
-      // Validate UUID format
-      if (!isValidUUID(id)) {
-        return createErrorResponse(400, 'Invalid ticket ID format')
+      // Accept UUID or ticket number
+      if (!isValidUUID(id) && !isValidTicketNumber(id)) {
+        return createErrorResponse(400, 'Invalid ticket identifier')
       }
 
       const supabase = await createRouteHandlerClient(cookies)
@@ -34,8 +34,8 @@ export const GET = withPermission({ resource: 'tickets', action: 'read' })(
       // User already authenticated and authorized by middleware
       const agencyId = request.user.agencyId
 
-    // Fetch ticket with related data
-    const { data: ticket, error } = await supabase
+    // Fetch ticket with related data — look up by UUID or number
+    let query = supabase
       .from('ticket')
       .select(`
         *,
@@ -64,9 +64,15 @@ export const GET = withPermission({ resource: 'tickets', action: 'read' })(
           last_name
         )
       `)
-      .eq('id', id)
       .eq('agency_id', agencyId) // Multi-tenant isolation (SEC-007)
-      .single()
+
+    if (isValidUUID(id)) {
+      query = query.eq('id', id)
+    } else {
+      query = query.eq('number', parseInt(id, 10))
+    }
+
+    const { data: ticket, error } = await query.single()
 
     if (error) {
       if (error.code === 'PGRST116') {
@@ -99,15 +105,28 @@ export const PATCH = withPermission({ resource: 'tickets', action: 'write' })(
     try {
       const { id } = await params
 
-      // Validate UUID format
-      if (!isValidUUID(id)) {
-        return createErrorResponse(400, 'Invalid ticket ID format')
+      // Accept UUID or ticket number
+      if (!isValidUUID(id) && !isValidTicketNumber(id)) {
+        return createErrorResponse(400, 'Invalid ticket identifier')
       }
 
       const supabase = await createRouteHandlerClient(cookies)
 
       // User already authenticated and authorized by middleware
       const agencyId = request.user.agencyId
+
+      // Resolve ticket UUID if given a number
+      let ticketUUID = id
+      if (!isValidUUID(id)) {
+        const { data: found } = await supabase
+          .from('ticket')
+          .select('id')
+          .eq('number', parseInt(id, 10))
+          .eq('agency_id', agencyId)
+          .single()
+        if (!found) return createErrorResponse(404, 'Ticket not found')
+        ticketUUID = found.id
+      }
 
     let body: Record<string, unknown>
     try {
@@ -179,7 +198,7 @@ export const PATCH = withPermission({ resource: 'tickets', action: 'write' })(
     const { data: ticket, error } = await supabase
       .from('ticket')
       .update(updates)
-      .eq('id', id)
+      .eq('id', ticketUUID)
       .eq('agency_id', agencyId) // Multi-tenant isolation (SEC-007)
       .select(`
         *,
@@ -225,9 +244,9 @@ export const DELETE = withPermission({ resource: 'tickets', action: 'manage' })(
     try {
       const { id } = await params
 
-      // Validate UUID format
-      if (!isValidUUID(id)) {
-        return createErrorResponse(400, 'Invalid ticket ID format')
+      // Accept UUID or ticket number
+      if (!isValidUUID(id) && !isValidTicketNumber(id)) {
+        return createErrorResponse(400, 'Invalid ticket identifier')
       }
 
       const supabase = await createRouteHandlerClient(cookies)
@@ -235,11 +254,24 @@ export const DELETE = withPermission({ resource: 'tickets', action: 'manage' })(
       // User already authenticated and authorized by middleware
       const agencyId = request.user.agencyId
 
+      // Resolve ticket UUID if given a number
+      let ticketUUID = id
+      if (!isValidUUID(id)) {
+        const { data: found } = await supabase
+          .from('ticket')
+          .select('id')
+          .eq('number', parseInt(id, 10))
+          .eq('agency_id', agencyId)
+          .single()
+        if (!found) return createErrorResponse(404, 'Ticket not found')
+        ticketUUID = found.id
+      }
+
     // Delete ticket (notes will cascade due to FK)
     const { error } = await supabase
       .from('ticket')
       .delete()
-      .eq('id', id)
+      .eq('id', ticketUUID)
       .eq('agency_id', agencyId) // Multi-tenant isolation (SEC-007)
 
     if (error) {

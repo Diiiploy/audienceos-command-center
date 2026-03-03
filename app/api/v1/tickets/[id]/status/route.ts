@@ -3,7 +3,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createRouteHandlerClient } from '@/lib/supabase'
-import { withRateLimit, withCsrfProtection, isValidUUID, createErrorResponse } from '@/lib/security'
+import { withRateLimit, withCsrfProtection, isValidUUID, isValidTicketNumber, createErrorResponse } from '@/lib/security'
 import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission'
 import type { TicketStatus } from '@/types/database'
 
@@ -34,15 +34,28 @@ export const PATCH = withPermission({ resource: 'tickets', action: 'write' })(
     try {
       const { id } = await params
 
-      // Validate UUID format
-      if (!isValidUUID(id)) {
-        return createErrorResponse(400, 'Invalid ticket ID format')
+      // Accept UUID or ticket number
+      if (!isValidUUID(id) && !isValidTicketNumber(id)) {
+        return createErrorResponse(400, 'Invalid ticket identifier')
       }
 
       const supabase = await createRouteHandlerClient(cookies)
 
       // User already authenticated and authorized by middleware
       const agencyId = request.user.agencyId
+
+      // Resolve ticket UUID if given a number
+      let ticketUUID = id
+      if (!isValidUUID(id)) {
+        const { data: found } = await supabase
+          .from('ticket')
+          .select('id')
+          .eq('number', parseInt(id, 10))
+          .eq('agency_id', agencyId)
+          .single()
+        if (!found) return createErrorResponse(404, 'Ticket not found')
+        ticketUUID = found.id
+      }
 
     let body: Record<string, unknown>
     try {
@@ -62,7 +75,7 @@ export const PATCH = withPermission({ resource: 'tickets', action: 'write' })(
     const { data: currentTicket, error: fetchError } = await supabase
       .from('ticket')
       .select('status')
-      .eq('id', id)
+      .eq('id', ticketUUID)
       .eq('agency_id', agencyId) // Multi-tenant isolation (SEC-007)
       .single()
 
@@ -87,7 +100,7 @@ export const PATCH = withPermission({ resource: 'tickets', action: 'write' })(
     const { data: ticket, error: updateError } = await supabase
       .from('ticket')
       .update({ status: newStatus as TicketStatus })
-      .eq('id', id)
+      .eq('id', ticketUUID)
       .eq('agency_id', agencyId) // Multi-tenant isolation (SEC-007)
       .select(`
         *,

@@ -75,6 +75,7 @@ interface TicketActivity {
 
 interface Ticket {
   id: string
+  number?: number
   title: string
   description: string
   client: {
@@ -169,7 +170,7 @@ export function TicketDetailPanel({
   }
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/tickets/${ticket.id}`
+    const url = `${window.location.origin}/tickets/${ticket.number || ticket.id}`
     navigator.clipboard.writeText(url)
     toast({
       title: "Copied",
@@ -230,7 +231,7 @@ export function TicketDetailPanel({
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">#{ticket.id}</span>
+          <span className="text-sm text-muted-foreground">#{ticket.number || ticket.id.slice(0, 8)}</span>
           <span
             className={cn(
               "text-xs px-2 py-0.5 rounded border font-medium",

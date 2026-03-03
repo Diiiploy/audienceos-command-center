@@ -9,6 +9,7 @@ export type TicketStatus = "open" | "in_progress" | "waiting" | "resolved" | "cl
 
 interface InboxItemProps {
   id: string
+  number?: number
   title: string
   preview: string
   client: {
@@ -57,6 +58,7 @@ const statusLabels: Record<TicketStatus, string> = {
 
 export function InboxItem({
   id,
+  number,
   title,
   preview,
   client,
@@ -117,7 +119,7 @@ export function InboxItem({
             >
               {statusLabels[status]}
             </span>
-            <span className="text-[11px] text-muted-foreground">#{id}</span>
+            <span className="text-[11px] text-muted-foreground">#{number || id.slice(0, 8)}</span>
           </div>
         </div>
       </div>
@@ -203,7 +205,7 @@ export function InboxItem({
           </span>
 
           {/* Ticket ID */}
-          <span className="text-[10px] text-muted-foreground">#{id}</span>
+          <span className="text-[10px] text-muted-foreground">#{number || id.slice(0, 8)}</span>
         </div>
       </div>
     </div>

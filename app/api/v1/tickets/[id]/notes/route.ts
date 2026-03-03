@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createRouteHandlerClient } from '@/lib/supabase'
-import { withRateLimit, withCsrfProtection, isValidUUID, sanitizeString, createErrorResponse } from '@/lib/security'
+import { withRateLimit, withCsrfProtection, isValidUUID, isValidTicketNumber, sanitizeString, createErrorResponse } from '@/lib/security'
 import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission'
 
 // GET /api/v1/tickets/[id]/notes - List notes for a ticket
@@ -15,14 +15,30 @@ export const GET = withPermission({ resource: 'tickets', action: 'read' })(
     if (rateLimitResponse) return rateLimitResponse
 
     try {
-      const { id: ticketId } = await params
+      const { id: rawId } = await params
 
-      // Validate UUID format
-      if (!isValidUUID(ticketId)) {
-        return createErrorResponse(400, 'Invalid ticket ID format')
+      // Accept UUID or ticket number
+      if (!isValidUUID(rawId) && !isValidTicketNumber(rawId)) {
+        return createErrorResponse(400, 'Invalid ticket identifier')
       }
 
       const supabase = await createRouteHandlerClient(cookies)
+
+      // User already authenticated and authorized by middleware
+      const agencyId = request.user.agencyId
+
+      // Resolve ticket UUID if given a number
+      let ticketId = rawId
+      if (!isValidUUID(rawId)) {
+        const { data: found } = await supabase
+          .from('ticket')
+          .select('id')
+          .eq('number', parseInt(rawId, 10))
+          .eq('agency_id', agencyId)
+          .single()
+        if (!found) return createErrorResponse(404, 'Ticket not found')
+        ticketId = found.id
+      }
 
     // Get query params for filtering
     const { searchParams } = new URL(request.url)
@@ -75,17 +91,31 @@ export const POST = withPermission({ resource: 'tickets', action: 'write' })(
     if (csrfError) return csrfError
 
     try {
-      const { id: ticketId } = await params
+      const { id: rawId } = await params
 
-      // Validate UUID format
-      if (!isValidUUID(ticketId)) {
-        return createErrorResponse(400, 'Invalid ticket ID format')
+      // Accept UUID or ticket number
+      if (!isValidUUID(rawId) && !isValidTicketNumber(rawId)) {
+        return createErrorResponse(400, 'Invalid ticket identifier')
       }
 
       const supabase = await createRouteHandlerClient(cookies)
 
       // User already authenticated and authorized by middleware
       const userId = request.user.id
+      const agencyId = request.user.agencyId
+
+      // Resolve ticket UUID if given a number
+      let ticketId = rawId
+      if (!isValidUUID(rawId)) {
+        const { data: found } = await supabase
+          .from('ticket')
+          .select('id')
+          .eq('number', parseInt(rawId, 10))
+          .eq('agency_id', agencyId)
+          .single()
+        if (!found) return createErrorResponse(404, 'Ticket not found')
+        ticketId = found.id
+      }
 
     let body: Record<string, unknown>
     try {

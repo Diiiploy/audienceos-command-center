@@ -60,6 +60,7 @@ function mapPriority(storePriority: string): "low" | "medium" | "high" | "urgent
 function transformStoreTicket(storeTicket: StoreTicket): Ticket {
   return {
     id: storeTicket.id,
+    number: storeTicket.number,
     title: decodeHtmlEntities(storeTicket.title),
     description: decodeHtmlEntities(storeTicket.description || ""),
     client: {
@@ -222,7 +223,8 @@ export function SupportTickets() {
         (t) =>
           t.title.toLowerCase().includes(query) ||
           t.client.name.toLowerCase().includes(query) ||
-          t.id.toLowerCase().includes(query)
+          t.id.toLowerCase().includes(query) ||
+          (t.number && t.number.toString().includes(query))
       )
     }
 
@@ -373,7 +375,8 @@ export function SupportTickets() {
 
   const handleOpenTicket = () => {
     if (!selectedTicketId) return
-    router.push(`/tickets/${selectedTicketId}`)
+    const ticket = displayTickets.find(t => t.id === selectedTicketId)
+    router.push(`/tickets/${ticket?.number || selectedTicketId}`)
   }
 
   const handleEditTicket = () => {
@@ -465,6 +468,7 @@ export function SupportTickets() {
               <InboxItem
                 key={ticket.id}
                 id={ticket.id}
+                number={ticket.number}
                 title={ticket.title}
                 preview={ticket.description}
                 client={ticket.client}

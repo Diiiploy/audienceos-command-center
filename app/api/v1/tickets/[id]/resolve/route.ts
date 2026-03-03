@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createRouteHandlerClient } from '@/lib/supabase'
-import { withRateLimit, withCsrfProtection, isValidUUID, sanitizeString, createErrorResponse } from '@/lib/security'
+import { withRateLimit, withCsrfProtection, isValidUUID, isValidTicketNumber, sanitizeString, createErrorResponse } from '@/lib/security'
 import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission'
 
 // POST /api/v1/tickets/[id]/resolve - Resolve a ticket with mandatory final note
@@ -19,11 +19,11 @@ export const POST = withPermission({ resource: 'tickets', action: 'write' })(
     if (csrfError) return csrfError
 
     try {
-      const { id: ticketId } = await params
+      const { id: rawId } = await params
 
-      // Validate UUID format
-      if (!isValidUUID(ticketId)) {
-        return createErrorResponse(400, 'Invalid ticket ID format')
+      // Accept UUID or ticket number
+      if (!isValidUUID(rawId) && !isValidTicketNumber(rawId)) {
+        return createErrorResponse(400, 'Invalid ticket identifier')
       }
 
       const supabase = await createRouteHandlerClient(cookies)
@@ -31,6 +31,19 @@ export const POST = withPermission({ resource: 'tickets', action: 'write' })(
       // User already authenticated and authorized by middleware
       const agencyId = request.user.agencyId
       const userId = request.user.id
+
+      // Resolve ticket UUID if given a number
+      let ticketId = rawId
+      if (!isValidUUID(rawId)) {
+        const { data: found } = await supabase
+          .from('ticket')
+          .select('id')
+          .eq('number', parseInt(rawId, 10))
+          .eq('agency_id', agencyId)
+          .single()
+        if (!found) return createErrorResponse(404, 'Ticket not found')
+        ticketId = found.id
+      }
 
     let body: Record<string, unknown>
     try {

@@ -362,7 +362,7 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
   }
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/tickets/${ticketId}`
+    const url = `${window.location.origin}/tickets/${ticket?.number || ticketId}`
     navigator.clipboard.writeText(url)
     toast({ title: "Copied", description: "Ticket link copied to clipboard" })
   }
@@ -459,18 +459,8 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
               </Button>
 
               <div>
-                {isEditing ? (
-                  <Input
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    className="text-lg font-semibold h-8 w-[400px]"
-                    autoFocus
-                  />
-                ) : (
-                  <h1 className="text-lg font-semibold text-foreground">{decodeHtmlEntities(ticket.title)}</h1>
-                )}
+                <h1 className="text-lg font-semibold text-foreground">#{ticket.number}</h1>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="text-xs text-muted-foreground">#{ticket.number}</span>
                   <Badge
                     variant="outline"
                     className={cn("text-[9px] px-1 py-0", statusColors[isEditing ? editStatus : ticket.status])}
@@ -606,6 +596,19 @@ export default function TicketPage({ params }: { params: Promise<{ id: string }>
         <div className="grid grid-cols-[1fr_300px] gap-8">
           {/* Main content */}
           <div className="space-y-6">
+            {/* Title */}
+            {isEditing ? (
+              <Input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="text-xl font-semibold h-10"
+                placeholder="Ticket title"
+                autoFocus
+              />
+            ) : (
+              <h2 className="text-xl font-semibold text-foreground">{decodeHtmlEntities(ticket.title)}</h2>
+            )}
+
             {/* Description */}
             <Card className="p-6">
               <h3 className="text-sm font-medium text-foreground mb-3">Description</h3>

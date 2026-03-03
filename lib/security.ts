@@ -103,6 +103,14 @@ export function isValidUUID(input: unknown): boolean {
 }
 
 /**
+ * Validate ticket number format (positive integer)
+ */
+export function isValidTicketNumber(input: unknown): boolean {
+  if (typeof input !== 'string') return false
+  return /^\d+$/.test(input) && parseInt(input, 10) > 0
+}
+
+/**
  * Sanitize object keys and values
  */
 export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
