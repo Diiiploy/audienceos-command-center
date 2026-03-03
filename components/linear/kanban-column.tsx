@@ -22,7 +22,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { type MinimalClient, getOwnerData } from "@/types/client"
+import { type MinimalClient, type Stage, getOwnerData } from "@/types/client"
 
 interface KanbanColumnProps {
   /** Stage name (e.g., "Onboarding", "Live") - also used as droppable ID */
@@ -35,6 +35,18 @@ interface KanbanColumnProps {
   onClientClick?: (client: MinimalClient) => void
   /** Callback when the "+" button is clicked */
   onAddClick?: () => void
+  /** Card action: Open client detail view */
+  onOpenClient?: (clientId: string) => void
+  /** Card action: Open edit modal */
+  onEditClient?: (clientId: string) => void
+  /** Card action: Move client to a different stage */
+  onMoveClientToStage?: (clientId: string, clientName: string, currentStage: string, toStage: Stage) => void
+  /** Card action: Assign client to a team member */
+  onAssignClient?: (clientId: string, userId: string, userName: string) => void
+  /** Card action: Delete client */
+  onDeleteClient?: (clientId: string, clientName: string) => void
+  /** Team members for the "Assign to" submenu */
+  teamMembers?: Array<{ id: string; name: string; initials: string; color: string }>
 }
 
 function getColumnIndicator(title: string) {
@@ -60,6 +72,12 @@ export function KanbanColumn({
   clients,
   onClientClick,
   onAddClick,
+  onOpenClient,
+  onEditClient,
+  onMoveClientToStage,
+  onAssignClient,
+  onDeleteClient,
+  teamMembers,
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: title, // Stage name is the droppable ID
@@ -129,7 +147,14 @@ export function KanbanColumn({
               daysInStage={client.daysInStage}
               blocker={client.blocker}
               tier={client.tier}
+              stage={client.stage as Stage}
               onClick={() => onClientClick?.(client)}
+              onOpen={() => onOpenClient?.(client.id)}
+              onEdit={() => onEditClient?.(client.id)}
+              onMoveToStage={(toStage) => onMoveClientToStage?.(client.id, client.name, client.stage, toStage)}
+              onAssignTo={(userId, userName) => onAssignClient?.(client.id, userId, userName)}
+              onDelete={() => onDeleteClient?.(client.id, client.name)}
+              teamMembers={teamMembers}
             />
           )
         })}

@@ -12,15 +12,29 @@ import {
   CommandPalette,
   useCommandPalette,
   AddClientModal,
+  EditClientModal,
   type CommandAction,
   type FilterConfig,
   type ActiveFilters,
   type SortOption,
 } from "@/components/linear"
 import { usePipelineStore, type Client as StoreClient } from "@/stores/pipeline-store"
-import { getOwnerData, type MinimalClient, type Stage } from "@/types/client"
+import { getOwnerData, OWNER_DATA, type MinimalClient, type Stage } from "@/types/client"
 import { sortClients, type SortMode } from "@/lib/client-priority"
 import { useAuth } from "@/hooks/use-auth"
+import { StageConfirmModal, isSensitiveStage } from "@/components/stage-confirm-modal"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { fetchWithCsrf } from "@/lib/csrf"
+import { useToast } from "@/hooks/use-toast"
 
 // Convert store client to UI client format (returns MinimalClient)
 function adaptStoreClient(client: StoreClient): MinimalClient {
@@ -200,8 +214,29 @@ function CommandCenterContent() {
   // Full client detail view state - stores the client ID to show in full view
   const [fullViewClientId, setFullViewClientId] = useState<string | null>(null)
 
+  // Edit client modal state
+  const [editClientModalOpen, setEditClientModalOpen] = useState(false)
+  const [editClientId, setEditClientId] = useState<string | null>(null)
+
+  // Delete confirmation state
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  // Stage move confirmation state (for sensitive stages via dropdown menu)
+  const [stageConfirmOpen, setStageConfirmOpen] = useState(false)
+  const [pendingStageMove, setPendingStageMove] = useState<{
+    clientId: string; clientName: string; fromStage: string; toStage: string
+  } | null>(null)
+
+  // Team members for "Assign to" dropdown
+  const [teamMembers, setTeamMembers] = useState<Array<{ id: string; name: string; initials: string; color: string }>>([])
+
   // Pipeline store - fetches from Supabase API
-  const { clients: storeClients, fetchClients, isLoading, error: apiError, updateClientStage } = usePipelineStore()
+  const { clients: storeClients, fetchClients, isLoading, error: apiError, updateClientStage, deleteClient } = usePipelineStore()
+
+  // Toast for action feedback
+  const { toast } = useToast()
 
   // Auth hook - provides real user data
   const { profile, displayName, isAuthenticated: _isAuthenticated } = useAuth()
@@ -224,6 +259,34 @@ function CommandCenterContent() {
   useEffect(() => {
     fetchClients()
   }, [fetchClients])
+
+  // Fetch team members for "Assign to" dropdown
+  useEffect(() => {
+    async function fetchTeamMembers() {
+      try {
+        const response = await fetch('/api/v1/settings/users?is_active=true', { credentials: 'include' })
+        if (!response.ok) throw new Error('Failed to fetch team members')
+        const { data } = await response.json()
+        const members = (data || []).map((user: Record<string, unknown>) => ({
+          id: user.id as string,
+          name: `${(user.first_name as string) || ''} ${(user.last_name as string) || ''}`.trim() || (user.email as string),
+          initials: `${((user.first_name as string) || '?')[0]}${((user.last_name as string) || '?')[0]}`.toUpperCase(),
+          color: 'bg-primary',
+        }))
+        setTeamMembers(members)
+      } catch {
+        // Fallback to static owner data
+        const fallback = OWNER_DATA.map((o, i) => ({
+          id: `fallback-${i}`,
+          name: o.name,
+          initials: o.avatar,
+          color: o.color,
+        }))
+        setTeamMembers(fallback)
+      }
+    }
+    fetchTeamMembers()
+  }, [])
 
   // Sync activeView from URL pathname or query param after hydration
   // This handles direct URL navigation (e.g., /settings or ?view=settings)
@@ -270,6 +333,105 @@ function CommandCenterContent() {
     setActiveView("client")
     setSelectedClient(null) // Close the drawer
   }, [])
+
+  /** Card dropdown: Open → navigates to full client detail view */
+  const handleOpenClientFromCard = useCallback((clientId: string) => {
+    handleOpenClientDetail(clientId)
+  }, [handleOpenClientDetail])
+
+  /** Card dropdown: Edit → opens edit modal */
+  const handleEditClientFromCard = useCallback((clientId: string) => {
+    setEditClientId(clientId)
+    setEditClientModalOpen(true)
+  }, [])
+
+  /** Card dropdown: Move to Stage → with sensitive stage confirmation */
+  const handleMoveClientToStage = useCallback((
+    clientId: string, clientName: string, currentStage: string, toStage: Stage
+  ) => {
+    if (isSensitiveStage(toStage)) {
+      setPendingStageMove({ clientId, clientName, fromStage: currentStage, toStage })
+      setStageConfirmOpen(true)
+    } else {
+      updateClientStage(clientId, toStage)
+    }
+  }, [updateClientStage])
+
+  /** Confirm a pending sensitive stage move */
+  const handleConfirmStageMove = useCallback(async () => {
+    if (!pendingStageMove) return
+    await updateClientStage(pendingStageMove.clientId, pendingStageMove.toStage as Stage)
+    setPendingStageMove(null)
+    setStageConfirmOpen(false)
+  }, [pendingStageMove, updateClientStage])
+
+  /** Cancel a pending stage move */
+  const handleCancelStageMove = useCallback(() => {
+    setPendingStageMove(null)
+    setStageConfirmOpen(false)
+  }, [])
+
+  /** Card dropdown: Assign to → updates client_assignment */
+  const handleAssignClient = useCallback(async (clientId: string, userId: string, userName: string) => {
+    try {
+      const response = await fetchWithCsrf(`/api/v1/clients/${clientId}/assignment`, {
+        method: 'PUT',
+        body: JSON.stringify({ user_id: userId }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to assign client')
+      }
+
+      toast({
+        title: "Client assigned",
+        description: `Client assigned to ${userName}`,
+      })
+
+      await fetchClients()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to assign client",
+        variant: "destructive",
+      })
+    }
+  }, [fetchClients, toast])
+
+  /** Card dropdown: Delete → shows confirmation dialog */
+  const handleDeleteClientFromCard = useCallback((clientId: string, clientName: string) => {
+    setDeleteTarget({ id: clientId, name: clientName })
+    setDeleteConfirmOpen(true)
+  }, [])
+
+  /** Confirm client deletion (soft delete) */
+  const handleConfirmDelete = useCallback(async () => {
+    if (!deleteTarget) return
+    setIsDeleting(true)
+    try {
+      const success = await deleteClient(deleteTarget.id)
+      if (!success) throw new Error('Failed to delete client')
+
+      toast({
+        title: "Client deleted",
+        description: `${deleteTarget.name} has been deactivated`,
+      })
+      setDeleteConfirmOpen(false)
+      setDeleteTarget(null)
+      if (selectedClient?.id === deleteTarget.id) {
+        setSelectedClient(null)
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete client",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }, [deleteTarget, deleteClient, toast, selectedClient])
 
   /**
    * Command palette actions - includes navigation + quick actions
@@ -467,6 +629,12 @@ function CommandCenterContent() {
                     clients={filteredClients}
                     onClientClick={(client) => setSelectedClient(client)}
                     onClientMove={handleClientMove}
+                    onOpenClient={handleOpenClientFromCard}
+                    onEditClient={handleEditClientFromCard}
+                    onMoveClientToStage={handleMoveClientToStage}
+                    onAssignClient={handleAssignClient}
+                    onDeleteClient={handleDeleteClientFromCard}
+                    teamMembers={teamMembers}
                   />
                 ) : (
                   <div className="flex-1">
@@ -648,6 +816,50 @@ function CommandCenterContent() {
         isOpen={addClientModalOpen}
         onClose={() => setAddClientModalOpen(false)}
       />
+      <EditClientModal
+        isOpen={editClientModalOpen}
+        onClose={() => { setEditClientModalOpen(false); setEditClientId(null) }}
+        clientId={editClientId}
+      />
+      {pendingStageMove && (
+        <StageConfirmModal
+          open={stageConfirmOpen}
+          onOpenChange={setStageConfirmOpen}
+          clientName={pendingStageMove.clientName}
+          fromStage={pendingStageMove.fromStage as Stage}
+          toStage={pendingStageMove.toStage as Stage}
+          onConfirm={handleConfirmStageMove}
+          onCancel={handleCancelStageMove}
+        />
+      )}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Client</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to deactivate <span className="font-medium text-foreground">{deleteTarget?.name}</span>?
+              This will remove them from the pipeline. This action can be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setDeleteConfirmOpen(false); setDeleteTarget(null) }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

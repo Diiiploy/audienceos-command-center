@@ -18,7 +18,8 @@ import { useDraggable } from "@dnd-kit/core"
 import { CSS } from "@dnd-kit/utilities"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Calendar, MoreVertical, ExternalLink, Edit, UserPlus, Trash2, ArrowRight } from "lucide-react"
+import { Calendar, MoreVertical, ExternalLink, Edit, UserPlus, Trash2, ArrowRight, Check } from "lucide-react"
+import { PIPELINE_STAGES, type Stage } from "@/types/client"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,10 +53,24 @@ interface KanbanCardProps {
   blocker?: string | null
   /** Client tier (Enterprise/Core/Starter) */
   tier?: string
+  /** Current pipeline stage - used to filter "Move to Stage" submenu */
+  stage?: Stage
   /** Click handler (opens detail panel) */
   onClick?: () => void
   /** When true, renders as overlay during drag (elevated styling) */
   isDragOverlay?: boolean
+  /** Dropdown action: Navigate to full client detail view */
+  onOpen?: () => void
+  /** Dropdown action: Open edit modal */
+  onEdit?: () => void
+  /** Dropdown action: Move client to a different stage */
+  onMoveToStage?: (toStage: Stage) => void
+  /** Dropdown action: Assign client to a team member */
+  onAssignTo?: (userId: string, userName: string) => void
+  /** Dropdown action: Delete (soft-delete) client */
+  onDelete?: () => void
+  /** Team members for the dynamic "Assign to" submenu */
+  teamMembers?: Array<{ id: string; name: string; initials: string; color: string }>
 }
 
 function getHealthDotColor(health: string) {
@@ -102,8 +117,15 @@ export function KanbanCard({
   daysInStage,
   blocker,
   tier,
+  stage,
   onClick,
   isDragOverlay = false,
+  onOpen,
+  onEdit,
+  onMoveToStage,
+  onAssignTo,
+  onDelete,
+  teamMembers,
 }: KanbanCardProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: clientId,
@@ -141,11 +163,11 @@ export function KanbanCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onOpen?.()}>
                 <ExternalLink className="w-4 h-4 mr-2" />
                 Open
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onEdit?.()}>
                 <Edit className="w-4 h-4 mr-2" />
                 Edit
               </DropdownMenuItem>
@@ -156,12 +178,14 @@ export function KanbanCard({
                   Move to Stage
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
-                  <DropdownMenuItem>Onboarding</DropdownMenuItem>
-                  <DropdownMenuItem>Installation</DropdownMenuItem>
-                  <DropdownMenuItem>Audit</DropdownMenuItem>
-                  <DropdownMenuItem>Live</DropdownMenuItem>
-                  <DropdownMenuItem>Needs Support</DropdownMenuItem>
-                  <DropdownMenuItem>Off-boarding</DropdownMenuItem>
+                  {PIPELINE_STAGES.filter((s) => s !== stage).map((s) => (
+                    <DropdownMenuItem
+                      key={s}
+                      onClick={() => onMoveToStage?.(s)}
+                    >
+                      {s}
+                    </DropdownMenuItem>
+                  ))}
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
               <DropdownMenuSub>
@@ -170,14 +194,35 @@ export function KanbanCard({
                   Assign to
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
-                  <DropdownMenuItem>Brent</DropdownMenuItem>
-                  <DropdownMenuItem>Roderic</DropdownMenuItem>
-                  <DropdownMenuItem>Trevor</DropdownMenuItem>
-                  <DropdownMenuItem>Chase</DropdownMenuItem>
+                  {teamMembers && teamMembers.length > 0 ? (
+                    teamMembers.map((member) => (
+                      <DropdownMenuItem
+                        key={member.id}
+                        onClick={() => onAssignTo?.(member.id, member.name)}
+                      >
+                        <Avatar className={cn("h-4 w-4 mr-2", member.color)}>
+                          <AvatarFallback className={cn(member.color, "text-[8px] font-medium text-white")}>
+                            {member.initials}
+                          </AvatarFallback>
+                        </Avatar>
+                        {member.name}
+                        {member.name === owner.name && (
+                          <Check className="w-3 h-3 ml-auto text-muted-foreground" />
+                        )}
+                      </DropdownMenuItem>
+                    ))
+                  ) : (
+                    <DropdownMenuItem disabled>
+                      No team members
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive">
+              <DropdownMenuItem
+                className="text-destructive"
+                onClick={() => onDelete?.()}
+              >
                 <Trash2 className="w-4 h-4 mr-2" />
                 Delete
               </DropdownMenuItem>

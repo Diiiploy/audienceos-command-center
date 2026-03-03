@@ -35,9 +35,31 @@ interface KanbanBoardProps {
   onClientClick?: (client: MinimalClient) => void
   /** Callback when a client is dragged to a new stage */
   onClientMove?: (clientId: string, toStage: Stage) => void
+  /** Card action: Open client detail view */
+  onOpenClient?: (clientId: string) => void
+  /** Card action: Open edit modal */
+  onEditClient?: (clientId: string) => void
+  /** Card action: Move client to a different stage */
+  onMoveClientToStage?: (clientId: string, clientName: string, currentStage: string, toStage: Stage) => void
+  /** Card action: Assign client to a team member */
+  onAssignClient?: (clientId: string, userId: string, userName: string) => void
+  /** Card action: Delete client */
+  onDeleteClient?: (clientId: string, clientName: string) => void
+  /** Team members for the "Assign to" submenu */
+  teamMembers?: Array<{ id: string; name: string; initials: string; color: string }>
 }
 
-export function KanbanBoard({ clients, onClientClick, onClientMove }: KanbanBoardProps) {
+export function KanbanBoard({
+  clients,
+  onClientClick,
+  onClientMove,
+  onOpenClient,
+  onEditClient,
+  onMoveClientToStage,
+  onAssignClient,
+  onDeleteClient,
+  teamMembers,
+}: KanbanBoardProps) {
   const [activeClient, setActiveClient] = useState<MinimalClient | null>(null)
 
   // Configure sensors: 8px drag distance to prevent accidental drags
@@ -100,6 +122,12 @@ export function KanbanBoard({ clients, onClientClick, onClientMove }: KanbanBoar
               title={stage}
               clients={getClientsForStage(stage)}
               onClientClick={onClientClick}
+              onOpenClient={onOpenClient}
+              onEditClient={onEditClient}
+              onMoveClientToStage={onMoveClientToStage}
+              onAssignClient={onAssignClient}
+              onDeleteClient={onDeleteClient}
+              teamMembers={teamMembers}
             />
           ))}
         </div>

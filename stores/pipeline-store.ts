@@ -69,6 +69,9 @@ interface PipelineState {
   // Actions - Stage management with API
   updateClientStage: (clientId: string, toStage: Stage) => Promise<boolean>
 
+  // Actions - Client deletion (soft delete)
+  deleteClient: (clientId: string) => Promise<boolean>
+
   // Optimistic update with rollback (internal)
   moveClient: (clientId: string, toStage: Stage) => void
   rollbackMove: (clientId: string, fromStage: Stage) => void
@@ -212,6 +215,36 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       } else {
         console.log(`[Pipeline] Skipping rollback: stage changed from ${optimisticStage} to ${currentClient?.stage}`)
       }
+      return false
+    }
+  },
+
+  // Delete client via API with optimistic removal
+  deleteClient: async (clientId) => {
+    const client = get().clients.find((c) => c.id === clientId)
+    if (!client) return false
+
+    // Optimistic removal
+    set((state) => ({
+      clients: state.clients.filter((c) => c.id !== clientId)
+    }))
+
+    try {
+      const response = await fetchWithCsrf(`/api/v1/clients/${clientId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete client')
+      }
+
+      return true
+    } catch (error) {
+      console.error('Error deleting client:', error)
+      // Rollback: re-add the client
+      set((state) => ({
+        clients: [...state.clients, client]
+      }))
       return false
     }
   },
