@@ -9,24 +9,17 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { fetchWithCsrf } from "@/lib/csrf"
-import { StageConfirmModal } from "@/components/stage-confirm-modal"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { PIPELINE_STAGES, type Stage } from "@/types/client"
 import {
   X,
   Copy,
@@ -38,12 +31,14 @@ import {
   Paperclip,
   MoreVertical,
   ExternalLink,
-  FolderOpen,
+  Edit,
   ArrowRight,
   UserPlus,
   Trash2,
   Loader2,
+  Check,
 } from "lucide-react"
+import { DatePickerModal } from "./date-picker-modal"
 
 interface ClientDetailPanelProps {
   client: {
@@ -64,6 +59,11 @@ interface ClientDetailPanelProps {
   onClose: () => void
   onOpenDetail?: () => void
   clientId?: string // Real UUID for API calls (client.id in the panel is the logo)
+  onEdit?: (clientId: string) => void
+  onMoveToStage?: (clientId: string, clientName: string, currentStage: string, toStage: Stage) => void
+  onAssignTo?: (clientId: string, userId: string, userName: string) => void
+  onDeleteClient?: (clientId: string, clientName: string) => void
+  teamMembers?: Array<{ id: string; name: string; initials: string; color: string }>
 }
 
 function getHealthBadgeStyle(health: string) {
@@ -120,14 +120,13 @@ function formatTimeAgo(dateString: string) {
   return date.toLocaleDateString()
 }
 
-export function ClientDetailPanel({ client, onClose, onOpenDetail, clientId }: ClientDetailPanelProps) {
+export function ClientDetailPanel({ client, onClose, onOpenDetail, clientId, onEdit, onMoveToStage, onAssignTo, onDeleteClient, teamMembers }: ClientDetailPanelProps) {
   const router = useRouter()
   const { toast } = useToast()
 
   // Use clientId (real UUID) for API calls, fall back to client.id
   const apiClientId = clientId || client.id
 
-  const [isEditing, setIsEditing] = useState(false)
   const [noteText, setNoteText] = useState("")
   const [notes, setNotes] = useState<Note[]>([])
   const [isLoadingNotes, setIsLoadingNotes] = useState(false)
@@ -153,24 +152,23 @@ export function ClientDetailPanel({ client, onClose, onOpenDetail, clientId }: C
     fetchNotes()
   }, [fetchNotes])
 
-  // Modal state
-  const [showStageModal, setShowStageModal] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [isMoving, setIsMoving] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
+  // Due date picker state
+  const [showDatePicker, setShowDatePicker] = useState(false)
   const [isSendingNote, setIsSendingNote] = useState(false)
 
   // Handler functions
   const handleEdit = () => {
-    setIsEditing(!isEditing)
-    // Toggle edit mode for inline editing
+    if (onEdit) {
+      onEdit(apiClientId)
+    }
   }
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(client.id)
+    const copyText = `${client.name} - ${client.stage} (${client.health})`
+    navigator.clipboard.writeText(copyText)
     toast({
       title: "Copied",
-      description: "Client ID copied to clipboard",
+      description: "Client info copied to clipboard",
       variant: "default",
     })
   }
@@ -180,85 +178,6 @@ export function ClientDetailPanel({ client, onClose, onOpenDetail, clientId }: C
       onOpenDetail()
     } else {
       router.push(`/clients/${client.id}`)
-    }
-  }
-
-  const handleMove = () => {
-    // Open stage picker modal
-    setShowStageModal(true)
-  }
-
-  const handleAssign = () => {
-    // TODO: Open owner picker modal
-    console.log("Assign client:", client.id)
-  }
-
-  const handleDelete = () => {
-    // Open delete confirmation modal
-    setShowDeleteModal(true)
-  }
-
-  const handleConfirmMove = async (notes?: string) => {
-    setIsMoving(true)
-    try {
-      const response = await fetchWithCsrf(`/api/v1/clients/${client.id}/stage`, {
-        method: "PUT",
-        body: JSON.stringify({ stage: client.stage }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || "Failed to move client")
-      }
-
-      toast({
-        title: "Client moved",
-        description: `Client moved to ${client.stage}`,
-        variant: "default",
-      })
-
-      setShowStageModal(false)
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to move client"
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      })
-    } finally {
-      setIsMoving(false)
-    }
-  }
-
-  const handleConfirmDelete = async () => {
-    setIsDeleting(true)
-    try {
-      const response = await fetchWithCsrf(`/api/v1/clients/${client.id}`, {
-        method: "DELETE",
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || "Failed to delete client")
-      }
-
-      toast({
-        title: "Client deleted",
-        description: "Client has been deactivated",
-        variant: "default",
-      })
-
-      setShowDeleteModal(false)
-      onClose()
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to delete client"
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      })
-    } finally {
-      setIsDeleting(false)
     }
   }
 
@@ -318,8 +237,15 @@ export function ClientDetailPanel({ client, onClose, onOpenDetail, clientId }: C
   }
 
   const handleSetDueDate = () => {
-    // TODO: Open date picker
-    console.log("Set due date")
+    setShowDatePicker(true)
+  }
+
+  const handleDateSelect = (date: Date) => {
+    toast({
+      title: "Due date set",
+      description: `Due date set to ${date.toLocaleDateString()}`,
+      variant: "default",
+    })
   }
 
   return (
@@ -353,19 +279,61 @@ export function ClientDetailPanel({ client, onClose, onOpenDetail, clientId }: C
                 Open
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleEdit}>
-                <FolderOpen className="w-4 h-4 mr-2" />
+                <Edit className="w-4 h-4 mr-2" />
                 Edit
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleMove}>
-                <ArrowRight className="w-4 h-4 mr-2" />
-                Move
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleAssign}>
-                <UserPlus className="w-4 h-4 mr-2" />
-                Assign
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleDelete} className="text-destructive">
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <ArrowRight className="w-4 h-4 mr-2" />
+                  Move to Stage
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  {PIPELINE_STAGES.filter((s) => s !== client.stage).map((s) => (
+                    <DropdownMenuItem
+                      key={s}
+                      onClick={() => onMoveToStage?.(apiClientId, client.name, client.stage, s)}
+                    >
+                      {s}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Assign to
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  {teamMembers && teamMembers.length > 0 ? (
+                    teamMembers.map((member) => (
+                      <DropdownMenuItem
+                        key={member.id}
+                        onClick={() => onAssignTo?.(apiClientId, member.id, member.name)}
+                      >
+                        <Avatar className={cn("h-4 w-4 mr-2", member.color)}>
+                          <AvatarFallback className={cn(member.color, "text-[8px] font-medium text-white")}>
+                            {member.initials}
+                          </AvatarFallback>
+                        </Avatar>
+                        {member.name}
+                        {member.name === client.owner.name && (
+                          <Check className="w-3 h-3 ml-auto text-muted-foreground" />
+                        )}
+                      </DropdownMenuItem>
+                    ))
+                  ) : (
+                    <DropdownMenuItem disabled>
+                      No team members
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => onDeleteClient?.(apiClientId, client.name)}
+                className="text-destructive"
+              >
                 <Trash2 className="w-4 h-4 mr-2" />
                 Delete
               </DropdownMenuItem>
@@ -553,45 +521,12 @@ export function ClientDetailPanel({ client, onClose, onOpenDetail, clientId }: C
         </div>
       </div>
 
-      {/* Stage Confirmation Modal */}
-      <StageConfirmModal
-        open={showStageModal}
-        onOpenChange={setShowStageModal}
-        clientName={client.name}
-        fromStage={client.stage as any}
-        toStage={client.stage as any}
-        onConfirm={handleConfirmMove}
-        onCancel={() => setShowStageModal(false)}
+      {/* Due Date Picker */}
+      <DatePickerModal
+        open={showDatePicker}
+        onOpenChange={setShowDatePicker}
+        onSelect={handleDateSelect}
       />
-
-      {/* Delete Confirmation Modal */}
-      <AlertDialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Client</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to deactivate <span className="font-medium">{client.name}</span>? This action can be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowDeleteModal(false)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }

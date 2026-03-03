@@ -44,6 +44,9 @@ export const GET = withPermission({ resource: 'clients', action: 'read' })(
             last_name,
             avatar_url
           )
+        ),
+        stage_events:stage_event (
+          moved_at
         )
       `)
       .eq('agency_id', agencyId) // Multi-tenant isolation (SEC-007)

@@ -627,7 +627,7 @@ function CommandCenterContent() {
                 {viewMode === "board" ? (
                   <KanbanBoard
                     clients={filteredClients}
-                    onClientClick={(client) => setSelectedClient(client)}
+                    onClientClick={(client) => setSelectedClient(prev => prev?.id === client.id ? null : client)}
                     onClientMove={handleClientMove}
                     onOpenClient={handleOpenClientFromCard}
                     onEditClient={handleEditClientFromCard}
@@ -655,7 +655,7 @@ function CommandCenterContent() {
                           }}
                           daysInStage={client.daysInStage}
                           blocker={client.blocker}
-                          onClick={() => setSelectedClient(client)}
+                          onClick={() => setSelectedClient(prev => prev?.id === client.id ? null : client)}
                           onOpenDetail={() => handleOpenClientDetail(client.id)}
                           selected={selectedClient?.id === client.id}
                         />
@@ -678,7 +678,7 @@ function CommandCenterContent() {
           <div className="flex-1 p-4">
             <DashboardView
               clients={filteredClients}
-              onClientClick={(client) => setSelectedClient(client)}
+              onClientClick={(client) => setSelectedClient(prev => prev?.id === client.id ? null : client)}
               onOpenClientDetail={handleOpenClientDetail}
               onSendToAI={(prompt) => {
                 // Retry logic to handle race condition where chat might not be mounted yet
@@ -800,6 +800,11 @@ function CommandCenterContent() {
               onClose={() => setSelectedClient(null)}
               onOpenDetail={selectedClient ? () => handleOpenClientDetail(selectedClient.id) : undefined}
               clientId={selectedClient?.id}
+              onEdit={handleEditClientFromCard}
+              onMoveToStage={handleMoveClientToStage}
+              onAssignTo={(clientId, userId, userName) => handleAssignClient(clientId, userId, userName)}
+              onDeleteClient={handleDeleteClientFromCard}
+              teamMembers={teamMembers}
             />
           ) : undefined
         }

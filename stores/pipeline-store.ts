@@ -144,25 +144,43 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       const { data } = await response.json()
 
       // Transform DB format to UI format
-      const clients: Client[] = (data || []).map((row: Record<string, unknown>) => ({
-        id: row.id as string,
-        agency_id: row.agency_id as string,
-        name: row.name as string,
-        contact_email: row.contact_email as string | null,
-        contact_name: row.contact_name as string | null,
-        stage: row.stage as Stage,
-        health_status: mapHealthStatus(row.health_status as string),
-        days_in_stage: row.days_in_stage as number,
-        notes: row.notes as string | null,
-        tags: (row.tags as string[]) || [],
-        is_active: row.is_active as boolean,
-        created_at: row.created_at as string,
-        updated_at: row.updated_at as string,
-        // Get primary owner from assignments if available
-        owner: (row.assignments as Array<{ user: { first_name: string; last_name: string } }>)?.[0]?.user
-          ? `${(row.assignments as Array<{ user: { first_name: string; last_name: string } }>)[0].user.first_name}`
-          : undefined,
-      }))
+      const clients: Client[] = (data || []).map((row: Record<string, unknown>) => {
+        // Compute days_in_stage from the most recent stage_event.moved_at
+        const stageEvents = (row.stage_events as Array<{ moved_at: string }>) || []
+        let latestMovedAt: string
+        if (stageEvents.length > 0) {
+          latestMovedAt = stageEvents.reduce(
+            (latest, e) => (e.moved_at > latest ? e.moved_at : latest),
+            stageEvents[0].moved_at
+          )
+        } else {
+          // Fallback: use created_at if no stage events exist
+          latestMovedAt = row.created_at as string
+        }
+        const daysInStage = Math.max(0, Math.floor(
+          (Date.now() - new Date(latestMovedAt).getTime()) / 86400000
+        ))
+
+        return {
+          id: row.id as string,
+          agency_id: row.agency_id as string,
+          name: row.name as string,
+          contact_email: row.contact_email as string | null,
+          contact_name: row.contact_name as string | null,
+          stage: row.stage as Stage,
+          health_status: mapHealthStatus(row.health_status as string),
+          days_in_stage: daysInStage,
+          notes: row.notes as string | null,
+          tags: (row.tags as string[]) || [],
+          is_active: row.is_active as boolean,
+          created_at: row.created_at as string,
+          updated_at: row.updated_at as string,
+          // Get primary owner from assignments if available
+          owner: (row.assignments as Array<{ user: { first_name: string; last_name: string } }>)?.[0]?.user
+            ? `${(row.assignments as Array<{ user: { first_name: string; last_name: string } }>)[0].user.first_name}`
+            : undefined,
+        }
+      })
 
       set({ clients, isLoading: false })
     } catch (error) {
