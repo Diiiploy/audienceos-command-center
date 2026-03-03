@@ -11,9 +11,11 @@ import {
   TicketDetailPanel,
   ListHeader,
   AddTicketModal,
+  EditTicketModal,
   type Ticket,
 } from "@/components/linear"
 import { useTicketStore, type Ticket as StoreTicket } from "@/stores/ticket-store"
+import { useSettingsStore } from "@/stores/settings-store"
 import { Button } from "@/components/ui/button"
 import {
   Inbox,
@@ -88,6 +90,8 @@ export function SupportTickets() {
   const [isSubmittingComment, setIsSubmittingComment] = useState(false)
   const [isLoadingNotes, setIsLoadingNotes] = useState(false)
   const [addTicketModalOpen, setAddTicketModalOpen] = useState(false)
+  const [editTicketModalOpen, setEditTicketModalOpen] = useState(false)
+  const [editTicketId, setEditTicketId] = useState<string | null>(null)
 
   const slideTransition = useSlideTransition()
   const { toast } = useToast()
@@ -95,10 +99,24 @@ export function SupportTickets() {
   // Get tickets from store
   const { tickets: storeTickets, fetchTickets, isLoading: _isLoading } = useTicketStore()
 
-  // Fetch tickets on mount
+  // Get team members from settings store
+  const { teamMembers: rawTeamMembers, fetchTeamMembers } = useSettingsStore()
+
+  // Transform team members to the format TicketDetailPanel expects
+  const teamMembers = useMemo(() => {
+    return rawTeamMembers.map((m) => ({
+      id: m.id,
+      name: `${m.first_name || ""} ${m.last_name || ""}`.trim() || m.email,
+      initials: `${m.first_name?.[0] || ""}${m.last_name?.[0] || ""}`.toUpperCase() || "U",
+      color: "bg-emerald-500",
+    }))
+  }, [rawTeamMembers])
+
+  // Fetch tickets and team members on mount
   useEffect(() => {
     fetchTickets()
-  }, [fetchTickets])
+    fetchTeamMembers()
+  }, [fetchTickets, fetchTeamMembers])
 
   // Transform store tickets to display format
   const displayTickets = useMemo(() => {
@@ -342,6 +360,43 @@ export function SupportTickets() {
     }
   }
 
+  const handleEditTicket = () => {
+    if (!selectedTicketId) return
+    setEditTicketId(selectedTicketId)
+    setEditTicketModalOpen(true)
+  }
+
+  const handleAssignTicket = async (userId: string, userName: string) => {
+    if (!selectedTicketId) return
+
+    try {
+      const response = await fetchWithCsrf(`/api/v1/tickets/${selectedTicketId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ assignee_id: userId }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to assign ticket')
+      }
+
+      toast({
+        title: 'Ticket assigned',
+        description: `Assigned to ${userName}`,
+        variant: 'default',
+      })
+
+      await fetchTickets()
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to assign ticket'
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      })
+    }
+  }
+
   return (
     <>
     <div className="flex h-full overflow-hidden">
@@ -434,6 +489,9 @@ export function SupportTickets() {
               onComment={handleComment}
               onStatusChange={handleStatusChange}
               onPriorityChange={handlePriorityChange}
+              onEdit={handleEditTicket}
+              onAssign={handleAssignTicket}
+              teamMembers={teamMembers}
             />
           </motion.div>
         )}
@@ -442,6 +500,14 @@ export function SupportTickets() {
     <AddTicketModal
       isOpen={addTicketModalOpen}
       onClose={() => setAddTicketModalOpen(false)}
+    />
+    <EditTicketModal
+      isOpen={editTicketModalOpen}
+      onClose={() => {
+        setEditTicketModalOpen(false)
+        setEditTicketId(null)
+      }}
+      ticketId={editTicketId}
     />
     </>
   )

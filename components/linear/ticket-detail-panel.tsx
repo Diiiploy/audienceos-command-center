@@ -88,12 +88,22 @@ interface Ticket {
   activities: TicketActivity[]
 }
 
+interface TeamMember {
+  id: string
+  name: string
+  initials: string
+  color: string
+}
+
 interface TicketDetailPanelProps {
   ticket: Ticket
   onClose: () => void
   onStatusChange?: (status: TicketStatus) => void
   onPriorityChange?: (priority: TicketPriority) => void
   onComment?: (content: string) => void
+  onEdit?: () => void
+  onAssign?: (userId: string, userName: string) => void
+  teamMembers?: TeamMember[]
   className?: string
 }
 
@@ -133,17 +143,18 @@ export function TicketDetailPanel({
   onStatusChange,
   onPriorityChange,
   onComment,
+  onEdit,
+  onAssign,
+  teamMembers,
   className,
 }: TicketDetailPanelProps) {
   const { toast } = useToast()
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [isAssigning, setIsAssigning] = useState(false)
 
   // Handler functions
   const handleEdit = () => {
-    // TODO: Open edit modal
-    console.log("Edit ticket:", ticket.id)
+    onEdit?.()
   }
 
   const handleCopyLink = () => {
@@ -156,47 +167,8 @@ export function TicketDetailPanel({
     })
   }
 
-  const handleAssign = async (assigneeName: string) => {
-    setIsAssigning(true)
-    try {
-      // Map assignee names to IDs (in a real app, these would come from a user list)
-      const assigneeMap: Record<string, string> = {
-        "Brent": "d5f1e5c2-1234-5678-abcd-ef0123456789",
-        "Roderic": "e6g2f6d3-2345-6789-bcde-f10234567890",
-        "Trevor": "f7h3g7e4-3456-7890-cdef-f21345678901",
-        "Chase": "a8i4h8f5-4567-8901-def0-f32456789012",
-      }
-
-      const assigneeId = assigneeMap[assigneeName]
-      if (!assigneeId) {
-        throw new Error("Invalid assignee")
-      }
-
-      const response = await fetchWithCsrf(`/api/v1/tickets/${ticket.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ assignee_id: assigneeId }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || "Failed to assign ticket")
-      }
-
-      toast({
-        title: "Ticket assigned",
-        description: `Assigned to ${assigneeName}`,
-        variant: "default",
-      })
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to assign ticket"
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      })
-    } finally {
-      setIsAssigning(false)
-    }
+  const handleAssign = (userId: string, userName: string) => {
+    onAssign?.(userId, userName)
   }
 
   const handleConfirmDelete = async () => {
@@ -231,7 +203,9 @@ export function TicketDetailPanel({
   }
 
   const handleDelete = () => {
-    setShowDeleteModal(true)
+    // Delay to let DropdownMenu complete its focus cleanup before AlertDialog opens.
+    // Without this, both Radix modals fight over aria-hidden/pointer-events, freezing the page.
+    setTimeout(() => setShowDeleteModal(true), 0)
   }
 
   const handleOpenExternal = () => {
@@ -312,10 +286,18 @@ export function TicketDetailPanel({
                   Assign to
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
-                  <DropdownMenuItem onClick={() => handleAssign("Brent")}>Brent</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleAssign("Roderic")}>Roderic</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleAssign("Trevor")}>Trevor</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleAssign("Chase")}>Chase</DropdownMenuItem>
+                  {teamMembers && teamMembers.length > 0 ? (
+                    teamMembers.map((member) => (
+                      <DropdownMenuItem
+                        key={member.id}
+                        onClick={() => handleAssign(member.id, member.name)}
+                      >
+                        {member.name}
+                      </DropdownMenuItem>
+                    ))
+                  ) : (
+                    <DropdownMenuItem disabled>No team members</DropdownMenuItem>
+                  )}
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
               <DropdownMenuSeparator />

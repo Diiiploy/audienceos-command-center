@@ -10,6 +10,7 @@ export { CommandPalette, useCommandPalette, type CommandAction } from "./command
 export { AddClientModal } from "./add-client-modal"
 export { EditClientModal } from "./edit-client-modal"
 export { AddTicketModal, type TicketPrefill } from "./add-ticket-modal"
+export { EditTicketModal } from "./edit-ticket-modal"
 export { CommandItem } from "./command-item"
 export { DatePickerModal } from "./date-picker-modal"
 export { SettingsSidebar, intelligenceSettingsGroups, type SettingsGroup, type SettingsSection } from "./settings-sidebar"
