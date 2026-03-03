@@ -240,7 +240,7 @@ export function MemoryPanel() {
 
       {/* Memory list */}
       {memories.length > 0 && (
-        <div className="space-y-2">
+        <div className="max-h-[calc(100vh-24rem)] overflow-y-auto space-y-2 pr-1">
           {memories.map((memory) => (
             <div
               key={memory.id}
