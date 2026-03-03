@@ -6,6 +6,7 @@ import { createPortal } from "react-dom"
 import { useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
 import { ThemeProvider } from "next-themes"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import "./globals.css"
 import { ChatInterface } from "@/components/chat/chat-interface"
 import { ThemeSync } from "@/components/theme-sync"
@@ -32,6 +33,7 @@ export default function RootLayout({
 }>) {
   const pathname = usePathname()
   const { profile, agencyId, isLoading, isAuthenticated: _isAuthenticated } = useAuth()
+  const [queryClient] = useState(() => new QueryClient())
   const [chatPortalHost, setChatPortalHost] = useState<HTMLElement | null>(null)
   const [chatContext, setChatContext] = useState<any>(null)
 
@@ -82,28 +84,30 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`font-sans antialiased ${inter.variable} ${poppins.variable}`} suppressHydrationWarning>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem={false}
-          disableTransitionOnChange
-        >
-          <ThemeSync />
-          {children}
-          {shouldShowChat && (
-            <>
-              {console.log('[CHAT-PORTAL] Rendering ChatInterface into portal')}
-              {createPortal(
-                <ChatInterface
-                  agencyId={agencyId || 'demo-agency'}
-                  userId={profile?.id || 'anonymous'}
-                  context={chatContext}
-                />,
-                chatPortalHost
-              )}
-            </>
-          )}
-        </ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="light"
+            enableSystem={false}
+            disableTransitionOnChange
+          >
+            <ThemeSync />
+            {children}
+            {shouldShowChat && (
+              <>
+                {console.log('[CHAT-PORTAL] Rendering ChatInterface into portal')}
+                {createPortal(
+                  <ChatInterface
+                    agencyId={agencyId || 'demo-agency'}
+                    userId={profile?.id || 'anonymous'}
+                    context={chatContext}
+                  />,
+                  chatPortalHost
+                )}
+              </>
+            )}
+          </ThemeProvider>
+        </QueryClientProvider>
       </body>
     </html>
   )
