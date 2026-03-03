@@ -154,6 +154,22 @@ export const POST = withPermission({ resource: 'clients', action: 'write' })(
       return createErrorResponse(500, 'Failed to create client')
     }
 
+    // Create initial stage_event so days_in_stage tracking starts from creation
+    (supabase as any)
+      .from('stage_event')
+      .insert({
+        agency_id: agencyId,
+        client_id: client.id,
+        from_stage: null,
+        to_stage: validatedStage,
+        moved_by: request.user.id,
+      })
+      .then(({ error: eventError }: { error: unknown }) => {
+        if (eventError) {
+          console.error('[clients/POST] Failed to create initial stage_event:', eventError)
+        }
+      })
+
     // Auto-create Slack channel if configured (fire-and-forget)
     try {
       const { data: slackIntegration } = await supabase

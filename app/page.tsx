@@ -543,25 +543,29 @@ function CommandCenterContent() {
   }, [filteredClients, selectedClient, activeView])
 
   // Transform client to detail panel format
+  // Uses fresh data from the clients array (derived from store) so the panel
+  // automatically reflects store updates (e.g., after assignment changes)
   const clientForPanel = useMemo(() => {
     if (!selectedClient) return null
-    const ownerData = getOwnerData(selectedClient.owner)
+    // Look up fresh data from the store-derived clients array
+    const freshClient = clients.find(c => c.id === selectedClient.id) || selectedClient
+    const ownerData = getOwnerData(freshClient.owner)
     return {
-      id: selectedClient.logo,
-      name: selectedClient.name,
-      stage: selectedClient.stage,
-      health: selectedClient.health,
+      id: freshClient.logo,
+      name: freshClient.name,
+      stage: freshClient.stage,
+      health: freshClient.health,
       owner: {
         name: ownerData.name,
         initials: ownerData.avatar,
         color: ownerData.color,
       },
-      tier: selectedClient.tier || "Core",
-      daysInStage: selectedClient.daysInStage,
-      blocker: selectedClient.blocker,
-      statusNote: selectedClient.statusNote,
+      tier: freshClient.tier || "Core",
+      daysInStage: freshClient.daysInStage,
+      blocker: freshClient.blocker,
+      statusNote: freshClient.statusNote,
     }
-  }, [selectedClient])
+  }, [selectedClient, clients])
 
   const renderContent = () => {
     // Get the correct view mode and setter based on active view

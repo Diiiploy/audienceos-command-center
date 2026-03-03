@@ -238,17 +238,15 @@ export function KanbanCard({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className={cn("w-2 h-2 rounded-full", getHealthDotColor(health))} />
-          {daysInStage > 0 && (
-            <div className="flex items-center gap-1">
-              <Calendar className="w-3 h-3 text-muted-foreground" />
-              <span className={cn(
-                "text-xs",
-                daysInStage > 4 ? "text-status-red font-medium" : "text-muted-foreground"
-              )}>
-                {daysInStage}d
-              </span>
-            </div>
-          )}
+          <div className="flex items-center gap-1">
+            <Calendar className="w-3 h-3 text-muted-foreground" />
+            <span className={cn(
+              "text-xs",
+              daysInStage > 4 ? "text-status-red font-medium" : "text-muted-foreground"
+            )}>
+              {daysInStage}d
+            </span>
+          </div>
         </div>
         {tier && (
           <span className="text-[10px] text-muted-foreground">{tier}</span>
