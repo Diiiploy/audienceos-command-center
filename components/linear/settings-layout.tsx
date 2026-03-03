@@ -23,7 +23,7 @@ export function SettingsLayout({
   children,
 }: SettingsLayoutProps) {
   return (
-    <div className="flex h-full">
+    <div className="flex h-full min-h-0">
       <SettingsSidebar
         groups={groups}
         activeSection={activeSection}
