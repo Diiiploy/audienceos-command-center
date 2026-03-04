@@ -389,6 +389,10 @@ export class MemoryInjector {
 
   /**
    * Should memories be stored for this interaction?
+   *
+   * Detection order matters: specific types (decision, task, project, insight)
+   * are checked BEFORE the generic "remember/note" catch-all so that
+   * "remember that we decided X" becomes a decision, not a preference.
    */
   shouldStoreMemory(
     userMessage: string,
@@ -397,7 +401,82 @@ export class MemoryInjector {
     const lowerUser = userMessage.toLowerCase();
     const lowerResponse = assistantResponse.toLowerCase();
 
-    // Check for EXPLICIT store requests ("remember that...", "note that...", "keep in mind...")
+    // 1. DECISIONS — check first because "remember that we decided X" should be a decision
+    if (
+      lowerUser.includes('decide') ||
+      lowerUser.includes('decided') ||
+      lowerUser.includes('let\'s go with') ||
+      lowerUser.includes('we chose') ||
+      lowerUser.includes('we\'re going with') ||
+      lowerUser.includes('final answer') ||
+      lowerUser.includes('approved') ||
+      lowerUser.includes('signed off') ||
+      lowerUser.includes('confirmed that') ||
+      lowerUser.includes('agreed to') ||
+      lowerUser.includes('committed to') ||
+      lowerResponse.includes('you decided') ||
+      lowerResponse.includes('your decision')
+    ) {
+      return { should: true, type: 'decision', importance: 'high' };
+    }
+
+    // 2. TASKS — check before preferences so "remind me" goes to task, not preference
+    if (
+      lowerUser.includes('remind me') ||
+      lowerUser.includes('todo') ||
+      lowerUser.includes('to-do') ||
+      lowerUser.includes('action item') ||
+      lowerUser.includes('follow up with') ||
+      lowerUser.includes('follow up on') ||
+      lowerUser.includes('need to do') ||
+      lowerUser.includes('don\'t forget to') ||
+      lowerUser.includes('make sure to') ||
+      lowerUser.includes('schedule a') ||
+      lowerUser.includes('schedule the') ||
+      lowerUser.includes('deadline is') ||
+      lowerUser.includes('deadline for') ||
+      lowerUser.includes('due date')
+    ) {
+      return { should: true, type: 'task', importance: 'medium' };
+    }
+
+    // 3. PROJECT context — ongoing work, campaigns, builds
+    if (
+      lowerUser.includes('working on') ||
+      lowerUser.includes('the project') ||
+      lowerUser.includes('our project') ||
+      lowerUser.includes('project update') ||
+      lowerUser.includes('project status') ||
+      lowerUser.includes('campaign for') ||
+      lowerUser.includes('we\'re building') ||
+      lowerUser.includes('we\'re launching') ||
+      lowerUser.includes('sprint') ||
+      lowerUser.includes('milestone') ||
+      lowerUser.includes('roadmap')
+    ) {
+      return { should: true, type: 'project', importance: 'high' };
+    }
+
+    // 4. INSIGHTS / learnings — things discovered or realized
+    if (
+      lowerUser.includes('i learned') ||
+      lowerUser.includes('i realized') ||
+      lowerUser.includes('i noticed') ||
+      lowerUser.includes('i discovered') ||
+      lowerUser.includes('turns out') ||
+      lowerUser.includes('key takeaway') ||
+      lowerUser.includes('important insight') ||
+      lowerUser.includes('lesson learned') ||
+      lowerUser.includes('good to know') ||
+      lowerUser.includes('interesting that') ||
+      lowerUser.includes('the data shows') ||
+      lowerUser.includes('we found that')
+    ) {
+      return { should: true, type: 'insight', importance: 'high' };
+    }
+
+    // 5. EXPLICIT store requests ("remember that...", "note that...", "keep in mind...")
+    // Now checked AFTER specific types so "remember that we decided" → decision, not preference
     if (
       lowerUser.includes('remember that') ||
       lowerUser.includes('please remember') ||
@@ -405,13 +484,12 @@ export class MemoryInjector {
       lowerUser.includes('note that') ||
       lowerUser.includes('keep in mind') ||
       lowerUser.includes('keep track of') ||
-      lowerUser.includes('don\'t forget') ||
       lowerUser.includes('for future reference')
     ) {
       return { should: true, type: 'preference', importance: 'high' };
     }
 
-    // Check for THIRD-PERSON preferences ("[name] prefers...", "[name] likes...", "their preference...")
+    // 6. THIRD-PERSON preferences ("[name] prefers...", "their preference...")
     if (
       /\bprefers?\b/i.test(lowerUser) ||
       lowerUser.includes('their preference') ||
@@ -421,16 +499,7 @@ export class MemoryInjector {
       return { should: true, type: 'preference', importance: 'high' };
     }
 
-    // Check for decisions
-    if (
-      lowerUser.includes('decide') ||
-      lowerUser.includes('let\'s go with') ||
-      lowerResponse.includes('you decided')
-    ) {
-      return { should: true, type: 'decision', importance: 'high' };
-    }
-
-    // Check for preferences
+    // 7. FIRST-PERSON preferences ("I prefer...", "I like...", "I want...")
     if (
       lowerUser.includes('i prefer') ||
       lowerUser.includes('i like') ||
@@ -439,16 +508,7 @@ export class MemoryInjector {
       return { should: true, type: 'preference', importance: 'high' };
     }
 
-    // Check for tasks
-    if (
-      lowerUser.includes('remind me') ||
-      lowerUser.includes('todo') ||
-      lowerUser.includes('action item')
-    ) {
-      return { should: true, type: 'task', importance: 'medium' };
-    }
-
-    // Check for significant conversations (longer exchanges)
+    // 8. Significant conversations — long exchanges that didn't match any specific type
     if (userMessage.length > 100 && assistantResponse.length > 200) {
       return { should: true, type: 'conversation', importance: 'low' };
     }
