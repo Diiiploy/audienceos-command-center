@@ -26,6 +26,13 @@ import { Clock, AlertCircle, ExternalLink, X, CheckCircle2, CheckSquare, AlertTr
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 interface DashboardViewProps {
   clients: MinimalClient[]
@@ -906,11 +913,13 @@ export function DashboardView({ clients, onClientClick, onOpenClientDetail, onSe
   // Ad performance filters
   const [adPeriod, setAdPeriod] = useState<AdPerformancePeriod>(30)
   const [adPlatform, setAdPlatform] = useState<AdPlatformFilter>('all')
+  const [adClientFilter, setAdClientFilter] = useState<string | undefined>(undefined)
 
   // Ad performance data (fetched via React Query, only when performance tab active or overview)
   const { data: adPerformance, isLoading: adPerfLoading } = useAdPerformance({
     days: adPeriod,
     platform: adPlatform,
+    clientId: adClientFilter,
     enabled: activeTab === "performance" || activeTab === "overview",
   })
 
@@ -1284,7 +1293,25 @@ export function DashboardView({ clients, onClientClick, onOpenClientDetail, onSe
           </div>
         ) : activeTab === "performance" ? (
           <div className="pb-5 space-y-3">
-            {/* Filter Bar */}
+            {/* Client Selector + Filter Bar */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <Select
+                value={adClientFilter ?? "all"}
+                onValueChange={(value) => setAdClientFilter(value === "all" ? undefined : value)}
+              >
+                <SelectTrigger className="w-[200px] h-8 text-xs">
+                  <SelectValue placeholder="All Clients" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Clients</SelectItem>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex gap-1 flex-wrap" role="group" aria-label="Select date range">
                 {([
