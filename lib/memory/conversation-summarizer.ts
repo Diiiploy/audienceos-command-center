@@ -16,10 +16,10 @@ import type { MemoryType } from './types';
 const GEMINI_MODEL = 'gemini-3-flash-preview';
 
 // Only summarize sessions with meaningful depth
-const MIN_MESSAGES_FOR_SUMMARY = 10;
+const MIN_MESSAGES_FOR_SUMMARY = 6;
 
 // Summarize every N messages (avoid re-summarizing on every single message)
-const SUMMARY_INTERVAL = 10;
+const SUMMARY_INTERVAL = 6;
 
 interface ConversationMessage {
   role: 'user' | 'assistant';
