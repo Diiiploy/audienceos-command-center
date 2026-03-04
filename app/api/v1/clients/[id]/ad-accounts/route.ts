@@ -13,6 +13,8 @@ import { cookies } from 'next/headers'
 import { createRouteHandlerClient } from '@/lib/supabase'
 import { withRateLimit, withCsrfProtection, isValidUUID, createErrorResponse } from '@/lib/security'
 import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission'
+import { provisionAirbyteConnection } from '@/lib/airbyte/provision'
+import type { AirbytePlatform } from '@/lib/airbyte/types'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -141,7 +143,71 @@ export const POST = withPermission({ resource: 'clients', action: 'write' })(
         return createErrorResponse(500, 'Failed to link ad account')
       }
 
-      return NextResponse.json({ data: mapping }, { status: 201 })
+      // Auto-provision Airbyte connection if agency has platform credentials
+      let provisioning: { status: string; connectionId?: string; error?: string } = {
+        status: 'skipped',
+      }
+
+      const { data: integration } = await supabase
+        .from('integration')
+        .select('id, access_token, refresh_token, config')
+        .eq('agency_id', agencyId)
+        .eq('provider', platform as 'google_ads' | 'meta_ads')
+        .eq('is_connected', true)
+        .single()
+
+      if (integration) {
+        const creds = (integration.config as Record<string, unknown>)?.credentials as Record<string, string> | undefined
+        const accessToken = integration.access_token || creds?.access_token
+        const refreshToken = integration.refresh_token || undefined
+
+        if (accessToken) {
+          const result = await provisionAirbyteConnection(
+            {
+              agencyId,
+              clientId: id,
+              platform: platform as AirbytePlatform,
+              externalAccountId: accountId,
+              accessToken,
+              refreshToken,
+              ...(platform === 'google_ads' && creds && {
+                googleAds: {
+                  customerId: accountId,
+                  developerToken: creds.developer_token,
+                  loginCustomerId: creds.login_customer_id,
+                },
+              }),
+              ...(platform === 'meta_ads' && {
+                metaAds: { accountId },
+              }),
+            },
+            supabase,
+            integration.id
+          )
+
+          if (result.success) {
+            // Update mapping with Airbyte IDs
+            await (supabase as any)
+              .from('airbyte_account_mapping')
+              .update({
+                airbyte_source_id: result.sourceId,
+                airbyte_connection_id: result.connectionId,
+                table_prefix: result.tablePrefix,
+              })
+              .eq('id', mapping.id)
+
+            provisioning = { status: 'provisioned', connectionId: result.connectionId }
+          } else {
+            provisioning = { status: 'failed', error: result.error }
+          }
+        } else {
+          provisioning = { status: 'pending', error: 'No access token found for this platform integration' }
+        }
+      } else {
+        provisioning = { status: 'pending', error: 'Connect the platform integration first to enable auto-provisioning' }
+      }
+
+      return NextResponse.json({ data: mapping, provisioning }, { status: 201 })
     } catch {
       return createErrorResponse(500, 'Internal server error')
     }
