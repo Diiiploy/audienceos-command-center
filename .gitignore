@@ -56,3 +56,15 @@ playwright-report/
 test-results/
 .secrets/
 .env*.local
+
+# Supabase CLI temp files
+supabase/.temp/
+
+# Debug scripts
+scripts/debug-*
+
+# Session/chat log data
+sessions/
+
+# Claude Code plan files
+splendid-noodling-sprout.md
