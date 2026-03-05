@@ -131,14 +131,14 @@ export async function POST(
     // 2. Google Drive folder
     let driveResult: { ok?: boolean; skipped?: boolean; reason?: string; folder_id?: string; folder_url?: string; error?: string }
 
-    if (!process.env.CC_GATEWAY_URL) {
+    if (!process.env.DIIIPLOY_GATEWAY_URL) {
       driveResult = { skipped: true, reason: 'Drive not configured' }
     } else {
       try {
-        const driveResponse = await fetch(`${process.env.CC_GATEWAY_URL}/drive/folder`, {
+        const driveResponse = await fetch(`${process.env.DIIIPLOY_GATEWAY_URL}/drive/folder`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${process.env.CC_GATEWAY_API_KEY}`,
+            'Authorization': `Bearer ${process.env.DIIIPLOY_GATEWAY_API_KEY}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
