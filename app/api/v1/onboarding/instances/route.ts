@@ -81,7 +81,7 @@ export const GET = withPermission({ resource: 'clients', action: 'read' })(
       }
 
       // Construct portal_url for each instance from link_token
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://audienceos-agro-bros.vercel.app'
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://v0-audience-os-command-center.vercel.app'
       const instancesWithPortalUrl = instances?.map(instance => ({
         ...instance,
         portal_url: instance.link_token ? `${baseUrl}/onboarding/start?token=${instance.link_token}` : null,
@@ -269,7 +269,7 @@ export const POST = withPermission({ resource: 'clients', action: 'write' })(
       }
 
       // Generate the portal URL
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://audienceos-agro-bros.vercel.app'
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://v0-audience-os-command-center.vercel.app'
       const portalUrl = `${baseUrl}/onboarding/start?token=${linkToken}`
 
       // Get agency name for the email

@@ -7,17 +7,26 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Video, Sparkles, Loader2, Save, FileText } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Video, Sparkles, Loader2, Save, FileText, Plus } from "lucide-react"
 import { toast } from "sonner"
 
 export function ClientJourneyConfig() {
-  const { journeys, selectedJourneyId, saveJourney, isSavingJourney, fetchJourneys } = useOnboardingStore()
+  const { journeys, selectedJourneyId, saveJourney, isSavingJourney, fetchJourneys, createJourney, setSelectedJourneyId } = useOnboardingStore()
 
   const selectedJourney = journeys.find((j) => j.id === selectedJourneyId)
 
   const [welcomeVideoUrl, setWelcomeVideoUrl] = useState("")
   const [formIntroText, setFormIntroText] = useState("")
   const [aiAnalysisPrompt, setAiAnalysisPrompt] = useState("")
+  const [newJourneyName, setNewJourneyName] = useState("")
+  const [isCreating, setIsCreating] = useState(false)
 
   // Load selected journey data
   useEffect(() => {
@@ -38,13 +47,39 @@ export function ClientJourneyConfig() {
       return
     }
 
-    await saveJourney({
-      welcome_video_url: welcomeVideoUrl || null,
-      description: formIntroText || null,
-      ai_analysis_prompt: aiAnalysisPrompt || null,
-    })
+    try {
+      await saveJourney({
+        welcome_video_url: welcomeVideoUrl || null,
+        description: formIntroText || null,
+        ai_analysis_prompt: aiAnalysisPrompt || null,
+      })
+      toast.success("Journey configuration saved")
+    } catch (error) {
+      toast.error("Failed to save journey configuration", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+      })
+    }
+  }
 
-    toast.success("Journey configuration saved")
+  const handleCreateJourney = async () => {
+    const name = newJourneyName.trim()
+    if (!name) {
+      toast.error("Please enter a journey name")
+      return
+    }
+
+    setIsCreating(true)
+    try {
+      await (createJourney as any)(name)
+      toast.success(`Journey "${name}" created`)
+      setNewJourneyName("")
+    } catch (error) {
+      toast.error("Failed to create journey", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+      })
+    } finally {
+      setIsCreating(false)
+    }
   }
 
   // Example AI analysis output preview
@@ -59,6 +94,75 @@ export function ClientJourneyConfig() {
 
   return (
     <div className="space-y-6 max-w-3xl">
+      {/* Journey Selector & Create */}
+      {journeys.length > 1 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Active Journey</CardTitle>
+            <CardDescription>
+              Select which onboarding journey to configure
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Select
+              value={selectedJourneyId || ""}
+              onValueChange={(id) => setSelectedJourneyId(id)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a journey" />
+              </SelectTrigger>
+              <SelectContent>
+                {journeys.map((journey) => (
+                  <SelectItem key={journey.id} value={journey.id}>
+                    {journey.name}{(journey as any).is_default ? " (default)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Create New Journey */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Plus className="h-5 w-5 text-muted-foreground" />
+            <CardTitle className="text-lg">Create New Journey</CardTitle>
+          </div>
+          <CardDescription>
+            Create an additional onboarding journey with default stages
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2">
+            <Input
+              placeholder="Journey name (e.g. Enterprise Onboarding)"
+              value={newJourneyName}
+              onChange={(e) => setNewJourneyName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  handleCreateJourney()
+                }
+              }}
+            />
+            <Button
+              onClick={handleCreateJourney}
+              disabled={isCreating || !newJourneyName.trim()}
+              variant="secondary"
+            >
+              {isCreating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+              <span className="ml-1">Create</span>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Welcome Video Configuration */}
       <Card>
         <CardHeader>

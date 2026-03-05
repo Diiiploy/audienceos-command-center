@@ -61,6 +61,7 @@ import {
   Loader2,
   Inbox,
   Play,
+  Mail,
 } from "lucide-react"
 import { differenceInDays } from "date-fns"
 
@@ -158,15 +159,33 @@ interface ClientDetailPanelProps {
   stage: OnboardingStageConfig
   onClose: () => void
   onUpdateStageStatus: (instanceId: string, stageId: string, status: string) => Promise<void>
+  onResendEmail: (instanceId: string) => Promise<boolean>
   onViewFullProfile?: (clientId: string) => void
 }
 
-function ClientDetailPanel({ instance, stage, onClose, onUpdateStageStatus, onViewFullProfile }: ClientDetailPanelProps) {
+function ClientDetailPanel({ instance, stage, onClose, onUpdateStageStatus, onResendEmail, onViewFullProfile }: ClientDetailPanelProps) {
+  const [isResending, setIsResending] = useState(false)
+  const [resendResult, setResendResult] = useState<'success' | 'error' | null>(null)
+
+  const handleResendEmail = async () => {
+    setIsResending(true)
+    setResendResult(null)
+    const success = await onResendEmail(instance.id)
+    setResendResult(success ? 'success' : 'error')
+    setIsResending(false)
+    // Clear result message after 3 seconds
+    setTimeout(() => setResendResult(null), 3000)
+  }
+
   const clientName = instance.client?.name || "Unknown Client"
   const ownerName = instance.triggered_by_user
     ? `${instance.triggered_by_user.first_name || ""} ${instance.triggered_by_user.last_name || ""}`.trim()
     : "Unknown"
-  const daysInStage = differenceInDays(new Date(), new Date(instance.triggered_at))
+  // Use the most recent stage_status updated_at for "days in stage" calculation
+  const currentStageStatus = instance.stage_statuses?.find(s => s.status === "in_progress")
+    || instance.stage_statuses?.[instance.stage_statuses.length - 1]
+  const stageEnteredAt = currentStageStatus?.updated_at || instance.triggered_at
+  const daysInStage = differenceInDays(new Date(), new Date(stageEnteredAt))
   const stages = (instance.journey?.stages as Stage[] | undefined) || []
   const stageStatusMap = new Map(
     instance.stage_statuses?.map((s) => [s.stage_id, s.status]) || []
@@ -298,6 +317,39 @@ function ClientDetailPanel({ instance, stage, onClose, onUpdateStageStatus, onVi
             </div>
           </div>
         )}
+
+        {/* Resend Email */}
+        <div className="space-y-3">
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Actions</h3>
+          <button
+            onClick={handleResendEmail}
+            disabled={isResending}
+            className={cn(
+              "w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors",
+              resendResult === 'success'
+                ? "text-emerald-600 bg-emerald-500/10"
+                : resendResult === 'error'
+                  ? "text-red-600 bg-red-500/10"
+                  : "text-foreground bg-secondary/50 hover:bg-secondary/80",
+              isResending && "opacity-60 cursor-not-allowed"
+            )}
+          >
+            {isResending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : resendResult === 'success' ? (
+              <CheckCircle2 className="w-4 h-4" />
+            ) : (
+              <Mail className="w-4 h-4" />
+            )}
+            {isResending
+              ? "Sending..."
+              : resendResult === 'success'
+                ? "Email Sent"
+                : resendResult === 'error'
+                  ? "Failed - Try Again"
+                  : "Resend Onboarding Email"}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -311,10 +363,11 @@ interface DraggableClientProps {
   instance: OnboardingInstanceWithRelations
   isSelected: boolean
   isCompact: boolean
+  hasUnseen: boolean
   onSelect: (instance: OnboardingInstanceWithRelations) => void
 }
 
-function DraggableClient({ instance, isSelected, isCompact, onSelect }: DraggableClientProps) {
+function DraggableClient({ instance, isSelected, isCompact, hasUnseen, onSelect }: DraggableClientProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: instance.id,
     data: { instance },
@@ -328,7 +381,11 @@ function DraggableClient({ instance, isSelected, isCompact, onSelect }: Draggabl
   const ownerName = instance.triggered_by_user
     ? `${instance.triggered_by_user.first_name || ""} ${instance.triggered_by_user.last_name || ""}`.trim()
     : "Unknown"
-  const daysInStage = differenceInDays(new Date(), new Date(instance.triggered_at))
+  // Use stage_status updated_at for accurate "days in stage"
+  const currentStageStatus = instance.stage_statuses?.find(s => s.status === "in_progress")
+    || instance.stage_statuses?.[instance.stage_statuses.length - 1]
+  const stageEnteredAt = currentStageStatus?.updated_at || instance.triggered_at
+  const daysInStage = differenceInDays(new Date(), new Date(stageEnteredAt))
 
   // Check if instance is completed (all stages done)
   const stages = (instance.journey?.stages as Stage[] | undefined) || []
@@ -353,11 +410,16 @@ function DraggableClient({ instance, isSelected, isCompact, onSelect }: Draggabl
         {...attributes}
         onClick={() => onSelect(instance)}
       >
-        <Avatar className="h-5 w-5 bg-primary">
-          <AvatarFallback className="bg-primary text-[8px] font-medium text-primary-foreground">
-            {clientName.slice(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
+        <div className="relative">
+          <Avatar className="h-5 w-5 bg-primary">
+            <AvatarFallback className="bg-primary text-[8px] font-medium text-primary-foreground">
+              {clientName.slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          {hasUnseen && (
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-blue-500 rounded-full" />
+          )}
+        </div>
         <span className={cn(
           "text-xs text-foreground truncate flex-1 text-left",
           isCompleted && "line-through"
@@ -383,12 +445,17 @@ function DraggableClient({ instance, isSelected, isCompact, onSelect }: Draggabl
       onClick={() => onSelect(instance)}
     >
       <div className="flex items-center gap-3">
-        <Avatar className="h-8 w-8 bg-primary">
-          <AvatarImage src={instance.triggered_by_user?.avatar_url || undefined} />
-          <AvatarFallback className="bg-primary text-xs font-medium text-primary-foreground">
-            {clientName.slice(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
+        <div className="relative">
+          <Avatar className="h-8 w-8 bg-primary">
+            <AvatarImage src={instance.triggered_by_user?.avatar_url || undefined} />
+            <AvatarFallback className="bg-primary text-xs font-medium text-primary-foreground">
+              {clientName.slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          {hasUnseen && (
+            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-blue-500 rounded-full border-2 border-background" />
+          )}
+        </div>
         <div className="text-left">
           <p className={cn(
             "text-sm font-medium text-foreground",
@@ -425,11 +492,12 @@ interface StageRowProps {
   isExpanded: boolean
   isCompact: boolean
   selectedInstanceId: string | null
+  checkUnseen: (instance: OnboardingInstanceWithRelations) => boolean
   onToggle: () => void
   onInstanceSelect: (instance: OnboardingInstanceWithRelations) => void
 }
 
-function StageRow({ stage, instances, isExpanded, isCompact, selectedInstanceId, onToggle, onInstanceSelect }: StageRowProps) {
+function StageRow({ stage, instances, isExpanded, isCompact, selectedInstanceId, checkUnseen, onToggle, onInstanceSelect }: StageRowProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: stage.id,
     data: { stage },
@@ -476,6 +544,7 @@ function StageRow({ stage, instances, isExpanded, isCompact, selectedInstanceId,
                     instance={instance}
                     isSelected={selectedInstanceId === instance.id}
                     isCompact={true}
+                    hasUnseen={checkUnseen(instance)}
                     onSelect={onInstanceSelect}
                   />
                 ))}
@@ -534,6 +603,7 @@ function StageRow({ stage, instances, isExpanded, isCompact, selectedInstanceId,
                   instance={instance}
                   isSelected={selectedInstanceId === instance.id}
                   isCompact={false}
+                  hasUnseen={checkUnseen(instance)}
                   onSelect={onInstanceSelect}
                 />
               ))}
@@ -569,6 +639,9 @@ export function ActiveOnboardings({ onClientClick }: ActiveOnboardingsProps) {
     selectedInstance,
     setSelectedInstanceId,
     updateStageStatus,
+    resendEmail,
+    hasUnseenUpdates,
+    markInstanceViewed,
   } = useOnboardingStore()
 
   const [expandedStages, setExpandedStages] = useState<Set<OnboardingStageId>>(
@@ -616,10 +689,8 @@ export function ActiveOnboardings({ onClientClick }: ActiveOnboardingsProps) {
     const targetStage = over.data.current?.stage
 
     if (instance && targetStage) {
-      // Move instance to new stage (this would trigger API call in real app)
-      console.log(`Moving ${instance.client?.name || 'client'} to ${targetStage.name} stage`)
-      // TODO: Implement stage transition API call
-      // updateStageStatus(instance.id, targetStage.id, 'in_progress')
+      // Move instance to new stage via store API call
+      updateStageStatus(instance.id, targetStage.id, 'in_progress')
     }
   }
 
@@ -627,6 +698,25 @@ export function ActiveOnboardings({ onClientClick }: ActiveOnboardingsProps) {
 
   useEffect(() => {
     fetchInstances()
+  }, [fetchInstances])
+
+  // 30-second polling + tab focus refresh
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchInstances()
+    }, 30_000)
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchInstances()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [fetchInstances])
 
   // Group instances by onboarding stage
@@ -712,6 +802,7 @@ export function ActiveOnboardings({ onClientClick }: ActiveOnboardingsProps) {
                   isExpanded={isExpanded}
                   isCompact={isCompact}
                   selectedInstanceId={selectedInstance?.id || null}
+                  checkUnseen={hasUnseenUpdates}
                   onToggle={() => toggleStage(stage.id)}
                   onInstanceSelect={handleSelectInstance}
                 />
@@ -736,6 +827,7 @@ export function ActiveOnboardings({ onClientClick }: ActiveOnboardingsProps) {
                 stage={selectedStage}
                 onClose={handleClearSelection}
                 onUpdateStageStatus={updateStageStatus}
+                onResendEmail={resendEmail}
                 onViewFullProfile={onClientClick}
               />
             </motion.div>

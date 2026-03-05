@@ -128,7 +128,7 @@ export const serverEnv = {
   // Email (Resend)
   email: {
     apiKey: optional('RESEND_API_KEY'),
-    fromEmail: optional('RESEND_FROM_EMAIL', 'noreply@audienceos.com'),
+    fromEmail: optional('RESEND_FROM_EMAIL', 'noreply@audienceos.io'),
   },
 
   // Diiiploy Gateway

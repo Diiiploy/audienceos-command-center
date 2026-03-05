@@ -76,7 +76,7 @@ export const GET = withPermission({ resource: 'clients', action: 'read' })(
       }
 
       // Generate the portal URL
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://audienceos-agro-bros.vercel.app'
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://v0-audience-os-command-center.vercel.app'
       const portalUrl = `${baseUrl}/onboarding/start?token=${instance.link_token}`
 
       return NextResponse.json({

@@ -1,7 +1,7 @@
 /**
- * Onboarding Welcome Email Service
+ * Onboarding Email Service
  *
- * Sends welcome email when CSM triggers client onboarding.
+ * Sends welcome and confirmation emails for client onboarding.
  * Uses Resend API for delivery.
  */
 
@@ -36,9 +36,9 @@ export async function sendOnboardingEmail({
   seoSummary,
 }: OnboardingEmailParams): Promise<SendEmailResult> {
   const resendApiKey = process.env.RESEND_API_KEY
-  const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@audienceos.com'
+  const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@audienceos.io'
 
-  console.log('📧 Sending onboarding email:', {
+  console.log('[email] Sending onboarding email:', {
     to,
     from: fromEmail,
     hasApiKey: !!resendApiKey,
@@ -46,7 +46,7 @@ export async function sendOnboardingEmail({
   })
 
   if (!resendApiKey) {
-    console.error('❌ RESEND_API_KEY not configured - onboarding email not sent')
+    console.error('[email] RESEND_API_KEY not configured - onboarding email not sent')
     return { success: false, error: 'Email service not configured' }
   }
 
@@ -54,12 +54,12 @@ export async function sendOnboardingEmail({
   const seoSection = seoSummary && (seoSummary.total_keywords || seoSummary.traffic_value)
     ? `
       <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 12px; margin: 20px 0; border-radius: 4px;">
-        <p style="margin: 0 0 8px 0; font-weight: 600; color: #064e3b;">🔍 SEO Intelligence Preview</p>
+        <p style="margin: 0 0 8px 0; font-weight: 600; color: #064e3b;">SEO Intelligence Preview</p>
         <p style="margin: 0; font-size: 14px; color: #065f46;">
           We've already analyzed your website and found some interesting insights:
-          ${seoSummary.total_keywords ? `<br>• <strong>${seoSummary.total_keywords.toLocaleString()}</strong> ranking keywords` : ''}
-          ${seoSummary.traffic_value ? `<br>• Estimated traffic value: <strong>$${seoSummary.traffic_value.toLocaleString()}</strong>` : ''}
-          ${seoSummary.competitors_count ? `<br>• <strong>${seoSummary.competitors_count}</strong> identified competitors` : ''}
+          ${seoSummary.total_keywords ? `<br>- <strong>${seoSummary.total_keywords.toLocaleString()}</strong> ranking keywords` : ''}
+          ${seoSummary.traffic_value ? `<br>- Estimated traffic value: <strong>$${seoSummary.traffic_value.toLocaleString()}</strong>` : ''}
+          ${seoSummary.competitors_count ? `<br>- <strong>${seoSummary.competitors_count}</strong> identified competitors` : ''}
         </p>
       </div>
     `
@@ -101,7 +101,7 @@ export async function sendOnboardingEmail({
           ${seoSection}
 
           <div style="text-align: center; margin: 24px 0;">
-            <a href="${portalUrl}" class="button">Start Onboarding →</a>
+            <a href="${portalUrl}" class="button">Start Onboarding</a>
           </div>
 
           <p style="font-size: 12px; color: #6b7280; text-align: center;">Or copy this link: ${portalUrl}</p>
@@ -146,7 +146,7 @@ export async function sendOnboardingEmail({
         </div>
 
         <div class="footer">
-          <p>© ${new Date().getFullYear()} ${agencyName} powered by AudienceOS</p>
+          <p>&copy; ${new Date().getFullYear()} ${agencyName} powered by AudienceOS</p>
           <p>This is an automated message from your marketing team.</p>
         </div>
       </div>
@@ -174,19 +174,20 @@ This link is unique to you and will remain active.
 
 Questions? Just reply to this email!
 
-© ${new Date().getFullYear()} ${agencyName} powered by AudienceOS
+(c) ${new Date().getFullYear()} ${agencyName} powered by AudienceOS
   `
 
   try {
     const requestBody = {
       from: fromEmail,
       to,
+      reply_to: 'support@audienceos.io',
       subject: `Welcome to ${agencyName} - Let's Get Started!`,
       html: htmlContent,
       text: textContent,
     }
 
-    console.log('📤 Making Resend API request:', {
+    console.log('[email] Making Resend API request:', {
       url: 'https://api.resend.com/emails',
       from: fromEmail,
       to,
@@ -205,7 +206,7 @@ Questions? Just reply to this email!
     const responseData = await response.json()
 
     if (!response.ok) {
-      console.error('❌ Resend API error (status ' + response.status + '):', {
+      console.error('[email] Resend API error (status ' + response.status + '):', {
         error: responseData,
         statusCode: response.status,
         statusText: response.statusText,
@@ -213,13 +214,199 @@ Questions? Just reply to this email!
       return { success: false, error: responseData.message || 'Email delivery failed' }
     }
 
-    console.log(`✅ Onboarding email sent to ${to}:`, {
+    console.log(`[email] Onboarding email sent to ${to}:`, {
       messageId: responseData.id,
       timestamp: new Date().toISOString(),
     })
     return { success: true, messageId: responseData.id }
   } catch (error) {
-    console.error('❌ Failed to send onboarding email:', {
+    console.error('[email] Failed to send onboarding email:', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    })
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Email service error'
+    }
+  }
+}
+
+/**
+ * Send onboarding confirmation email after client completes submission
+ *
+ * Graceful failure - returns success: false instead of throwing
+ */
+export async function sendOnboardingConfirmationEmail({
+  to,
+  clientName,
+  agencyName,
+  slackChannelName,
+}: {
+  to: string
+  clientName: string
+  agencyName: string
+  slackChannelName?: string | null
+}): Promise<SendEmailResult> {
+  const resendApiKey = process.env.RESEND_API_KEY
+  const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@audienceos.io'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://v0-audience-os-command-center.vercel.app'
+
+  console.log('[email] Sending onboarding confirmation email:', {
+    to,
+    from: fromEmail,
+    hasApiKey: !!resendApiKey,
+  })
+
+  if (!resendApiKey) {
+    console.error('[email] RESEND_API_KEY not configured - confirmation email not sent')
+    return { success: false, error: 'Email service not configured' }
+  }
+
+  const slackSection = slackChannelName
+    ? `
+      <div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px; margin: 20px 0; border-radius: 4px;">
+        <p style="margin: 0 0 4px 0; font-weight: 600; color: #1e40af;">Slack Channel</p>
+        <p style="margin: 0; font-size: 14px; color: #1e3a5f;">
+          A dedicated Slack channel <strong>#${slackChannelName}</strong> has been set up for your account.
+          This is where you can communicate directly with our team for quick updates and questions.
+        </p>
+      </div>
+    `
+    : ''
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1f2937; line-height: 1.6; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; padding: 30px 20px; border-radius: 8px 8px 0 0; text-align: center; }
+        .content { background: #f9fafb; padding: 30px 20px; border-radius: 0 0 8px 8px; }
+        .footer { font-size: 12px; color: #6b7280; margin-top: 20px; border-top: 1px solid #e5e7eb; padding-top: 20px; }
+        .step { display: flex; margin-bottom: 16px; }
+        .step-number { background: #d1fae5; color: #059669; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; margin-right: 12px; flex-shrink: 0; }
+        .step-content { flex: 1; }
+        .step-title { font-weight: 600; margin-bottom: 2px; }
+        .step-desc { font-size: 14px; color: #6b7280; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1 style="margin: 0; font-size: 28px;">Onboarding Complete!</h1>
+          <p style="margin: 8px 0 0 0; opacity: 0.9;">Welcome to ${agencyName}</p>
+        </div>
+
+        <div class="content">
+          <p>Hi ${clientName} team,</p>
+
+          <p>Thank you for completing your onboarding submission! We've received all of your information and our team is now reviewing everything.</p>
+
+          ${slackSection}
+
+          <h3 style="margin: 24px 0 16px 0; font-size: 16px;">What happens next:</h3>
+
+          <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              <div class="step-title">Review & Audit</div>
+              <div class="step-desc">Our team will review your submission and audit your current setup</div>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              <div class="step-title">Account Setup</div>
+              <div class="step-desc">We'll configure your accounts and connect any necessary platforms</div>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              <div class="step-title">Strategy Call</div>
+              <div class="step-desc">We'll schedule a kickoff call to align on goals and next steps</div>
+            </div>
+          </div>
+
+          <p style="margin-top: 24px; font-size: 14px; color: #4b5563;">
+            Expect to hear from us within <strong>3-5 business days</strong>. If you have any urgent questions in the meantime, feel free to reply to this email.
+          </p>
+        </div>
+
+        <div class="footer">
+          <p>&copy; ${new Date().getFullYear()} ${agencyName} powered by AudienceOS</p>
+          <p>This is an automated message from your marketing team.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `
+
+  const textContent = `
+Onboarding Complete - Welcome to ${agencyName}!
+
+Hi ${clientName} team,
+
+Thank you for completing your onboarding submission! We've received all of your information and our team is now reviewing everything.
+${slackChannelName ? `\nA dedicated Slack channel #${slackChannelName} has been set up for your account.\n` : ''}
+What happens next:
+1. Review & Audit - Our team will review your submission and audit your current setup
+2. Account Setup - We'll configure your accounts and connect any necessary platforms
+3. Strategy Call - We'll schedule a kickoff call to align on goals and next steps
+
+Expect to hear from us within 3-5 business days. If you have any urgent questions, feel free to reply to this email.
+
+(c) ${new Date().getFullYear()} ${agencyName} powered by AudienceOS
+  `
+
+  try {
+    const requestBody = {
+      from: fromEmail,
+      to,
+      reply_to: 'support@audienceos.io',
+      subject: `Onboarding Complete - Welcome to ${agencyName}!`,
+      html: htmlContent,
+      text: textContent,
+    }
+
+    console.log('[email] Making Resend API request (confirmation):', {
+      url: 'https://api.resend.com/emails',
+      from: fromEmail,
+      to,
+    })
+
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${resendApiKey}`,
+      },
+      body: JSON.stringify(requestBody),
+    })
+
+    const responseData = await response.json()
+
+    if (!response.ok) {
+      console.error('[email] Resend API error (status ' + response.status + '):', {
+        error: responseData,
+        statusCode: response.status,
+        statusText: response.statusText,
+      })
+      return { success: false, error: responseData.message || 'Email delivery failed' }
+    }
+
+    console.log(`[email] Confirmation email sent to ${to}:`, {
+      messageId: responseData.id,
+      timestamp: new Date().toISOString(),
+    })
+    return { success: true, messageId: responseData.id }
+  } catch (error) {
+    console.error('[email] Failed to send confirmation email:', {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
     })

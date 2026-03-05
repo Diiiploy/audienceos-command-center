@@ -34,12 +34,19 @@ export async function GET(
     )
 
     // Find onboarding instance by token
-    const { data: instance, error: instanceError } = await supabase
+    // Uses (supabase as any) because provisioning columns are not yet in generated types
+    const { data: instance, error: instanceError } = await (supabase as any)
       .from('onboarding_instance')
       .select(`
         id,
         status,
+        agency_id,
         journey_id,
+        slack_channel_id,
+        slack_channel_name,
+        drive_folder_id,
+        drive_folder_url,
+        provisioning_data,
         client:client_id (
           id,
           name
@@ -49,7 +56,8 @@ export async function GET(
           name,
           description,
           welcome_video_url,
-          stages
+          stages,
+          access_delegation_config
         )
       `)
       .eq('link_token', token)
@@ -70,6 +78,13 @@ export async function GET(
       )
     }
 
+    // Fetch agency name
+    const { data: agency } = await supabase
+      .from('agency')
+      .select('name')
+      .eq('id', instance.agency_id)
+      .single()
+
     // Fetch form fields for this journey or agency-default fields
     const { data: fields } = await supabase
       .from('intake_form_field')
@@ -89,8 +104,14 @@ export async function GET(
           id: instance.id,
           status: instance.status,
           client_name: (instance.client as unknown as { name: string } | null)?.name || 'Client',
+          slack_channel_id: instance.slack_channel_id || null,
+          slack_channel_name: instance.slack_channel_name || null,
+          drive_folder_id: instance.drive_folder_id || null,
+          drive_folder_url: instance.drive_folder_url || null,
+          provisioning_data: instance.provisioning_data || null,
         },
         journey: instance.journey,
+        agency_name: agency?.name || null,
         fields: finalFields,
       }
     })
