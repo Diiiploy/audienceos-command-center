@@ -854,9 +854,29 @@ async function handleCasualRoute(
     }
   }
 
-  // Get response text
-  let responseText = candidate?.content?.parts?.[0]?.text ||
-    "I'm here to help! You can ask me about clients, performance metrics, or app features.";
+  // Get response text — retry with explicit prompt if Gemini returns empty
+  let responseText = candidate?.content?.parts?.[0]?.text || "";
+
+  if (!responseText.trim()) {
+    console.warn('[Chat API] Casual route: Gemini returned empty text, retrying with explicit prompt');
+    try {
+      const retryResponse = await callGeminiWithRetry(
+        () => genai.models.generateContent({
+          model: GEMINI_MODEL,
+          contents: `${systemPrompt}\n\nRespond naturally and helpfully to this message. Be conversational and engaging.\n\nUser: ${message}`,
+          config: { temperature: temperature + 0.1 },
+        }),
+        'Casual route retry'
+      );
+      responseText = retryResponse.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    } catch (retryErr) {
+      console.error('[Chat API] Casual route retry also failed:', retryErr);
+    }
+    // Final fallback — still better than generic
+    if (!responseText.trim()) {
+      responseText = `That's a great point! I'd love to dig deeper into that with you. Could you tell me more about what you're thinking, or is there a specific area you'd like me to help with?`;
+    }
+  }
 
   // Strip Gemini's decimal notation markers if present
   // Gemini uses formats like [1.1], [1.7] or comma-separated [1.1, 1.7]
