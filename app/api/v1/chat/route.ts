@@ -460,8 +460,39 @@ function extractMemoryContent(userMessage: string, assistantResponse: string, ty
     return preferMatch[1].trim();
   }
 
-  // Fallback: first 200 chars of the combined context
-  return `${userMessage} → ${assistantResponse.substring(0, 200)}${assistantResponse.length > 200 ? '...' : ''}`;
+  // Type-aware extraction — produce clean factual content per type
+  // mem0's infer engine works best with declarative statements, not instructions
+  switch (type) {
+    case 'decision': {
+      // Extract the decision itself — strip "we decided to" prefix for clean storage
+      const decisionMatch = userMessage.match(/(?:decided\s+to|let'?s\s+go\s+with|going\s+with|approved|agreed\s+to|committed\s+to)\s+(.+)/i);
+      return decisionMatch ? decisionMatch[1].trim() : userMessage;
+    }
+    case 'task': {
+      // Extract the action item as a factual statement
+      const taskMatch = userMessage.match(/(?:remind\s+me\s+to|todo|need\s+to|follow\s+up\s+(?:with|on)|make\s+sure\s+to|schedule\s+(?:a|the)|don'?t\s+forget\s+to)\s+(.+)/i);
+      const taskContent = taskMatch ? taskMatch[1].trim() : userMessage;
+      // Add deadline context if present
+      const deadlineMatch = userMessage.match(/(?:deadline|due\s+date|by)\s+(?:is\s+)?(.+?)(?:\.|$)/i);
+      return deadlineMatch ? `${taskContent} (deadline: ${deadlineMatch[1].trim()})` : taskContent;
+    }
+    case 'project': {
+      // Extract project context as a factual status
+      const projectMatch = userMessage.match(/(?:working\s+on|launching|building)\s+(.+?)(?:\.\s|$)/i);
+      const projectContent = projectMatch ? projectMatch[1].trim() : userMessage;
+      // Add milestone context if present
+      const milestoneMatch = userMessage.match(/(?:milestone|first\s+step|next\s+step)\s+(?:is\s+)?(.+?)(?:\.|$)/i);
+      return milestoneMatch ? `${projectContent} — milestone: ${milestoneMatch[1].trim()}` : projectContent;
+    }
+    case 'insight': {
+      // Extract the learning/insight as a factual statement
+      const insightMatch = userMessage.match(/(?:i\s+learned|i\s+realized|i\s+noticed|turns\s+out|key\s+takeaway:?|the\s+data\s+shows|we\s+found\s+that)\s+(.+)/i);
+      return insightMatch ? insightMatch[1].trim() : userMessage;
+    }
+    default:
+      // Fallback: user message only (no noisy response concatenation)
+      return userMessage.substring(0, 300);
+  }
 }
 
 /**
@@ -858,12 +889,14 @@ async function handleCasualRoute(
   let responseText = candidate?.content?.parts?.[0]?.text || "";
 
   if (!responseText.trim()) {
-    console.warn('[Chat API] Casual route: Gemini returned empty text, retrying with explicit prompt');
+    console.warn('[Chat API] Casual route: Gemini returned empty text, retrying with minimal prompt');
     try {
+      // Retry with MINIMAL prompt — the full systemPrompt can overwhelm preview models
+      // and trigger empty responses. Strip down to just the user's message.
       const retryResponse = await callGeminiWithRetry(
         () => genai.models.generateContent({
           model: GEMINI_MODEL,
-          contents: `${systemPrompt}\n\nRespond naturally and helpfully to this message. Be conversational and engaging.\n\nUser: ${message}`,
+          contents: `You are a helpful AI assistant for a marketing agency. Respond naturally and helpfully.\n\nUser: ${message}`,
           config: { temperature: temperature + 0.1 },
         }),
         'Casual route retry'

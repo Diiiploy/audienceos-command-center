@@ -108,6 +108,9 @@ export interface MemoryAddRequest {
   topic?: string;
   entities?: string[];
   importance?: 'low' | 'medium' | 'high';
+  /** When false, mem0 stores content as-is without AI inference/filtering.
+   *  Use false for user-confirmed suggestions where we already extracted content. */
+  infer?: boolean;
 }
 
 /**

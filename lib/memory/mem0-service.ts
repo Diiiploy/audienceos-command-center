@@ -178,7 +178,7 @@ export class Mem0Service {
       appId: request.agencyId,
       metadata,
       expirationDate,
-      infer: true,
+      infer: request.infer !== undefined ? request.infer : true,
     });
 
     return {
