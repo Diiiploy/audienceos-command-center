@@ -30,12 +30,23 @@ export async function GET(request: NextRequest) {
       return createErrorResponse(401, authError || 'Unauthorized')
     }
 
-    // Parse optional days and platform parameters
+    // Parse optional parameters
     const { searchParams } = new URL(request.url)
     const days = Math.min(Math.max(parseInt(searchParams.get('days') || '30', 10) || 30, 1), 365)
     const platform = searchParams.get('platform') || undefined
+    const startDate = searchParams.get('startDate') || undefined
+    const endDate = searchParams.get('endDate') || undefined
+    const compareStartDate = searchParams.get('compareStartDate') || undefined
+    const compareEndDate = searchParams.get('compareEndDate') || undefined
 
-    const summary = await fetchAdPerformanceSummary(supabase, agencyId, days, platform)
+    const summary = await fetchAdPerformanceSummary(supabase, agencyId, {
+      days,
+      platform,
+      startDate,
+      endDate,
+      compareStartDate,
+      compareEndDate,
+    })
 
     return NextResponse.json({ data: summary })
   } catch (error) {

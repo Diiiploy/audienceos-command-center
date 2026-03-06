@@ -50,8 +50,21 @@ export const GET = withPermission({ resource: 'clients', action: 'read' })(
       const { searchParams } = new URL(request.url)
       const days = Math.min(Math.max(parseInt(searchParams.get('days') || '30', 10) || 30, 1), 365)
       const platform = searchParams.get('platform') || undefined
+      const startDate = searchParams.get('startDate') || undefined
+      const endDate = searchParams.get('endDate') || undefined
+      const compareStartDate = searchParams.get('compareStartDate') || undefined
+      const compareEndDate = searchParams.get('compareEndDate') || undefined
+      const accountId = searchParams.get('accountId') || undefined
 
-      const summary = await fetchClientAdPerformance(supabase, id, days, platform)
+      const summary = await fetchClientAdPerformance(supabase, id, {
+        days,
+        platform,
+        startDate,
+        endDate,
+        compareStartDate,
+        compareEndDate,
+        accountId,
+      })
 
       return NextResponse.json({ data: summary })
     } catch {

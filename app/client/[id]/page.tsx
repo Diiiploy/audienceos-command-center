@@ -24,7 +24,15 @@ import { useRouter } from "next/navigation"
 import { useClientDetail } from "@/hooks/use-client-detail"
 import { useAuth } from "@/hooks/use-auth"
 import { useClientAdPerformance } from "@/hooks/use-client-ad-performance"
-import type { AdPerformancePeriod, AdPlatformFilter } from "@/types/dashboard"
+import { useClientAdAccounts } from "@/hooks/use-client-ad-accounts"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { PerformanceTimeFilter, computeCompareDates, getCompareLabel, type TimeFilterValue } from "@/components/dashboard/performance-time-filter"
 import { AdPerformanceCards, AdPerformanceCardsSkeleton } from "@/components/dashboard/ad-performance-cards"
 import { AdSpendChart, AdSpendChartSkeleton } from "@/components/dashboard/ad-spend-chart"
 import { PlatformBreakdown, PlatformBreakdownSkeleton } from "@/components/dashboard/platform-breakdown"
@@ -72,12 +80,24 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
   })
 
   // Ad performance state
-  const [adPeriod, setAdPeriod] = useState<AdPerformancePeriod>(30)
-  const [adPlatform, setAdPlatform] = useState<AdPlatformFilter>('all')
+  const [adTimeFilter, setAdTimeFilter] = useState<TimeFilterValue>({
+    preset: "30",
+    compareEnabled: false,
+    comparePreset: "previous",
+  })
+  const [adPlatform, setAdPlatform] = useState<string>('all')
+  const [selectedAccountId, setSelectedAccountId] = useState<string | undefined>(undefined)
+  const { data: adAccounts } = useClientAdAccounts(clientId)
+  const compareDates = computeCompareDates(adTimeFilter)
   const { data: adPerformance, isLoading: adPerfLoading } = useClientAdPerformance({
     clientId,
-    days: adPeriod,
+    days: adTimeFilter.preset !== "custom" ? parseInt(adTimeFilter.preset) : undefined,
+    startDate: adTimeFilter.preset === "custom" ? adTimeFilter.startDate : undefined,
+    endDate: adTimeFilter.preset === "custom" ? adTimeFilter.endDate : undefined,
+    compareStartDate: compareDates.compareStartDate,
+    compareEndDate: compareDates.compareEndDate,
     platform: adPlatform,
+    accountId: selectedAccountId,
     enabled: !!client,
   })
 
@@ -430,54 +450,37 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
 
           <TabsContent value="performance" className="space-y-4">
             {/* Filter Bar */}
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex gap-1 flex-wrap" role="group" aria-label="Select date range">
-                {([
-                  { value: 1 as AdPerformancePeriod, label: "Today" },
-                  { value: 7 as AdPerformancePeriod, label: "Past Week" },
-                  { value: 14 as AdPerformancePeriod, label: "Past 2 Weeks" },
-                  { value: 30 as AdPerformancePeriod, label: "Past 30 Days" },
-                  { value: 90 as AdPerformancePeriod, label: "Past 3 Months" },
-                  { value: 180 as AdPerformancePeriod, label: "Past 6 Months" },
-                  { value: 365 as AdPerformancePeriod, label: "Past 1 Year" },
-                ]).map(({ value, label }) => (
-                  <Button
-                    key={value}
-                    variant={adPeriod === value ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setAdPeriod(value)}
-                    aria-pressed={adPeriod === value}
-                    className="text-xs"
-                  >
-                    {label}
-                  </Button>
-                ))}
-              </div>
-              <div className="flex gap-1" role="group" aria-label="Select platform">
-                {([
-                  { value: "all" as AdPlatformFilter, label: "All Platforms" },
-                  { value: "google_ads" as AdPlatformFilter, label: "Google Ads" },
-                  { value: "meta_ads" as AdPlatformFilter, label: "Meta Ads" },
-                ]).map(({ value, label }) => (
-                  <Button
-                    key={value}
-                    variant={adPlatform === value ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setAdPlatform(value)}
-                    aria-pressed={adPlatform === value}
-                    className="text-xs"
-                  >
-                    {label}
-                  </Button>
-                ))}
-              </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <PerformanceTimeFilter
+                value={adTimeFilter}
+                onChange={setAdTimeFilter}
+                platform={adPlatform}
+                onPlatformChange={setAdPlatform}
+              />
+              {/* Ad Account Selector */}
+              <Select
+                value={selectedAccountId ?? "all"}
+                onValueChange={(v) => setSelectedAccountId(v === "all" ? undefined : v)}
+              >
+                <SelectTrigger className="w-[200px] h-8 text-xs">
+                  <SelectValue placeholder="All Accounts" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Accounts</SelectItem>
+                  {adAccounts?.filter(a => a.is_active).map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      {account.platform === 'google_ads' ? 'Google' : 'Meta'} - {account.external_account_id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* KPI Cards */}
             {adPerfLoading ? (
               <AdPerformanceCardsSkeleton />
             ) : adPerformance && (adPerformance.totalSpend > 0 || adPerformance.totalImpressions > 0) ? (
-              <AdPerformanceCards data={adPerformance} />
+              <AdPerformanceCards data={adPerformance} compareEnabled={adTimeFilter.compareEnabled} compareLabel={getCompareLabel(adTimeFilter)} />
             ) : null}
 
             {/* Charts */}
@@ -491,15 +494,10 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
                 <div className="md:col-span-3">
                   <AdSpendChart
                     data={adPerformance}
-                    periodLabel={([
-                      { value: 1, label: "Today" },
-                      { value: 7, label: "Past Week" },
-                      { value: 14, label: "Past 2 Weeks" },
-                      { value: 30, label: "Past 30 Days" },
-                      { value: 90, label: "Past 3 Months" },
-                      { value: 180, label: "Past 6 Months" },
-                      { value: 365, label: "Past 1 Year" },
-                    ]).find(o => o.value === adPeriod)?.label || "Past 30 Days"}
+                    periodLabel={adTimeFilter.preset === "custom"
+                      ? `${adTimeFilter.startDate} - ${adTimeFilter.endDate}`
+                      : { "7": "Past Week", "30": "Past 30 Days", "90": "Past 3 Months", "180": "Past 6 Months", "365": "Past 1 Year" }[adTimeFilter.preset] || "Past 30 Days"
+                    }
                   />
                 </div>
                 <div className="md:col-span-2">
