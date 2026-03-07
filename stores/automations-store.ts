@@ -134,7 +134,7 @@ export const useAutomationsStore = create<AutomationsState>((set, get) => ({
     try {
       const res = await fetchWithCsrf(`/api/v1/workflows/${id}/toggle`, {
         method: 'PATCH',
-        body: JSON.stringify({ is_active: isActive }),
+        body: JSON.stringify({ enabled: isActive }),
       })
 
       if (!res.ok) throw new Error('Failed to toggle workflow')

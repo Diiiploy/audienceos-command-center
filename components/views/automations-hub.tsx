@@ -454,18 +454,26 @@ export function AutomationsHub() {
       const triggers = JSON.parse(JSON.stringify(workflow.triggers)) as Record<string, unknown>[]
       const actions = JSON.parse(JSON.stringify(workflow.actions)) as Record<string, unknown>[]
 
+      // Strip UI-only keys from the edited config before saving
+      const cleanConfig = { ...editedStepConfig } as Record<string, unknown>
+      delete cleanConfig._triggerType  // UI-only trigger type selector
+      delete cleanConfig.stage         // UI alias — real field is toStage
+
       // Find and update the matching trigger or action
       if (selectedStep.type === "trigger") {
         const idx = triggers.findIndex((t) => t.id === selectedStep.id)
         if (idx >= 0) {
           triggers[idx].name = editedStepName
-          triggers[idx].config = editedStepConfig
+          // Merge edited values into existing config (preserves fields not shown in UI)
+          const existingConfig = (triggers[idx].config || {}) as Record<string, unknown>
+          triggers[idx].config = { ...existingConfig, ...cleanConfig }
         }
       } else {
         const idx = actions.findIndex((a) => a.id === selectedStep.id)
         if (idx >= 0) {
           actions[idx].name = editedStepName
-          actions[idx].config = editedStepConfig
+          const existingConfig = (actions[idx].config || {}) as Record<string, unknown>
+          actions[idx].config = { ...existingConfig, ...cleanConfig }
         }
       }
 
@@ -1140,10 +1148,27 @@ function StepConfiguration({ step, name, config, onNameChange, onConfigChange }:
 
 function TriggerConfig({ config, onChange }: { config: StepConfig; onChange: (key: string, value: unknown) => void }) {
   // Support both mock format (config.stage) and real format (config.toStage)
-  const stageValue = config.stage || (config as Record<string, unknown>).toStage as string || ""
+  const realConfig = config as Record<string, unknown>
+  const stageValue = config.stage || (realConfig.toStage as string) || ""
   const scheduleValue = config.schedule || ""
 
-  const triggerType = scheduleValue ? "scheduled" : config.channels ? "slack_message" : stageValue ? "stage_change" : "client_added"
+  // Derive the trigger type from the config, but also allow it to be overridden
+  // once the user has explicitly selected a different type
+  const triggerType = (realConfig._triggerType as string) ||
+    (scheduleValue ? "scheduled" : config.channels ? "slack_message" : stageValue ? "stage_change" : "client_added")
+
+  const handleTriggerTypeChange = (newType: string) => {
+    // Store the explicit selection
+    onChange("_triggerType", newType)
+    // Reset sub-fields based on the new type
+    if (newType === "stage_change") {
+      onChange("toStage", stageValue || "Onboarding")
+      onChange("stage", stageValue || "Onboarding")
+    }
+  }
+
+  const showStageFields = triggerType === "stage_change"
+  const showScheduleFields = triggerType === "scheduled"
 
   return (
     <div className="space-y-3">
@@ -1154,7 +1179,7 @@ function TriggerConfig({ config, onChange }: { config: StepConfig; onChange: (ke
             <label className="text-xs text-muted-foreground">When this happens:</label>
             <select
               value={triggerType}
-              onChange={(e) => onChange("triggerType", e.target.value)}
+              onChange={(e) => handleTriggerTypeChange(e.target.value)}
               className="w-full h-9 text-sm rounded-md border border-border bg-background px-3"
             >
               <option value="client_added">Client added to pipeline</option>
@@ -1163,11 +1188,11 @@ function TriggerConfig({ config, onChange }: { config: StepConfig; onChange: (ke
               <option value="scheduled">Scheduled time</option>
             </select>
           </div>
-          {stageValue && (
+          {showStageFields && (
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground">Stage:</label>
               <select
-                value={stageValue}
+                value={stageValue || "Onboarding"}
                 onChange={(e) => {
                   onChange("stage", e.target.value)
                   onChange("toStage", e.target.value)
@@ -1181,11 +1206,11 @@ function TriggerConfig({ config, onChange }: { config: StepConfig; onChange: (ke
               </select>
             </div>
           )}
-          {scheduleValue && (
+          {showScheduleFields && (
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground">Schedule (cron):</label>
               <Input
-                value={scheduleValue}
+                value={scheduleValue || "0 9 * * 1"}
                 onChange={(e) => onChange("schedule", e.target.value)}
                 className="h-9 font-mono"
                 placeholder="0 9 * * 1"
