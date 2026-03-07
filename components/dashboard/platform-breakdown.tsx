@@ -49,6 +49,15 @@ export function PlatformBreakdown({ data, className }: PlatformBreakdownProps) {
           const ctr = metrics.impressions > 0
             ? ((metrics.clicks / metrics.impressions) * 100).toFixed(2)
             : '0.00'
+          const cvr = metrics.clicks > 0
+            ? ((metrics.conversions / metrics.clicks) * 100).toFixed(2)
+            : '0.00'
+          const cpm = metrics.impressions > 0
+            ? ((metrics.spend / metrics.impressions) * 1000).toFixed(2)
+            : '0.00'
+          const cpa = metrics.conversions > 0
+            ? (metrics.spend / metrics.conversions).toFixed(2)
+            : '0.00'
 
           return (
             <div key={platform}>
@@ -78,10 +87,13 @@ export function PlatformBreakdown({ data, className }: PlatformBreakdownProps) {
               </div>
               {/* Metrics row */}
               <div className="flex gap-4 text-xs text-muted-foreground">
-                <span>{metrics.impressions.toLocaleString()} impressions</span>
+                <span>{metrics.impressions.toLocaleString()} imp</span>
                 <span>{metrics.clicks.toLocaleString()} clicks</span>
                 <span>{ctr}% CTR</span>
-                <span>{metrics.conversions.toLocaleString()} conversions</span>
+                <span>{metrics.conversions.toLocaleString()} conv</span>
+                <span>{cvr}% CVR</span>
+                <span>${cpm} CPM</span>
+                <span>${cpa} CPA</span>
               </div>
             </div>
           )

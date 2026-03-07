@@ -24,6 +24,34 @@ const platformColors: Record<string, string> = {
   meta_ads: "bg-indigo-500",
 }
 
+const platformPlaceholders: Record<string, string> = {
+  google_ads: "e.g., 123-456-7890",
+  meta_ads: "e.g., act_12345678 or 12345678",
+}
+
+const platformHelpText: Record<string, string> = {
+  google_ads: "Find this in Google Ads → Settings → Account Access → Customer ID (format: XXX-XXX-XXXX)",
+  meta_ads: "Find this in Meta Business Manager → Ad Accounts → Account ID (starts with act_)",
+}
+
+function validateAccountId(platform: string, id: string): string | null {
+  const trimmed = id.trim()
+  if (!trimmed) return "Account ID is required"
+  if (platform === "google_ads") {
+    const normalized = trimmed.replace(/-/g, "")
+    if (!/^\d{10}$/.test(normalized)) {
+      return "Google Ads Customer ID must be 10 digits (e.g., 123-456-7890)"
+    }
+  }
+  if (platform === "meta_ads") {
+    const normalized = trimmed.replace(/^act_/, "")
+    if (!/^\d+$/.test(normalized)) {
+      return "Meta Ad Account ID must be numeric (e.g., act_12345678)"
+    }
+  }
+  return null
+}
+
 interface AdAccountsSectionProps {
   clientId: string
   className?: string
@@ -37,16 +65,28 @@ export function AdAccountsSection({ clientId, className }: AdAccountsSectionProp
   const [showForm, setShowForm] = useState(false)
   const [newPlatform, setNewPlatform] = useState<string>("google_ads")
   const [newAccountId, setNewAccountId] = useState("")
+  const [validationError, setValidationError] = useState<string | null>(null)
 
   const activeAccounts = accounts?.filter((a) => a.is_active) || []
 
   const handleLink = async () => {
-    if (!newAccountId.trim()) return
+    const error = validateAccountId(newPlatform, newAccountId)
+    if (error) {
+      setValidationError(error)
+      return
+    }
+    setValidationError(null)
+
+    // Normalize the ID before sending
+    let normalizedId = newAccountId.trim()
+    if (newPlatform === "google_ads") {
+      normalizedId = normalizedId.replace(/-/g, "")
+    }
 
     try {
       await linkMutation.mutateAsync({
         platform: newPlatform,
-        external_account_id: newAccountId.trim(),
+        external_account_id: normalizedId,
       })
       setNewAccountId("")
       setShowForm(false)
@@ -97,17 +137,17 @@ export function AdAccountsSection({ clientId, className }: AdAccountsSectionProp
           <div className="flex gap-2">
             <select
               value={newPlatform}
-              onChange={(e) => setNewPlatform(e.target.value)}
+              onChange={(e) => { setNewPlatform(e.target.value); setValidationError(null) }}
               className="bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground"
             >
               <option value="google_ads">Google Ads</option>
               <option value="meta_ads">Meta Ads</option>
             </select>
             <Input
-              placeholder="Account ID (e.g., 7085645296)"
+              placeholder={platformPlaceholders[newPlatform] || "Account ID"}
               value={newAccountId}
-              onChange={(e) => setNewAccountId(e.target.value)}
-              className="flex-1"
+              onChange={(e) => { setNewAccountId(e.target.value); setValidationError(null) }}
+              className={cn("flex-1", validationError && "border-rose-500")}
               onKeyDown={(e) => e.key === "Enter" && handleLink()}
             />
             <Button
@@ -124,11 +164,17 @@ export function AdAccountsSection({ clientId, className }: AdAccountsSectionProp
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => { setShowForm(false); setNewAccountId("") }}
+              onClick={() => { setShowForm(false); setNewAccountId(""); setValidationError(null) }}
             >
               Cancel
             </Button>
           </div>
+          <p className="text-xs text-muted-foreground">
+            {platformHelpText[newPlatform]}
+          </p>
+          {validationError && (
+            <p className="text-xs text-rose-500">{validationError}</p>
+          )}
           {linkMutation.isError && (
             <p className="text-xs text-rose-500">{linkMutation.error.message}</p>
           )}
