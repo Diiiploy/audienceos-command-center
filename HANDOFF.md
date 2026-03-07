@@ -1,45 +1,62 @@
 # AudienceOS Command Center - Handoff Document
 
-## Current State (2026-03-04, 2:50 PM PST)
+## Current State (2026-03-06, 10:30 AM PST)
 
-**Branch:** `feature/chase-dev` (rebased on latest `main` as of `ec4738a`)
+**Branch:** `feature/chase-dev` (5 commits ahead of `main`)
 **Build Status:** PASSING (zero TypeScript errors)
 **Repo:** https://github.com/Diiiploy/audienceos-command-center.git
 **Production:** https://v0-audience-os-command-center.vercel.app
-**Deploy method:** `npx vercel --prod` (git auto-deploy broken — repo transfer issue)
-**Local divergence:** Branch has 16 local commits, 1 remote — needs force push to sync
+**Deploy method:** `npx vercel --prod` (git auto-deploy broken -- repo transfer issue)
+**Local dev:** `npx next dev --port 3000`
 
 ---
 
-## Session Changes (2026-03-04 — Airbyte Multi-Client Scaling)
+## Session Changes (2026-03-06 -- Ad Performance Dashboard Upgrade)
 
-### 1. Phase 1: Dashboard Client Selector — COMPLETE
+### 1. Ad Performance Dashboard Overhaul -- COMPLETE
 
-**Problem:** Dashboard Performance tab showed agency-wide ad data with no way to filter by client.
-**Solution:** Added a client dropdown that switches between "All Clients" (agency-wide, default) and per-client ad performance data.
+**Problem:** Performance tab had basic button-row time filters, only 4 KPI metrics, no comparison functionality, and the compare toggle was wired in the UI but never actually sent comparison dates to the API.
 
-**Modified:**
-- `hooks/use-ad-performance.ts` — Added optional `clientId` parameter to query key factory, fetch function, and hook options. When `clientId` is set, routes to `/api/v1/clients/{clientId}/ad-performance` (per-client endpoint); otherwise falls back to `/api/v1/dashboard/ad-performance` (agency-wide).
-- `components/dashboard-view.tsx` — Added `Select` component imports, `adClientFilter` state variable, wired `clientId` to `useAdPerformance` hook, added dropdown UI in Performance tab filter bar above period/platform selectors. Maps through `clients` prop to populate options.
-
-**Commit:** `fc61b00`
-
-### 2. Phase 2 Prep: Auto-Provision Airbyte Pipeline — COMPLETE
-
-**Problem:** Linking an ad account via POST `/api/v1/clients/[id]/ad-accounts` only created a database mapping record. The Airbyte source and connection (the actual data pipeline) had to be created manually in Airbyte Cloud.
-**Solution:** After inserting the mapping, the handler now looks up the agency's existing platform integration (Google Ads or Meta Ads) for OAuth/credential tokens, and calls `provisionAirbyteConnection()` to automatically create the Airbyte source + connection.
+**Created:**
+- `components/dashboard/performance-time-filter.tsx` -- New time filter component with dropdown presets, custom date range picker, and comparison period selector (Previous Period / Same Period Last Year / Custom Range). Exports `computeCompareDates()` and `getCompareLabel()` helpers.
+- `components/ui/calendar.tsx` -- Calendar component (shadcn) for date range picker
+- `components/ui/date-range-picker.tsx` -- Date range picker component for custom date selection
 
 **Modified:**
-- `app/api/v1/clients/[id]/ad-accounts/route.ts` — Added import for `provisionAirbyteConnection` and `AirbytePlatform`. After mapping insert, queries `integration` table for agency's platform credentials. If found, provisions Airbyte source + connection, updates mapping with `airbyte_source_id`, `airbyte_connection_id`, and `table_prefix`. Returns `provisioning` status in response (`provisioned`, `failed`, or `pending`).
+- `components/dashboard/ad-performance-cards.tsx` -- Expanded from 4 to 8 KPI cards (added Clicks, Conversions, CVR, CPA). Added `compareEnabled`, `compareLabel`, `previousValue` props. When compare is on, each card shows the previous value (e.g., "+12% from $8.5k") with a dynamic label.
+- `components/dashboard/ad-spend-chart.tsx` -- Added toggleable metric pills (Spend, Clicks, Conversions, Impressions) to show/hide chart series
+- `components/dashboard/platform-breakdown.tsx` -- Added conversions to platform breakdown display
+- `components/dashboard/index.ts` -- Re-exported new PerformanceTimeFilter component
+- `components/dashboard-view.tsx` -- Replaced inline button filters with PerformanceTimeFilter. Wired `computeCompareDates()` for all compare presets. Passes `compareEnabled`/`compareLabel` to AdPerformanceCards.
+- `app/client/[id]/page.tsx` -- Same filter upgrade on client profile Performance tab. Wired compare dates to `useClientAdPerformance` hook (was completely missing). Added per-account ad account selector dropdown.
+- `hooks/use-ad-performance.ts` -- Added `startDate`, `endDate`, `compareStartDate`, `compareEndDate` params
+- `hooks/use-client-ad-performance.ts` -- Same additions plus `accountId` param for per-account filtering
+- `app/api/v1/clients/[id]/ad-performance/route.ts` -- Added `startDate`, `endDate`, `compareStartDate`, `compareEndDate`, `accountId` query params
+- `app/api/v1/dashboard/ad-performance/route.ts` -- Added same date params
+- `lib/services/dashboard-queries.ts` -- Added `computeDateRanges()` helper, `fetchClientAdPerformance()` function, `conversionRate`, `cpm`, `cpa` to `AdPerformanceSummary` type. Both agency-wide and per-client queries now support custom date ranges and comparison periods.
 
-**Commit:** `4124988`
+**Commit:** `a88f858`
 
-### 3. Context Recovery & Branch Maintenance — COMPLETE
+### 2. Architecture Documentation -- COMPLETE
 
-- Recovered full project context from `handoffchase.md` (prior session 2026-03-03)
-- Rebased `feature/chase-dev` onto latest `origin/main` (`ec4738a`) — clean rebase, no conflicts
-- Stash/pop of uncommitted Phase 1 changes applied cleanly after rebase
-- Created `.env.local` from `.env.production.local` for local dev server
+Produced a full architecture breakdown of the ad account linking + Airbyte pipeline + dashboard data flow for team sharing. Covers:
+- Flow 1: Linking new ad accounts (UI -> API -> Airbyte auto-provisioning)
+- Flow 2: Data sync pipeline (Airbyte cron -> webhook -> transform RPC -> ad_performance)
+- Flow 3: Dashboard reads (agency-wide vs per-client, same component reuse)
+
+### 3. Meta Ads Data Staleness -- DIAGNOSED, NOT FIXED
+
+**Finding:** Diiiploy client's Performance tab shows "No performance data" because Meta Ads data only exists from Jul 22 - Sep 19, 2025. The Meta Ads Airbyte connection (`b45323b7-...`) has been inactive for ~6 months. Google Ads (Kaaba Luum) data is fresh through Feb 27, 2026.
+
+**Action needed:** Check Airbyte Cloud for Meta Ads connection status. Likely expired access token or disabled schedule.
+
+---
+
+## Previous Session (2026-03-04 -- Airbyte Multi-Client Scaling)
+
+### Phase 1: Dashboard Client Selector -- COMPLETE (commit `fc61b00`)
+### Phase 2: Auto-Provision Airbyte Pipeline -- COMPLETE (commit `4124988`)
+### Phase 3: Onboarding Flow -- NOT STARTED
 
 ---
 
@@ -47,44 +64,19 @@
 
 | Phase | Status | What |
 |-------|--------|------|
-| **1. Dashboard Client Selector** | DONE (committed) | Dropdown filters ad data per-client on Performance tab |
-| **2. Test With Real Accounts** | IN PROGRESS | Auto-provisioning wired; needs real account IDs to test end-to-end |
+| **1. Dashboard Client Selector** | DONE | Dropdown filters ad data per-client on Performance tab |
+| **2. Ad Performance Dashboard** | DONE | 8 KPIs, time filters, comparison, per-account filtering |
 | **3. Onboarding Flow** | NOT STARTED | Replace Leadsie, add ad account ID fields to onboarding form |
-
-### Phase 2 Remaining Work
-
-1. **Push branch** — `git push --force-with-lease origin feature/chase-dev` (branch diverged from rebase)
-2. **Deploy preview** — `npx vercel` (not --prod) to get a preview URL with feature branch
-3. **Test with real accounts** — Need Chase's Google Ads customer ID and Meta Ads account ID
-4. **Verify auto-provisioning** — Link an ad account via UI, confirm Airbyte source + connection created
-5. **Verify dashboard** — After Airbyte syncs, confirm per-client data appears in dropdown
-
-### Phase 2 Blockers
-
-- **Google Ads account ID** — Chase needs to provide test customer ID
-- **Meta Ads account ID** — Chase needs to provide test account ID
-- **Platform integrations** — Agency must have Google Ads / Meta Ads integration connected (with tokens) for auto-provisioning to work
 
 ---
 
-## Architecture Notes (Airbyte Pipeline)
+## Deferred Work
 
-```
-Client grants ad account access
-  → Chase enters account ID in Command Center UI (client detail → Ad Accounts → Link)
-    → POST /api/v1/clients/{id}/ad-accounts
-      → DB mapping created (airbyte_account_mapping)
-      → Looks up agency's platform integration for credentials
-      → provisionAirbyteConnection() creates Airbyte source + connection
-      → Airbyte syncs daily at 6am UTC
-      → Webhook fires on sync complete → transform_airbyte_ads_data()
-      → ad_performance table populated with client-scoped data
-        → Dashboard dropdown shows per-client ad data
-```
-
-**Existing seeded accounts (in DB):**
-- Google Ads `7085645296` → Kaaba Luum Hotel (connection: `b13b1c76-...`)
-- Meta Ads `763923942896969` → Diiiploy AI (connection: `b45323b7-...`)
+1. **Meta Ads sync fix** -- Airbyte connection `b45323b7-...` inactive since Sep 2025. Check Airbyte Cloud, refresh Meta access token, re-trigger sync.
+2. **Onboarding flow (Phase 3)** -- Replace Leadsie with in-app ad account linking during client onboarding
+3. **Smart empty state** -- When ad_performance has stale data, show "Latest data from [date]" instead of generic "No performance data" message
+4. **Cron/scraping issue** -- Slack and Gmail cron syncs not running (noted in prior session, not investigated)
+5. **Force push branch** -- Branch diverged from earlier rebase. Need `git push --force-with-lease origin feature/chase-dev` to sync remote.
 
 ---
 
@@ -92,25 +84,20 @@ Client grants ad account access
 
 | File | Purpose |
 |------|---------|
-| `hooks/use-ad-performance.ts` | Ad performance hook with clientId parameter (Phase 1) |
-| `components/dashboard-view.tsx` | Dashboard with client selector dropdown (Phase 1) |
-| `app/api/v1/clients/[id]/ad-accounts/route.ts` | Ad account linking + auto-provisioning (Phase 2) |
-| `lib/airbyte/provision.ts` | Airbyte source + connection provisioning function |
-| `lib/airbyte/client.ts` | Airbyte Cloud API client (v1 REST) |
-| `lib/airbyte/types.ts` | Airbyte TypeScript types and source definition IDs |
-| `handoffchase.md` | Prior session handoff (2026-03-03) with full plan details |
-| `CLAUDE.md` | Project context, rules, architecture |
-| `RUNBOOK.md` | Operations guide, verification commands |
+| `components/dashboard/performance-time-filter.tsx` | Time filter + compare controls (new) |
+| `components/dashboard/ad-performance-cards.tsx` | 8 KPI metric cards with comparison |
+| `components/dashboard/ad-spend-chart.tsx` | Multi-metric trend chart with toggles |
+| `components/dashboard-view.tsx` | Main dashboard with performance tab |
+| `app/client/[id]/page.tsx` | Client profile with performance tab |
+| `hooks/use-ad-performance.ts` | Agency-wide ad performance hook |
+| `hooks/use-client-ad-performance.ts` | Per-client ad performance hook |
+| `lib/services/dashboard-queries.ts` | Supabase query functions for ad data |
+| `app/api/v1/clients/[id]/ad-accounts/route.ts` | Ad account CRUD + auto-provisioning |
+| `app/api/v1/webhooks/airbyte/route.ts` | Webhook handler: sync -> transform -> ad_performance |
+| `lib/airbyte/provision.ts` | Airbyte source + connection provisioning |
+| `CLAUDE.md` | Project context and rules |
+| `RUNBOOK.md` | Operations guide |
 
 ---
 
-## Cron / Scraping Issue (Noted, Not Addressed)
-
-- `vercel.json` has 2 cron entries (slack-sync every 30min, gmail-sync every 15min)
-- Cron routes exist at `app/api/cron/slack-sync/` and `app/api/cron/gmail-sync/`
-- No scraping has happened in the last week (per earlier session finding)
-- Root cause not investigated this session — deferred
-
----
-
-*Last Updated: 2026-03-04 2:50 PM PST*
+*Last Updated: 2026-03-06 10:30 AM PST*
