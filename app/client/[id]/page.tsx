@@ -209,6 +209,7 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
             <TabsTrigger value="comms">Communications</TabsTrigger>
             <TabsTrigger value="tasks">Tasks</TabsTrigger>
             <TabsTrigger value="performance">Performance</TabsTrigger>
+            <TabsTrigger value="integrations">Integrations</TabsTrigger>
             <TabsTrigger value="media">Media & Files</TabsTrigger>
             <TabsTrigger value="techsetup">Tech Setup</TabsTrigger>
           </TabsList>
@@ -513,7 +514,15 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
               </Card>
             ) : null}
 
-            {/* Ad Accounts Section */}
+          </TabsContent>
+
+          <TabsContent value="integrations" className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold text-foreground mb-1">Integrations</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Manage ad platform connections for this client. Paste account IDs to automatically start syncing performance data.
+              </p>
+            </div>
             <AdAccountsSection clientId={clientId} />
           </TabsContent>
 
