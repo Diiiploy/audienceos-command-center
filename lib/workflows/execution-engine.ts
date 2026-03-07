@@ -140,9 +140,13 @@ export class WorkflowEngine {
         context
       )
 
-      // Determine overall success
-      const hasFailures = actionResults.some((r) => r.status === 'failed')
-      const success = !hasFailures
+      // Determine overall success (skipped actions don't count as failures)
+      const failedCount = actionResults.filter((r) => r.status === 'failed').length
+      const completedCount = actionResults.filter((r) => r.status === 'completed').length
+      const runStatus = failedCount === 0 ? 'completed'
+        : completedCount > 0 ? 'partial_failure'
+        : 'failed'
+      const success = runStatus === 'completed'
 
       // Complete the run
       await completeWorkflowRun(
@@ -152,18 +156,18 @@ export class WorkflowEngine {
         workflowId,
         success,
         actionResults,
-        hasFailures ? 'One or more actions failed' : undefined
+        failedCount > 0 ? `${failedCount} action(s) failed` : undefined
       )
 
       return {
         runId: run.id,
         workflowId,
-        status: success ? 'completed' : 'failed',
+        status: runStatus,
         triggerData,
         actionResults,
         startedAt: run.started_at,
         completedAt: new Date().toISOString(),
-        error: hasFailures ? 'One or more actions failed' : undefined,
+        error: failedCount > 0 ? `${failedCount} action(s) failed` : undefined,
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -380,6 +384,17 @@ export class WorkflowEngine {
     context: WorkflowExecutionContext
   ): Promise<ActionResult> {
     const { channel, message, recipients } = action.config
+
+    // Skip if no recipients configured (not an error — just unconfigured)
+    if (!recipients || recipients.length === 0) {
+      return {
+        actionId: action.id,
+        actionType: 'send_notification',
+        status: 'skipped',
+        result: { channel, recipientCount: 0, reason: 'No recipients configured' },
+        executedAt: new Date().toISOString(),
+      }
+    }
 
     const processedMessage = substituteVariables(message, {
       client: context.clientSnapshot,

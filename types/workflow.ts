@@ -17,7 +17,7 @@ export type WorkflowRunInsert = Database['public']['Tables']['workflow_run']['In
 export type WorkflowRunUpdate = Database['public']['Tables']['workflow_run']['Update']
 
 // Extended workflow status for approvals
-export type WorkflowRunStatus = 'running' | 'completed' | 'failed' | 'pending_approval' | 'skipped'
+export type WorkflowRunStatus = 'running' | 'completed' | 'failed' | 'partial_failure' | 'pending_approval' | 'skipped'
 
 // ============================================================================
 // TRIGGER TYPES
