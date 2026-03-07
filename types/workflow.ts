@@ -252,7 +252,7 @@ export interface ClientSnapshot {
 // EXECUTION RESULTS
 // ============================================================================
 
-export type ActionResultStatus = 'completed' | 'failed' | 'skipped' | 'pending_approval'
+export type ActionResultStatus = 'completed' | 'failed' | 'skipped' | 'pending_approval' | 'partial_failure'
 
 export interface ActionResult {
   actionId: string

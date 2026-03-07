@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import { useSlideTransition } from "@/hooks/use-slide-transition"
-import { useToast } from "@/hooks/use-toast"
+import { toastSuccess, toastError, toastInfo } from "@/lib/toast-helpers"
 import { fetchWithCsrf } from "@/lib/csrf"
 import { useAutomationsStore } from "@/stores/automations-store"
 import type { Workflow, WorkflowTrigger, WorkflowAction } from "@/types/workflow"
@@ -84,6 +84,7 @@ interface AutomationTemplate {
 // Step configuration types for automation workflows
 interface StepConfig {
   // Trigger configs
+  _triggerType?: string  // Injected by workflowToTemplate from trigger.type
   stage?: string
   schedule?: string
   channels?: string
@@ -314,7 +315,6 @@ function workflowToTemplate(workflow: Workflow): AutomationTemplate {
 }
 
 export function AutomationsHub() {
-  const { toast } = useToast()
   const { workflows, isLoading, fetchWorkflows, toggleWorkflow, deleteWorkflow } = useAutomationsStore()
   const [isRunning, setIsRunning] = useState<string | null>(null)
   const [isCreatingTemplate, setIsCreatingTemplate] = useState(false)
@@ -346,11 +346,7 @@ export function AutomationsHub() {
     try {
       const success = await toggleWorkflow(automation.id, isActive)
       if (success) {
-        toast({
-          title: "Automation updated",
-          description: `Automation is now ${newStatus}`,
-          variant: "default",
-        })
+        toastSuccess(isActive ? "Workflow activated" : "Workflow paused", { description: automation.name })
         // Update local state
         if (selectedAutomation) {
           setSelectedAutomation({ ...selectedAutomation, status: newStatus as "active" | "inactive" | "draft" })
@@ -359,11 +355,8 @@ export function AutomationsHub() {
         throw new Error("Failed to toggle automation")
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to toggle automation"
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
+      toastError("Failed to toggle workflow", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
       })
     }
   }
@@ -382,20 +375,13 @@ export function AutomationsHub() {
         throw new Error(errorData.error || "Failed to duplicate automation")
       }
 
-      toast({
-        title: "Automation duplicated",
-        description: `${selectedAutomation.name} has been duplicated`,
-        variant: "default",
-      })
+      toastSuccess("Automation duplicated", { description: `${selectedAutomation.name} has been duplicated` })
 
       // Close detail panel
       setSelectedAutomation(null)
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to duplicate automation"
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
+      toastError("Failed to duplicate automation", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
       })
     } finally {
       setIsDuplicating(false)
@@ -409,22 +395,15 @@ export function AutomationsHub() {
     try {
       const success = await deleteWorkflow(selectedAutomation.id)
       if (success) {
-        toast({
-          title: "Automation deleted",
-          description: "The automation has been removed",
-          variant: "default",
-        })
+        toastSuccess("Workflow deleted", { description: "The workflow has been removed" })
         setShowDeleteModal(false)
         setSelectedAutomation(null)
       } else {
         throw new Error("Failed to delete automation")
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to delete automation"
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
+      toastError("Failed to delete workflow", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
       })
     } finally {
       setIsDeleting(false)
@@ -519,10 +498,7 @@ export function AutomationsHub() {
         throw new Error(errorData.error || errorData.message || "Failed to save step")
       }
 
-      toast({
-        title: "Step saved",
-        description: `${editedStepName} configuration has been updated`,
-      })
+      toastSuccess("Step saved", { description: `${editedStepName} configuration has been updated` })
 
       // Refresh workflow data from API
       await fetchWorkflows()
@@ -541,11 +517,8 @@ export function AutomationsHub() {
         }
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to save step"
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
+      toastError("Failed to save step", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
       })
     } finally {
       setIsSavingStep(false)
@@ -592,7 +565,7 @@ export function AutomationsHub() {
         throw new Error(err.message || "Failed to add step")
       }
 
-      toast({ title: "Step added", description: `${actionLabel} added to workflow` })
+      toastSuccess("Step added", { description: `${actionLabel} added to workflow` })
 
       await fetchWorkflows()
 
@@ -610,10 +583,8 @@ export function AutomationsHub() {
         }
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to add step",
-        variant: "destructive",
+      toastError("Failed to add step", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
       })
     }
   }
@@ -626,6 +597,7 @@ export function AutomationsHub() {
   // Run Now handler
   const handleRunNow = useCallback(async (automation: AutomationTemplate) => {
     setIsRunning(automation.id)
+    toastInfo("Running workflow...", { description: automation.name })
     try {
       const response = await fetchWithCsrf(`/api/v1/workflows/${automation.id}/execute`, {
         method: "POST",
@@ -635,22 +607,17 @@ export function AutomationsHub() {
         const err = await response.json().catch(() => ({}))
         throw new Error(err.error || "Failed to execute")
       }
-      toast({
-        title: "Workflow executed",
-        description: `${automation.name} ran successfully`,
-      })
+      toastSuccess("Workflow completed", { description: "All actions executed successfully" })
       // Refresh data to get updated run counts
       fetchWorkflows()
     } catch (error) {
-      toast({
-        title: "Execution failed",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
+      toastError("Workflow execution failed", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
       })
     } finally {
       setIsRunning(null)
     }
-  }, [fetchWorkflows, toast])
+  }, [fetchWorkflows])
 
   // Create from template handler
   const handleCreateFromTemplate = useCallback(async (templateKey: string) => {
@@ -664,21 +631,16 @@ export function AutomationsHub() {
         const err = await response.json().catch(() => ({}))
         throw new Error(err.error || "Failed to create workflow")
       }
-      toast({
-        title: "Workflow created",
-        description: "Template workflow has been activated",
-      })
+      toastSuccess("Workflow created", { description: "Template workflow has been activated" })
       fetchWorkflows()
     } catch (error) {
-      toast({
-        title: "Creation failed",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
+      toastError("Failed to create workflow", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
       })
     } finally {
       setIsCreatingTemplate(false)
     }
-  }, [fetchWorkflows, toast])
+  }, [fetchWorkflows])
 
   // Calculate counts
   const counts = useMemo(() => {

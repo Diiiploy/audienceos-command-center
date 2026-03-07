@@ -104,10 +104,11 @@ export async function GET(request: NextRequest) {
           } catch (err) {
             const msg = err instanceof Error ? err.message : 'Unknown error'
             agencyResult.errors.push(`Workflow ${workflow.id}: ${msg}`)
-            console.error(
-              `[cron/workflow-scheduler] Error processing ${trigger.type} for workflow ${workflow.id}:`,
-              msg
-            )
+            console.error('[WorkflowScheduler]', {
+              action: `process_${trigger.type}`,
+              workflowId: workflow.id,
+              error: msg,
+            })
           }
         }
       }
@@ -124,8 +125,12 @@ export async function GET(request: NextRequest) {
       timestamp: new Date().toISOString(),
     })
   } catch (err) {
-    console.error('[cron/workflow-scheduler] Fatal error:', err)
-    return NextResponse.json({ error: 'Scheduler failed' }, { status: 500 })
+    console.error('[WorkflowScheduler] Fatal error:', err instanceof Error ? err.message : err)
+    return NextResponse.json({
+      error: 'Scheduler failed',
+      message: err instanceof Error ? err.message : 'Unknown error',
+      partial_results: results,
+    }, { status: 500 })
   }
 }
 
@@ -145,10 +150,15 @@ async function processInactivityTrigger(
   cutoffDate.setDate(cutoffDate.getDate() - days)
 
   // Get all clients for this agency
-  const { data: clients } = await supabase
+  const { data: clients, error: clientsError } = await supabase
     .from('client')
     .select('id, name, stage')
     .eq('agency_id', agencyId)
+
+  if (clientsError) {
+    console.error('[WorkflowScheduler] Client query failed:', clientsError.message)
+    return
+  }
 
   if (!clients?.length) return
 
@@ -157,13 +167,18 @@ async function processInactivityTrigger(
 
     // Check if this workflow already ran for this client in the last hour (dedup)
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
-    const { data: recentRuns } = await supabase
+    const { data: recentRuns, error: recentRunsError } = await supabase
       .from('workflow_run')
       .select('id')
       .eq('workflow_id', workflow.id)
       .eq('agency_id', agencyId)
       .gte('started_at', oneHourAgo)
       .limit(1)
+
+    if (recentRunsError) {
+      console.error('[WorkflowScheduler] Dedup query failed:', recentRunsError.message)
+      continue
+    }
 
     if (recentRuns?.length) continue
 
@@ -175,12 +190,17 @@ async function processInactivityTrigger(
       const table = type === 'communication' ? 'communication' : type
       const dateCol = type === 'communication' ? 'received_at' : 'updated_at'
 
-      const { data: activity } = await supabase
+      const { data: activity, error: activityError } = await supabase
         .from(table)
         .select('id')
         .eq('client_id', client.id)
         .gte(dateCol, cutoffDate.toISOString())
         .limit(1)
+
+      if (activityError) {
+        console.error('[WorkflowScheduler] Activity query failed:', { table, clientId: client.id, error: activityError.message })
+        continue
+      }
 
       if (activity?.length) {
         isInactive = false
@@ -197,10 +217,12 @@ async function processInactivityTrigger(
           inactiveDays: days,
         }, client.id)
         .catch((err) => {
-          console.error(
-            `[cron/workflow-scheduler] Inactivity workflow ${workflow.id} failed for client ${client.id}:`,
-            err instanceof Error ? err.message : err
-          )
+          console.error('[WorkflowScheduler]', {
+            action: 'inactivity_dispatch',
+            workflowId: workflow.id,
+            clientId: client.id,
+            error: err instanceof Error ? err.message : String(err),
+          })
         })
 
       result.dispatched++
@@ -233,10 +255,11 @@ async function processScheduledTrigger(
       triggeredAt: new Date().toISOString(),
     })
     .catch((err) => {
-      console.error(
-        `[cron/workflow-scheduler] Scheduled workflow ${workflow.id} failed:`,
-        err instanceof Error ? err.message : err
-      )
+      console.error('[WorkflowScheduler]', {
+        action: 'scheduled_dispatch',
+        workflowId: workflow.id,
+        error: err instanceof Error ? err.message : String(err),
+      })
     })
 
   result.dispatched++
@@ -246,41 +269,46 @@ async function processScheduledTrigger(
 // Supports: minute, hour, day-of-month, month, day-of-week.
 // Uses timezone from trigger config.
 function matchesCronWindow(cronExpression: string, timezone: string): boolean {
-  const parts = cronExpression.trim().split(/\s+/)
-  if (parts.length !== 5) return false
+  try {
+    const parts = cronExpression.trim().split(/\s+/)
+    if (parts.length !== 5) return false
 
-  const [minutePart, hourPart, dayOfMonthPart, monthPart, dayOfWeekPart] = parts
+    const [minutePart, hourPart, dayOfMonthPart, monthPart, dayOfWeekPart] = parts
 
-  // Get current time in the specified timezone
-  const now = new Date()
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone || 'UTC',
-    hour: 'numeric',
-    minute: 'numeric',
-    day: 'numeric',
-    month: 'numeric',
-    weekday: 'short',
-    hour12: false,
-  })
-  const formatted = formatter.formatToParts(now)
+    // Get current time in the specified timezone
+    const now = new Date()
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone || 'UTC',
+      hour: 'numeric',
+      minute: 'numeric',
+      day: 'numeric',
+      month: 'numeric',
+      weekday: 'short',
+      hour12: false,
+    })
+    const formatted = formatter.formatToParts(now)
 
-  const currentMinute = parseInt(formatted.find((p) => p.type === 'minute')?.value || '0')
-  const currentHour = parseInt(formatted.find((p) => p.type === 'hour')?.value || '0')
-  const currentDay = parseInt(formatted.find((p) => p.type === 'day')?.value || '1')
-  const currentMonth = parseInt(formatted.find((p) => p.type === 'month')?.value || '1')
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-  const currentDow = dayNames.indexOf(
-    formatted.find((p) => p.type === 'weekday')?.value || 'Sun'
-  )
+    const currentMinute = parseInt(formatted.find((p) => p.type === 'minute')?.value || '0', 10)
+    const currentHour = parseInt(formatted.find((p) => p.type === 'hour')?.value || '0', 10)
+    const currentDay = parseInt(formatted.find((p) => p.type === 'day')?.value || '1', 10)
+    const currentMonth = parseInt(formatted.find((p) => p.type === 'month')?.value || '1', 10)
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    const currentDow = dayNames.indexOf(
+      formatted.find((p) => p.type === 'weekday')?.value || 'Sun'
+    )
 
-  // Check each field — within the 15-min window for minutes
-  if (!matchesCronField(minutePart, currentMinute, 0, 59, 15)) return false
-  if (!matchesCronField(hourPart, currentHour, 0, 23)) return false
-  if (!matchesCronField(dayOfMonthPart, currentDay, 1, 31)) return false
-  if (!matchesCronField(monthPart, currentMonth, 1, 12)) return false
-  if (!matchesCronField(dayOfWeekPart, currentDow, 0, 6)) return false
+    // Check each field — within the 15-min window for minutes
+    if (!matchesCronField(minutePart, currentMinute, 0, 59, 15)) return false
+    if (!matchesCronField(hourPart, currentHour, 0, 23)) return false
+    if (!matchesCronField(dayOfMonthPart, currentDay, 1, 31)) return false
+    if (!matchesCronField(monthPart, currentMonth, 1, 12)) return false
+    if (!matchesCronField(dayOfWeekPart, currentDow, 0, 6)) return false
 
-  return true
+    return true
+  } catch (err) {
+    console.warn('[WorkflowScheduler] Invalid cron expression:', cronExpression, err)
+    return false
+  }
 }
 
 // Match a single cron field against a value.
@@ -297,7 +325,7 @@ function matchesCronField(
 
   // Handle step: */N
   if (field.startsWith('*/')) {
-    const step = parseInt(field.slice(2))
+    const step = parseInt(field.slice(2), 10)
     if (isNaN(step) || step <= 0) return false
     // For minute field with window, check if any step value falls in window
     if (windowMinutes) {
@@ -315,8 +343,8 @@ function matchesCronField(
     // Handle range: N-M
     if (part.includes('-')) {
       const [startStr, endStr] = part.split('-')
-      const start = parseInt(startStr)
-      const end = parseInt(endStr)
+      const start = parseInt(startStr, 10)
+      const end = parseInt(endStr, 10)
       if (!isNaN(start) && !isNaN(end)) {
         if (windowMinutes) {
           for (let v = start; v <= end; v++) {
@@ -327,7 +355,7 @@ function matchesCronField(
         }
       }
     } else {
-      const target = parseInt(part)
+      const target = parseInt(part, 10)
       if (!isNaN(target)) {
         if (windowMinutes) {
           if (Math.abs(target - value) < windowMinutes) return true

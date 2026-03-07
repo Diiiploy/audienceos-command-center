@@ -18,9 +18,9 @@ export const POST = withPermission({ resource: 'automations', action: 'manage' }
     const csrfError = withCsrfProtection(request)
     if (csrfError) return csrfError
 
-    try {
-      const { id } = await params
+    const { id } = await params
 
+    try {
       if (!isValidUUID(id)) {
         return createErrorResponse(400, 'Invalid workflow ID')
       }
@@ -37,8 +37,8 @@ export const POST = withPermission({ resource: 'automations', action: 'manage' }
         const body = await request.json()
         if (body.triggerData) triggerData = { ...triggerData, ...body.triggerData }
         if (body.clientId && isValidUUID(body.clientId)) clientId = body.clientId
-      } catch {
-        // No body is fine — manual triggers don't require one
+      } catch (parseErr) {
+        console.warn('[WorkflowExecute] Request body parse failed, using defaults')
       }
 
       const engine = new WorkflowEngine(supabase, agencyId, userId)
@@ -47,7 +47,11 @@ export const POST = withPermission({ resource: 'automations', action: 'manage' }
       return NextResponse.json({ data: result })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Execution failed'
-      console.error('[workflows/execute] Error:', message)
+      console.error('[WorkflowExecute]', {
+        workflowId: id,
+        error: message,
+        stack: error instanceof Error ? error.stack : undefined,
+      })
       return createErrorResponse(500, message)
     }
   }

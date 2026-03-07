@@ -70,6 +70,27 @@ export class WorkflowEngine {
     let clientSnapshot: ClientSnapshot | undefined
     if (clientId) {
       clientSnapshot = await this.getClientSnapshot(clientId)
+      if (!clientSnapshot) {
+        await completeWorkflowRun(
+          this.supabase,
+          run.id,
+          this.agencyId,
+          workflowId,
+          false,
+          [],
+          'Client not found or query failed'
+        )
+        return {
+          runId: run.id,
+          workflowId,
+          status: 'failed',
+          triggerData,
+          actionResults: [],
+          startedAt: run.started_at,
+          completedAt: new Date().toISOString(),
+          error: 'Client not found or query failed',
+        }
+      }
     }
 
     // Build execution context
@@ -372,7 +393,7 @@ export class WorkflowEngine {
     }
 
     // Unknown channel — log and return completed (backwards compat)
-    console.warn(`[execution-engine] Unknown notification channel: ${channel}`)
+    console.warn('[WorkflowEngine]', { action: 'sendNotification', channel, warning: 'Unknown notification channel' })
     return {
       actionId: action.id,
       actionType: 'send_notification',
@@ -411,15 +432,16 @@ export class WorkflowEngine {
         })
 
         const data = await response.json() as { ok?: boolean; error?: string }
-        results.push({ recipient, ok: data.ok ?? response.ok, error: data.error })
+        const ok = response.ok && (data.ok !== false)
+        results.push({ recipient, ok, error: data.error })
 
-        if (!data.ok && !response.ok) {
-          console.error(`[execution-engine] Slack post failed for ${recipient}:`, data.error)
+        if (!ok) {
+          console.error('[WorkflowEngine]', { action: 'sendSlackNotification', recipient, error: data.error })
         }
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : 'Unknown error'
         results.push({ recipient, ok: false, error: errMsg })
-        console.error(`[execution-engine] Slack post error for ${recipient}:`, errMsg)
+        console.error('[WorkflowEngine]', { action: 'sendSlackNotification', recipient, error: errMsg })
       }
     }
 
@@ -484,23 +506,27 @@ export class WorkflowEngine {
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : 'Unknown error'
         results.push({ recipient, ok: false, error: errMsg })
-        console.error(`[execution-engine] Email send error for ${recipient}:`, errMsg)
+        console.error('[WorkflowEngine]', { action: 'sendEmailNotification', recipient, error: errMsg })
       }
     }
 
-    const anyOk = results.some((r) => r.ok)
+    const successCount = results.filter((r) => r.ok).length
+    const allOk = successCount === results.length
+    const anyOk = successCount > 0
+
+    const status = allOk ? 'completed' : anyOk ? 'partial_failure' : 'failed'
 
     return {
       actionId: action.id,
       actionType: 'send_notification',
-      status: anyOk ? 'completed' : 'failed',
+      status,
       result: {
         channel: 'email',
         recipientCount: recipients.length,
-        successCount: results.filter((r) => r.ok).length,
+        successCount,
         results,
       },
-      error: anyOk ? undefined : 'All email sends failed',
+      error: allOk ? undefined : `${results.length - successCount} of ${results.length} email sends failed`,
       executedAt: new Date().toISOString(),
     }
   }
@@ -527,10 +553,11 @@ export class WorkflowEngine {
         context
       )
     } catch (err) {
-      console.warn(
-        '[execution-engine] Gemini draft failed, using template fallback:',
-        err instanceof Error ? err.message : err
-      )
+      console.warn('[WorkflowEngine]', {
+        action: 'generateGeminiDraft',
+        warning: 'Gemini draft failed, using template fallback',
+        error: err instanceof Error ? err.message : String(err),
+      })
       draftContent = processedTemplate
     }
 
@@ -708,7 +735,7 @@ export class WorkflowEngine {
 
     // If stage changed, create stage event
     if (updates.stage && updates.stage !== context.clientSnapshot.stage) {
-      await this.supabase.from('stage_event').insert({
+      const { error: stageEventError } = await this.supabase.from('stage_event').insert({
         agency_id: context.agencyId,
         client_id: context.clientSnapshot.id,
         from_stage: context.clientSnapshot.stage,
@@ -716,6 +743,9 @@ export class WorkflowEngine {
         moved_by: context.userId,
         notes: `Automated stage change by workflow: ${context.workflowId}`,
       })
+      if (stageEventError) {
+        console.warn('[WorkflowEngine] Stage event insert failed (non-fatal):', stageEventError.message)
+      }
     }
 
     return {
@@ -783,12 +813,17 @@ export class WorkflowEngine {
   // ============================================================================
 
   private async getClientSnapshot(clientId: string): Promise<ClientSnapshot | undefined> {
-    const { data } = await this.supabase
+    const { data, error } = await this.supabase
       .from('client')
       .select('*')
       .eq('id', clientId)
       .eq('agency_id', this.agencyId)
       .single()
+
+    if (error) {
+      console.error('[WorkflowEngine] Failed to fetch client snapshot:', error.message)
+      return undefined
+    }
 
     if (!data) return undefined
 
