@@ -493,9 +493,22 @@ export function AutomationsHub() {
         description: `${editedStepName} configuration has been updated`,
       })
 
-      // Refresh workflow data and update local state
+      // Refresh workflow data from API
       await fetchWorkflows()
-      setSelectedStep({ ...selectedStep, name: editedStepName, config: editedStepConfig })
+
+      // Rebuild selectedAutomation from fresh store data (escape stale closure)
+      const freshWorkflows = useAutomationsStore.getState().workflows
+      const freshWorkflow = freshWorkflows.find(w => w.id === selectedAutomation.id)
+      if (freshWorkflow) {
+        const freshTemplate = workflowToTemplate(freshWorkflow)
+        setSelectedAutomation(freshTemplate)
+        const freshStep = freshTemplate.steps.find(s => s.id === selectedStep.id)
+        if (freshStep) {
+          setSelectedStep(freshStep)
+          setEditedStepName(freshStep.name)
+          setEditedStepConfig({ ...freshStep.config })
+        }
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to save step"
       toast({
@@ -505,6 +518,72 @@ export function AutomationsHub() {
       })
     } finally {
       setIsSavingStep(false)
+    }
+  }
+
+  // Add a new action step to the current workflow
+  const handleAddAction = async (actionType: string, actionLabel: string) => {
+    if (!selectedAutomation) return
+
+    const workflow = workflows.find(w => w.id === selectedAutomation.id)
+    if (!workflow) return
+
+    const triggers = JSON.parse(JSON.stringify(workflow.triggers))
+    const actions = JSON.parse(JSON.stringify(workflow.actions)) as Record<string, unknown>[]
+
+    // Build a default config based on action type
+    const defaultConfigs: Record<string, Record<string, unknown>> = {
+      create_task: { title: "New task for {{client.name}}", description: "", priority: "medium", dueInDays: 3, assignToTriggeredUser: true },
+      create_alert: { title: "Alert for {{client.name}}", description: "", type: "risk_detected", severity: "medium" },
+      send_notification: { channel: "slack", message: "Notification for {{client.name}}", recipients: [] },
+      create_ticket: { title: "Ticket for {{client.name}}", description: "", category: "general", priority: "medium" },
+      update_client: { updates: { tags: { add: [] } } },
+      draft_communication: { platform: "gmail", template: "Draft for {{client.name}}", tone: "professional", instructions: "" },
+    }
+
+    const newAction = {
+      id: `action-${Date.now()}`,
+      type: actionType,
+      name: actionLabel,
+      config: defaultConfigs[actionType] || {},
+    }
+
+    actions.push(newAction)
+
+    try {
+      const response = await fetchWithCsrf(`/api/v1/workflows/${selectedAutomation.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ triggers, actions }),
+      })
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err.message || "Failed to add step")
+      }
+
+      toast({ title: "Step added", description: `${actionLabel} added to workflow` })
+
+      await fetchWorkflows()
+
+      // Rebuild and select the new step
+      const freshWorkflows = useAutomationsStore.getState().workflows
+      const freshWorkflow = freshWorkflows.find(w => w.id === selectedAutomation.id)
+      if (freshWorkflow) {
+        const freshTemplate = workflowToTemplate(freshWorkflow)
+        setSelectedAutomation(freshTemplate)
+        const newStep = freshTemplate.steps[freshTemplate.steps.length - 1]
+        if (newStep) {
+          setSelectedStep(newStep)
+          setEditedStepName(newStep.name)
+          setEditedStepConfig({ ...newStep.config })
+        }
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to add step",
+        variant: "destructive",
+      })
     }
   }
 
@@ -849,10 +928,32 @@ export function AutomationsHub() {
             </div>
 
             {/* Add step button */}
-            <button className="w-full mt-3 p-2 border-2 border-dashed border-muted-foreground/20 rounded-lg flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors cursor-pointer">
-              <Plus className="h-3 w-3" />
-              Add Step
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="w-full mt-3 p-2 border-2 border-dashed border-muted-foreground/20 rounded-lg flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors cursor-pointer">
+                  <Plus className="h-3 w-3" />
+                  Add Step
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" className="w-48">
+                {[
+                  { type: "create_task", label: "Create Task", icon: <CheckCircle2 className="h-4 w-4 mr-2" /> },
+                  { type: "create_alert", label: "Create Alert", icon: <Bell className="h-4 w-4 mr-2" /> },
+                  { type: "send_notification", label: "Send Notification", icon: <SlackIcon className="h-4 w-4 mr-2" /> },
+                  { type: "create_ticket", label: "Create Ticket", icon: <FileText className="h-4 w-4 mr-2" /> },
+                  { type: "update_client", label: "Update Client", icon: <Users className="h-4 w-4 mr-2" /> },
+                  { type: "draft_communication", label: "Draft Communication", icon: <Sparkles className="h-4 w-4 mr-2" /> },
+                ].map((action) => (
+                  <DropdownMenuItem
+                    key={action.type}
+                    onClick={() => handleAddAction(action.type, action.label)}
+                  >
+                    {action.icon}
+                    {action.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </motion.div>
       )}

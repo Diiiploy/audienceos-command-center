@@ -320,9 +320,7 @@ export function validateActionConfig(action: WorkflowAction): { valid: boolean; 
       if (!action.config.message) {
         errors.push('Send notification action requires a message')
       }
-      if (!action.config.recipients?.length) {
-        errors.push('Send notification action requires at least one recipient')
-      }
+      // recipients can be empty (unconfigured) — execution engine handles the skip
       break
     case 'draft_communication':
       if (!action.config.platform) {
