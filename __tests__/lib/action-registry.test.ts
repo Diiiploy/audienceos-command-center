@@ -158,8 +158,9 @@ describe('action-registry', () => {
       } as unknown as WorkflowAction
       const result = validateActionConfig(action)
       expect(result.valid).toBe(false)
+      expect(result.errors).toContain('Send notification action requires a channel')
       expect(result.errors).toContain('Send notification action requires a message')
-      expect(result.errors).toContain('Send notification action requires at least one recipient')
+      // recipients can be empty (unconfigured) — execution engine handles the skip
     })
 
     it('should validate draft_communication action', () => {

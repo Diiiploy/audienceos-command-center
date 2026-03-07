@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import { useSlideTransition } from "@/hooks/use-slide-transition"
-import { useToast } from "@/hooks/use-toast"
+import { toastSuccess, toastError, toastInfo } from "@/lib/toast-helpers"
 import { fetchWithCsrf } from "@/lib/csrf"
 import { useAutomationsStore } from "@/stores/automations-store"
+import type { Workflow, WorkflowTrigger, WorkflowAction } from "@/types/workflow"
 import { cn } from "@/lib/utils"
 import { ListHeader } from "@/components/linear"
 import {
@@ -51,6 +52,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 // Icons for integrations
 function SlackIcon({ className }: { className?: string }) {
@@ -76,6 +84,7 @@ interface AutomationTemplate {
 // Step configuration types for automation workflows
 interface StepConfig {
   // Trigger configs
+  _triggerType?: string  // Injected by workflowToTemplate from trigger.type
   stage?: string
   schedule?: string
   channels?: string
@@ -230,9 +239,93 @@ const stepTypeColors: Record<string, string> = {
   condition: "bg-amber-500 text-white",
 }
 
+// Convert a real Workflow from API into the UI's AutomationTemplate format
+function workflowToTemplate(workflow: Workflow): AutomationTemplate {
+  const triggers = (workflow.triggers as unknown as WorkflowTrigger[]) || []
+  const actions = (workflow.actions as unknown as WorkflowAction[]) || []
+
+  // Determine category from triggers
+  let category: AutomationTemplate["category"] = "monitoring"
+  if (triggers.some((t) => t.type === "stage_change")) category = "onboarding"
+  else if (triggers.some((t) => t.type === "ticket_created")) category = "triage"
+  else if (triggers.some((t) => t.type === "scheduled")) category = "communication"
+
+  // Build steps from triggers + actions
+  const steps: AutomationStep[] = []
+  triggers.forEach((trigger, i) => {
+    steps.push({
+      id: trigger.id || `t-${i}`,
+      order: i + 1,
+      name: trigger.name || trigger.type,
+      type: "trigger",
+      config: { ...(trigger.config as unknown as StepConfig), _triggerType: trigger.type } as StepConfig,
+      icon: <Zap className="h-3.5 w-3.5" />,
+    })
+  })
+  actions.forEach((action, i) => {
+    const iconMap: Record<string, React.ReactNode> = {
+      create_task: <CheckCircle2 className="h-3.5 w-3.5" />,
+      send_notification: (action.config as { channel?: string })?.channel === "email"
+        ? <Mail className="h-3.5 w-3.5" />
+        : <SlackIcon className="h-3.5 w-3.5" />,
+      draft_communication: <Sparkles className="h-3.5 w-3.5" />,
+      create_ticket: <FileText className="h-3.5 w-3.5" />,
+      update_client: <Users className="h-3.5 w-3.5" />,
+      create_alert: <Bell className="h-3.5 w-3.5" />,
+    }
+    steps.push({
+      id: action.id || `a-${i}`,
+      order: triggers.length + i + 1,
+      name: action.name || action.type,
+      type: "action",
+      config: action.config as unknown as StepConfig,
+      icon: iconMap[action.type] || <Zap className="h-3.5 w-3.5" />,
+    })
+  })
+
+  // Format last run time
+  let lastRun: string | null = null
+  if (workflow.last_run_at) {
+    const diff = Date.now() - new Date(workflow.last_run_at).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 60) lastRun = `${mins}m ago`
+    else if (mins < 1440) lastRun = `${Math.floor(mins / 60)}h ago`
+    else lastRun = `${Math.floor(mins / 1440)}d ago`
+  }
+
+  // Determine icon based on category
+  const iconMap: Record<string, React.ReactNode> = {
+    onboarding: <Users className="h-4 w-4" />,
+    monitoring: <AlertTriangle className="h-4 w-4" />,
+    communication: <FileText className="h-4 w-4" />,
+    triage: <MessageSquare className="h-4 w-4" />,
+  }
+
+  return {
+    id: workflow.id,
+    name: workflow.name,
+    description: workflow.description || "",
+    category,
+    icon: iconMap[category],
+    status: workflow.is_active ? "active" : "inactive",
+    runs: workflow.run_count || 0,
+    lastRun,
+    steps,
+  }
+}
+
 export function AutomationsHub() {
-  const { toast } = useToast()
-  const { toggleWorkflow, deleteWorkflow } = useAutomationsStore()
+  const { workflows, isLoading, fetchWorkflows, toggleWorkflow, deleteWorkflow } = useAutomationsStore()
+  const [isRunning, setIsRunning] = useState<string | null>(null)
+  const [isCreatingTemplate, setIsCreatingTemplate] = useState(false)
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false)
+  const [editedStepName, setEditedStepName] = useState("")
+  const [editedStepConfig, setEditedStepConfig] = useState<StepConfig>({})
+
+  // Fetch real workflows on mount
+  useEffect(() => {
+    fetchWorkflows()
+  }, [fetchWorkflows])
 
   const [selectedAutomation, setSelectedAutomation] = useState<AutomationTemplate | null>(null)
   const [selectedStep, setSelectedStep] = useState<AutomationStep | null>(null)
@@ -241,7 +334,6 @@ export function AutomationsHub() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isDuplicating, setIsDuplicating] = useState(false)
-  const [isTestingStep, setIsTestingStep] = useState(false)
   const [isSavingStep, setIsSavingStep] = useState(false)
 
   const slideTransition = useSlideTransition()
@@ -254,11 +346,7 @@ export function AutomationsHub() {
     try {
       const success = await toggleWorkflow(automation.id, isActive)
       if (success) {
-        toast({
-          title: "Automation updated",
-          description: `Automation is now ${newStatus}`,
-          variant: "default",
-        })
+        toastSuccess(isActive ? "Workflow activated" : "Workflow paused", { description: automation.name })
         // Update local state
         if (selectedAutomation) {
           setSelectedAutomation({ ...selectedAutomation, status: newStatus as "active" | "inactive" | "draft" })
@@ -267,11 +355,8 @@ export function AutomationsHub() {
         throw new Error("Failed to toggle automation")
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to toggle automation"
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
+      toastError("Failed to toggle workflow", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
       })
     }
   }
@@ -290,20 +375,13 @@ export function AutomationsHub() {
         throw new Error(errorData.error || "Failed to duplicate automation")
       }
 
-      toast({
-        title: "Automation duplicated",
-        description: `${selectedAutomation.name} has been duplicated`,
-        variant: "default",
-      })
+      toastSuccess("Automation duplicated", { description: `${selectedAutomation.name} has been duplicated` })
 
       // Close detail panel
       setSelectedAutomation(null)
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to duplicate automation"
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
+      toastError("Failed to duplicate automation", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
       })
     } finally {
       setIsDuplicating(false)
@@ -317,22 +395,15 @@ export function AutomationsHub() {
     try {
       const success = await deleteWorkflow(selectedAutomation.id)
       if (success) {
-        toast({
-          title: "Automation deleted",
-          description: "The automation has been removed",
-          variant: "default",
-        })
+        toastSuccess("Workflow deleted", { description: "The workflow has been removed" })
         setShowDeleteModal(false)
         setSelectedAutomation(null)
       } else {
         throw new Error("Failed to delete automation")
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to delete automation"
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
+      toastError("Failed to delete workflow", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
       })
     } finally {
       setIsDeleting(false)
@@ -344,35 +415,9 @@ export function AutomationsHub() {
   }
 
   const handleTestStep = async () => {
-    if (!selectedStep || !selectedAutomation) return
-    setIsTestingStep(true)
-
-    try {
-      const response = await fetchWithCsrf(`/api/v1/workflows/${selectedAutomation.id}/steps/${selectedStep.id}/test`, {
-        method: "POST",
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || "Failed to test step")
-      }
-
-      const result = await response.json()
-      toast({
-        title: "Step tested",
-        description: `Test execution completed successfully`,
-        variant: "default",
-      })
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to test step"
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      })
-    } finally {
-      setIsTestingStep(false)
-    }
+    if (!selectedAutomation) return
+    // Test by executing the full workflow (there's no per-step test API)
+    await handleRunNow(selectedAutomation)
   }
 
   const handleSaveStep = async () => {
@@ -380,45 +425,232 @@ export function AutomationsHub() {
     setIsSavingStep(true)
 
     try {
-      const response = await fetchWithCsrf(`/api/v1/workflows/${selectedAutomation.id}/steps/${selectedStep.id}`, {
+      // Find the real workflow to get current triggers/actions
+      const workflow = workflows.find(w => w.id === selectedAutomation.id)
+      if (!workflow) throw new Error("Workflow not found — it may have been deleted")
+
+      // Deep clone the triggers and actions
+      const triggers = JSON.parse(JSON.stringify(workflow.triggers)) as Record<string, unknown>[]
+      const actions = JSON.parse(JSON.stringify(workflow.actions)) as Record<string, unknown>[]
+
+      // Strip UI-only keys from the edited config before saving
+      const cleanConfig = { ...editedStepConfig } as Record<string, unknown>
+      delete cleanConfig._triggerType  // UI-only trigger type selector
+      delete cleanConfig.stage         // UI alias — real field is toStage
+
+      // Find and update the matching trigger or action
+      if (selectedStep.type === "trigger") {
+        const idx = triggers.findIndex((t) => t.id === selectedStep.id)
+        if (idx >= 0) {
+          triggers[idx].name = editedStepName
+
+          // If the trigger type was changed, update the top-level type field
+          // and rebuild config to match the new type's required schema
+          const newTriggerType = editedStepConfig._triggerType as string | undefined
+          const currentTriggerType = triggers[idx].type as string
+          if (newTriggerType && newTriggerType !== currentTriggerType) {
+            triggers[idx].type = newTriggerType
+            // Build a fresh config for the new trigger type (old keys are irrelevant)
+            const freshConfig: Record<string, unknown> = {}
+            switch (newTriggerType) {
+              case "stage_change":
+                freshConfig.toStage = cleanConfig.toStage || cleanConfig.stage || "Onboarding"
+                break
+              case "scheduled":
+                freshConfig.schedule = cleanConfig.schedule || "0 9 * * 1"
+                freshConfig.timezone = cleanConfig.timezone || "America/Chicago"
+                break
+              case "inactivity":
+                freshConfig.days = cleanConfig.days || 5
+                freshConfig.activityTypes = cleanConfig.activityTypes || ["communication", "task", "ticket"]
+                break
+              case "ticket_created":
+                freshConfig.priorities = cleanConfig.priorities || ["critical", "high"]
+                break
+              default:
+                // For unknown types, pass through whatever config was set
+                Object.assign(freshConfig, cleanConfig)
+            }
+            triggers[idx].config = freshConfig
+          } else {
+            // Same trigger type — merge edited values into existing config
+            const existingConfig = (triggers[idx].config || {}) as Record<string, unknown>
+            triggers[idx].config = { ...existingConfig, ...cleanConfig }
+          }
+        }
+      } else {
+        const idx = actions.findIndex((a) => a.id === selectedStep.id)
+        if (idx >= 0) {
+          actions[idx].name = editedStepName
+          const existingConfig = (actions[idx].config || {}) as Record<string, unknown>
+          actions[idx].config = { ...existingConfig, ...cleanConfig }
+        }
+      }
+
+      // PATCH the whole workflow with updated triggers/actions
+      const response = await fetchWithCsrf(`/api/v1/workflows/${selectedAutomation.id}`, {
         method: "PATCH",
-        body: JSON.stringify({
-          name: selectedStep.name,
-          config: selectedStep.config,
-        }),
+        body: JSON.stringify({ triggers, actions }),
       })
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || "Failed to save step")
+        throw new Error(errorData.error || errorData.message || "Failed to save step")
       }
 
-      toast({
-        title: "Step saved",
-        description: `${selectedStep.name} configuration has been updated`,
-        variant: "default",
-      })
+      toastSuccess("Step saved", { description: `${editedStepName} configuration has been updated` })
+
+      // Refresh workflow data from API
+      await fetchWorkflows()
+
+      // Rebuild selectedAutomation from fresh store data (escape stale closure)
+      const freshWorkflows = useAutomationsStore.getState().workflows
+      const freshWorkflow = freshWorkflows.find(w => w.id === selectedAutomation.id)
+      if (freshWorkflow) {
+        const freshTemplate = workflowToTemplate(freshWorkflow)
+        setSelectedAutomation(freshTemplate)
+        const freshStep = freshTemplate.steps.find(s => s.id === selectedStep.id)
+        if (freshStep) {
+          setSelectedStep(freshStep)
+          setEditedStepName(freshStep.name)
+          setEditedStepConfig({ ...freshStep.config })
+        }
+      }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to save step"
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
+      toastError("Failed to save step", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
       })
     } finally {
       setIsSavingStep(false)
     }
   }
 
+  // Add a new action step to the current workflow
+  const handleAddAction = async (actionType: string, actionLabel: string) => {
+    if (!selectedAutomation) return
+
+    const workflow = workflows.find(w => w.id === selectedAutomation.id)
+    if (!workflow) return
+
+    const triggers = JSON.parse(JSON.stringify(workflow.triggers))
+    const actions = JSON.parse(JSON.stringify(workflow.actions)) as Record<string, unknown>[]
+
+    // Build a default config based on action type
+    const defaultConfigs: Record<string, Record<string, unknown>> = {
+      create_task: { title: "New task for {{client.name}}", description: "", priority: "medium", dueInDays: 3, assignToTriggeredUser: true },
+      create_alert: { title: "Alert for {{client.name}}", description: "", type: "risk_detected", severity: "medium" },
+      send_notification: { channel: "slack", message: "Notification for {{client.name}}", recipients: [] },
+      create_ticket: { title: "Ticket for {{client.name}}", description: "", category: "general", priority: "medium" },
+      update_client: { updates: { tags: { add: [] } } },
+      draft_communication: { platform: "gmail", template: "Draft for {{client.name}}", tone: "professional", instructions: "" },
+    }
+
+    const newAction = {
+      id: `action-${Date.now()}`,
+      type: actionType,
+      name: actionLabel,
+      config: defaultConfigs[actionType] || {},
+    }
+
+    actions.push(newAction)
+
+    try {
+      const response = await fetchWithCsrf(`/api/v1/workflows/${selectedAutomation.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ triggers, actions }),
+      })
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err.message || "Failed to add step")
+      }
+
+      toastSuccess("Step added", { description: `${actionLabel} added to workflow` })
+
+      await fetchWorkflows()
+
+      // Rebuild and select the new step
+      const freshWorkflows = useAutomationsStore.getState().workflows
+      const freshWorkflow = freshWorkflows.find(w => w.id === selectedAutomation.id)
+      if (freshWorkflow) {
+        const freshTemplate = workflowToTemplate(freshWorkflow)
+        setSelectedAutomation(freshTemplate)
+        const newStep = freshTemplate.steps[freshTemplate.steps.length - 1]
+        if (newStep) {
+          setSelectedStep(newStep)
+          setEditedStepName(newStep.name)
+          setEditedStepConfig({ ...newStep.config })
+        }
+      }
+    } catch (error) {
+      toastError("Failed to add step", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+      })
+    }
+  }
+
+  // Convert real workflows to UI templates (no mock fallback)
+  const liveTemplates = useMemo(() => {
+    return workflows.map(workflowToTemplate)
+  }, [workflows])
+
+  // Run Now handler
+  const handleRunNow = useCallback(async (automation: AutomationTemplate) => {
+    setIsRunning(automation.id)
+    toastInfo("Running workflow...", { description: automation.name })
+    try {
+      const response = await fetchWithCsrf(`/api/v1/workflows/${automation.id}/execute`, {
+        method: "POST",
+        body: JSON.stringify({ triggerData: { manual: true } }),
+      })
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err.error || "Failed to execute")
+      }
+      toastSuccess("Workflow completed", { description: "All actions executed successfully" })
+      // Refresh data to get updated run counts
+      fetchWorkflows()
+    } catch (error) {
+      toastError("Workflow execution failed", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+      })
+    } finally {
+      setIsRunning(null)
+    }
+  }, [fetchWorkflows])
+
+  // Create from template handler
+  const handleCreateFromTemplate = useCallback(async (templateKey: string) => {
+    setIsCreatingTemplate(true)
+    try {
+      const response = await fetchWithCsrf("/api/v1/workflows/templates", {
+        method: "POST",
+        body: JSON.stringify({ templateKey }),
+      })
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err.error || "Failed to create workflow")
+      }
+      toastSuccess("Workflow created", { description: "Template workflow has been activated" })
+      fetchWorkflows()
+    } catch (error) {
+      toastError("Failed to create workflow", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+      })
+    } finally {
+      setIsCreatingTemplate(false)
+    }
+  }, [fetchWorkflows])
+
   // Calculate counts
   const counts = useMemo(() => {
     return {
-      all: automationTemplates.length,
-      active: automationTemplates.filter((a) => a.status === "active").length,
-      inactive: automationTemplates.filter((a) => a.status === "inactive").length,
-      draft: automationTemplates.filter((a) => a.status === "draft").length,
+      all: liveTemplates.length,
+      active: liveTemplates.filter((a) => a.status === "active").length,
+      inactive: liveTemplates.filter((a) => a.status === "inactive").length,
+      draft: liveTemplates.filter((a) => a.status === "draft").length,
     }
-  }, [])
+  }, [liveTemplates])
 
   const filterTabs: FilterTabConfig[] = [
     { id: "all", label: "All", icon: <Zap className="w-4 h-4" />, count: counts.all },
@@ -429,7 +661,7 @@ export function AutomationsHub() {
 
   // Filter automations
   const filteredAutomations = useMemo(() => {
-    let automations = automationTemplates
+    let automations = liveTemplates
 
     // Apply status filter
     if (activeFilter !== "all") {
@@ -448,12 +680,24 @@ export function AutomationsHub() {
     }
 
     return automations
-  }, [activeFilter, searchQuery])
+  }, [liveTemplates, activeFilter, searchQuery])
 
   // When automation is selected, select first step
   const handleSelectAutomation = (automation: AutomationTemplate) => {
     setSelectedAutomation(automation)
-    setSelectedStep(automation.steps[0] || null)
+    const firstStep = automation.steps[0] || null
+    setSelectedStep(firstStep)
+    if (firstStep) {
+      setEditedStepName(firstStep.name)
+      setEditedStepConfig({ ...firstStep.config })
+    }
+  }
+
+  // When a step is clicked, initialize edit state
+  const handleStepSelect = (step: AutomationStep) => {
+    setSelectedStep(step)
+    setEditedStepName(step.name)
+    setEditedStepConfig({ ...step.config })
   }
 
   return (
@@ -474,7 +718,7 @@ export function AutomationsHub() {
           searchPlaceholder="Search automations..."
           actions={
             !selectedAutomation && (
-              <Button size="sm" className="h-8 gap-1.5">
+              <Button size="sm" className="h-8 gap-1.5" onClick={() => setShowTemplateDialog(true)}>
                 <Plus className="h-4 w-4" />
                 New Automation
               </Button>
@@ -517,9 +761,14 @@ export function AutomationsHub() {
               />
             ))
           ) : (
-            <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
+            <div className="flex flex-col items-center justify-center h-48 text-muted-foreground px-4">
               <Zap className="w-8 h-8 mb-2 opacity-50" />
-              <p className="text-sm">No automations found</p>
+              <p className="text-sm mb-1">No automations found</p>
+              <p className="text-xs text-center mb-3">Create your first automation from a template to get started.</p>
+              <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => setShowTemplateDialog(true)}>
+                <Plus className="h-4 w-4" />
+                Create from Template
+              </Button>
             </div>
           )}
         </div>
@@ -606,9 +855,19 @@ export function AutomationsHub() {
                 Last: {selectedAutomation.lastRun || "Never"}
               </span>
             </div>
-            <Button size="sm" variant="outline" className="h-6 text-[10px] px-2">
-              <Play className="h-3 w-3 mr-1" />
-              Run Now
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 text-[10px] px-2"
+              onClick={() => handleRunNow(selectedAutomation)}
+              disabled={isRunning === selectedAutomation.id}
+            >
+              {isRunning === selectedAutomation.id ? (
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+              ) : (
+                <Play className="h-3 w-3 mr-1" />
+              )}
+              {isRunning === selectedAutomation.id ? "Running..." : "Run Now"}
             </Button>
           </div>
 
@@ -624,7 +883,7 @@ export function AutomationsHub() {
                 <div key={step.id}>
                   {/* Step item */}
                   <button
-                    onClick={() => setSelectedStep(step)}
+                    onClick={() => handleStepSelect(step)}
                     className={cn(
                       "w-full text-left p-2.5 rounded-lg border transition-colors cursor-pointer",
                       selectedStep?.id === step.id
@@ -662,10 +921,32 @@ export function AutomationsHub() {
             </div>
 
             {/* Add step button */}
-            <button className="w-full mt-3 p-2 border-2 border-dashed border-muted-foreground/20 rounded-lg flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors cursor-pointer">
-              <Plus className="h-3 w-3" />
-              Add Step
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="w-full mt-3 p-2 border-2 border-dashed border-muted-foreground/20 rounded-lg flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors cursor-pointer">
+                  <Plus className="h-3 w-3" />
+                  Add Step
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" className="w-48">
+                {[
+                  { type: "create_task", label: "Create Task", icon: <CheckCircle2 className="h-4 w-4 mr-2" /> },
+                  { type: "create_alert", label: "Create Alert", icon: <Bell className="h-4 w-4 mr-2" /> },
+                  { type: "send_notification", label: "Send Notification", icon: <SlackIcon className="h-4 w-4 mr-2" /> },
+                  { type: "create_ticket", label: "Create Ticket", icon: <FileText className="h-4 w-4 mr-2" /> },
+                  { type: "update_client", label: "Update Client", icon: <Users className="h-4 w-4 mr-2" /> },
+                  { type: "draft_communication", label: "Draft Communication", icon: <Sparkles className="h-4 w-4 mr-2" /> },
+                ].map((action) => (
+                  <DropdownMenuItem
+                    key={action.type}
+                    onClick={() => handleAddAction(action.type, action.label)}
+                  >
+                    {action.icon}
+                    {action.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </motion.div>
       )}
@@ -708,14 +989,14 @@ export function AutomationsHub() {
                 size="sm"
                 className="h-7 text-xs"
                 onClick={handleTestStep}
-                disabled={isTestingStep}
+                disabled={isRunning === selectedAutomation?.id}
               >
-                {isTestingStep ? (
+                {isRunning === selectedAutomation?.id ? (
                   <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
                 ) : (
                   <Play className="h-3 w-3 mr-1.5" />
                 )}
-                {isTestingStep ? "Testing..." : "Test Step"}
+                {isRunning === selectedAutomation?.id ? "Running..." : "Test"}
               </Button>
               <Button
                 size="sm"
@@ -731,7 +1012,13 @@ export function AutomationsHub() {
 
           {/* Configuration Content - natural flow */}
           <div className="flex-1 p-4">
-            <StepConfiguration step={selectedStep} />
+            <StepConfiguration
+              step={selectedStep}
+              name={editedStepName}
+              config={editedStepConfig}
+              onNameChange={setEditedStepName}
+              onConfigChange={(key, value) => setEditedStepConfig(prev => ({ ...prev, [key]: value }))}
+            />
           </div>
         </motion.div>
       )}
@@ -743,7 +1030,7 @@ export function AutomationsHub() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete automation</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{selectedAutomation?.name}"? This action cannot be undone.
+              Are you sure you want to delete &quot;{selectedAutomation?.name}&quot;? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -759,6 +1046,45 @@ export function AutomationsHub() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Template picker dialog */}
+      <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Create Automation from Template</DialogTitle>
+            <DialogDescription>
+              Choose a pre-built workflow template to get started quickly.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 max-h-80 overflow-y-auto">
+            {[
+              { key: "welcome-sequence", name: "New Client Welcome Sequence", desc: "Automated welcome flow when a client moves to Onboarding", icon: <Users className="h-4 w-4" /> },
+              { key: "urgent-triage", name: "Urgent Triage Bot", desc: "Auto-alert on critical/high priority tickets", icon: <MessageSquare className="h-4 w-4" /> },
+              { key: "stuck-pipeline", name: "Stuck Pipeline Alert", desc: "Detect clients with no activity for 5+ days", icon: <AlertTriangle className="h-4 w-4" /> },
+              { key: "offboarding-checklist", name: "Off-boarding Checklist", desc: "Cleanup tasks when a client leaves", icon: <CheckCircle2 className="h-4 w-4" /> },
+              { key: "weekly-report", name: "Weekly Report Generator", desc: "AI-drafted weekly performance reports", icon: <FileText className="h-4 w-4" /> },
+            ].map((tmpl) => (
+              <button
+                key={tmpl.key}
+                onClick={async () => {
+                  setShowTemplateDialog(false)
+                  await handleCreateFromTemplate(tmpl.key)
+                }}
+                disabled={isCreatingTemplate}
+                className="w-full flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary/40 hover:bg-secondary/50 transition-colors text-left cursor-pointer disabled:opacity-50"
+              >
+                <div className="h-8 w-8 rounded-md bg-secondary flex items-center justify-center shrink-0 mt-0.5">
+                  {tmpl.icon}
+                </div>
+                <div className="min-w-0">
+                  <span className="text-sm font-medium text-foreground block">{tmpl.name}</span>
+                  <span className="text-xs text-muted-foreground">{tmpl.desc}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -874,9 +1200,13 @@ function AutomationItem({ automation, selected, compact, onClick }: AutomationIt
 
 interface StepConfigurationProps {
   step: AutomationStep
+  name: string
+  config: StepConfig
+  onNameChange: (name: string) => void
+  onConfigChange: (key: string, value: unknown) => void
 }
 
-function StepConfiguration({ step }: StepConfigurationProps) {
+function StepConfiguration({ step, name, config, onNameChange, onConfigChange }: StepConfigurationProps) {
   return (
     <div className="max-w-lg space-y-4">
       {/* Step Type Badge */}
@@ -898,19 +1228,45 @@ function StepConfiguration({ step }: StepConfigurationProps) {
       {/* Name Field */}
       <div className="space-y-1.5">
         <label className="text-xs font-medium text-foreground">Step Name</label>
-        <Input defaultValue={step.name} className="h-9" />
+        <Input value={name} onChange={(e) => onNameChange(e.target.value)} className="h-9" />
       </div>
 
       {/* Type-specific configuration */}
-      {step.type === "trigger" && <TriggerConfig config={step.config} />}
-      {step.type === "delay" && <DelayConfig config={step.config} />}
-      {step.type === "action" && <ActionConfig config={step.config} />}
-      {step.type === "condition" && <ConditionConfig config={step.config} />}
+      {step.type === "trigger" && <TriggerConfig config={config} onChange={onConfigChange} />}
+      {step.type === "delay" && <DelayConfig config={config} onChange={onConfigChange} />}
+      {step.type === "action" && <ActionConfig config={config} onChange={onConfigChange} />}
+      {step.type === "condition" && <ConditionConfig config={config} onChange={onConfigChange} />}
     </div>
   )
 }
 
-function TriggerConfig({ config }: { config: StepConfig }) {
+function TriggerConfig({ config, onChange }: { config: StepConfig; onChange: (key: string, value: unknown) => void }) {
+  // Support both mock format (config.stage) and real format (config.toStage)
+  const realConfig = config as Record<string, unknown>
+  const stageValue = config.stage || (realConfig.toStage as string) || ""
+  const scheduleValue = config.schedule || ""
+
+  // _triggerType is always injected by workflowToTemplate from trigger.type
+  // Fallback derivation only applies to legacy/mock data
+  const triggerType = (realConfig._triggerType as string) ||
+    (scheduleValue ? "scheduled" : realConfig.days ? "inactivity" : realConfig.priorities ? "ticket_created" : stageValue ? "stage_change" : "stage_change")
+
+  const handleTriggerTypeChange = (newType: string) => {
+    // Store the explicit selection so it persists before save
+    onChange("_triggerType", newType)
+    // Set up default sub-fields for the new trigger type
+    switch (newType) {
+      case "stage_change":
+        onChange("toStage", stageValue || "Onboarding")
+        onChange("stage", stageValue || "Onboarding")
+        break
+      case "scheduled":
+        onChange("schedule", scheduleValue || "0 9 * * 1")
+        onChange("timezone", "America/Chicago")
+        break
+    }
+  }
+
   return (
     <div className="space-y-3">
       <div className="p-3 rounded-lg border border-blue-500/20 bg-blue-500/5">
@@ -919,20 +1275,26 @@ function TriggerConfig({ config }: { config: StepConfig }) {
           <div className="space-y-1.5">
             <label className="text-xs text-muted-foreground">When this happens:</label>
             <select
-              defaultValue={config.schedule ? "scheduled" : config.channels ? "slack_message" : "client_added"}
+              value={triggerType}
+              onChange={(e) => handleTriggerTypeChange(e.target.value)}
               className="w-full h-9 text-sm rounded-md border border-border bg-background px-3"
             >
-              <option value="client_added">Client added to pipeline</option>
               <option value="stage_change">Client stage changes</option>
-              <option value="slack_message">New Slack message</option>
+              <option value="ticket_created">Ticket created</option>
+              <option value="inactivity">Client inactivity</option>
               <option value="scheduled">Scheduled time</option>
+              <option value="new_message">New message received</option>
             </select>
           </div>
-          {config.stage && (
+          {triggerType === "stage_change" && (
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground">Stage:</label>
               <select
-                defaultValue={config.stage}
+                value={stageValue || "Onboarding"}
+                onChange={(e) => {
+                  onChange("stage", e.target.value)
+                  onChange("toStage", e.target.value)
+                }}
                 className="w-full h-9 text-sm rounded-md border border-border bg-background px-3"
               >
                 <option value="Onboarding">Onboarding</option>
@@ -942,13 +1304,51 @@ function TriggerConfig({ config }: { config: StepConfig }) {
               </select>
             </div>
           )}
+          {triggerType === "scheduled" && (
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground">Schedule (cron):</label>
+              <Input
+                value={scheduleValue || "0 9 * * 1"}
+                onChange={(e) => onChange("schedule", e.target.value)}
+                className="h-9 font-mono"
+                placeholder="0 9 * * 1"
+              />
+            </div>
+          )}
+          {triggerType === "inactivity" && (
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground">Days of inactivity:</label>
+              <Input
+                type="number"
+                value={(realConfig.days as number) || 5}
+                onChange={(e) => onChange("days", Number(e.target.value))}
+                className="h-9 w-24"
+                min={1}
+                max={365}
+              />
+            </div>
+          )}
+          {triggerType === "ticket_created" && (
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground">Priority filter:</label>
+              <select
+                value={((realConfig.priorities as string[]) || ["critical", "high"]).join(",")}
+                onChange={(e) => onChange("priorities", e.target.value.split(","))}
+                className="w-full h-9 text-sm rounded-md border border-border bg-background px-3"
+              >
+                <option value="critical,high">Critical & High only</option>
+                <option value="critical,high,medium">Medium and above</option>
+                <option value="critical,high,medium,low">All priorities</option>
+              </select>
+            </div>
+          )}
         </div>
       </div>
     </div>
   )
 }
 
-function DelayConfig({ config }: { config: StepConfig }) {
+function DelayConfig({ config, onChange }: { config: StepConfig; onChange: (key: string, value: unknown) => void }) {
   return (
     <div className="space-y-3">
       <div className="p-3 rounded-lg border border-slate-500/20 bg-slate-500/5">
@@ -956,11 +1356,13 @@ function DelayConfig({ config }: { config: StepConfig }) {
         <div className="flex items-center gap-2">
           <Input
             type="number"
-            defaultValue={config.duration || 1}
+            value={config.duration || 1}
+            onChange={(e) => onChange("duration", Number(e.target.value))}
             className="w-20 h-9"
           />
           <select
-            defaultValue={config.unit || "hours"}
+            value={config.unit || "hours"}
+            onChange={(e) => onChange("unit", e.target.value)}
             className="h-9 text-sm rounded-md border border-border bg-background px-3"
           >
             <option value="minutes">Minutes</option>
@@ -973,60 +1375,74 @@ function DelayConfig({ config }: { config: StepConfig }) {
   )
 }
 
-function ActionConfig({ config }: { config: StepConfig }) {
-  // Determine default action type based on config
-  const getDefaultActionType = () => {
-    if (config.template) return "send_email"
-    if (config.pattern) return "create_slack_channel"
-    if (config.channel) return "send_slack_message"
-    if (config.priority) return "create_ticket"
-    return "send_email"
-  }
+function ActionConfig({ config, onChange }: { config: StepConfig; onChange: (key: string, value: unknown) => void }) {
+  // Support both mock and real config formats
+  const realConfig = config as Record<string, unknown>
+  const channelValue = config.channel || (realConfig.channel as string) || ""
+  const titleValue = (realConfig.title as string) || ""
+  const messageValue = (realConfig.message as string) || ""
+  const priorityValue = config.priority || (realConfig.priority as string) || ""
+
+  // Show relevant fields based on what's in the config
+  const hasTitle = "title" in realConfig
+  const hasMessage = "message" in realConfig
+  const hasPriority = !!priorityValue
+  const hasChannel = !!channelValue
+  const hasTemplate = !!config.template
+  const hasPattern = !!config.pattern
 
   return (
     <div className="space-y-3">
       <div className="p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
         <h4 className="text-xs font-medium text-emerald-600 mb-3">ACTION SETTINGS</h4>
         <div className="space-y-3">
-          <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground">Action type:</label>
-            <select
-              defaultValue={getDefaultActionType()}
-              className="w-full h-9 text-sm rounded-md border border-border bg-background px-3"
-            >
-              <option value="send_email">Send email</option>
-              <option value="create_slack_channel">Create Slack channel</option>
-              <option value="send_slack_message">Send Slack message</option>
-              <option value="create_ticket">Create ticket</option>
-              <option value="update_client">Update client</option>
-            </select>
-          </div>
-          {config.template && (
+          {hasTitle && (
             <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground">Template:</label>
+              <label className="text-xs text-muted-foreground">Title:</label>
+              <Input value={titleValue} onChange={(e) => onChange("title", e.target.value)} className="h-9" />
+            </div>
+          )}
+          {hasMessage && (
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground">Message:</label>
+              <Input value={messageValue} onChange={(e) => onChange("message", e.target.value)} className="h-9" />
+            </div>
+          )}
+          {hasPriority && (
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground">Priority:</label>
               <select
-                defaultValue={config.template}
+                value={priorityValue}
+                onChange={(e) => onChange("priority", e.target.value)}
                 className="w-full h-9 text-sm rounded-md border border-border bg-background px-3"
               >
-                <option value="welcome">Welcome Email</option>
-                <option value="kickoff">Kickoff Confirmation</option>
-                <option value="weekly">Weekly Report</option>
-                <option value="farewell">Farewell Email</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
               </select>
             </div>
           )}
-          {config.channel && (
+          {hasChannel && (
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground">Channel:</label>
-              <Input defaultValue={config.channel} className="h-9" placeholder="#channel-name" />
+              <Input value={channelValue} onChange={(e) => onChange("channel", e.target.value)} className="h-9" placeholder="#channel-name" />
             </div>
           )}
-          {config.pattern && (
+          {hasTemplate && (
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground">Template:</label>
+              <Input value={config.template || ""} onChange={(e) => onChange("template", e.target.value)} className="h-9" />
+            </div>
+          )}
+          {hasPattern && (
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground">Channel pattern:</label>
-              <Input defaultValue={config.pattern} className="h-9 font-mono" placeholder="#client-{name}" />
-              <p className="text-[10px] text-muted-foreground">Use {"{name}"} for client name</p>
+              <Input value={config.pattern || ""} onChange={(e) => onChange("pattern", e.target.value)} className="h-9 font-mono" placeholder="#client-{name}" />
             </div>
+          )}
+          {!hasTitle && !hasMessage && !hasPriority && !hasChannel && !hasTemplate && !hasPattern && (
+            <p className="text-xs text-muted-foreground">No configurable settings for this action.</p>
           )}
         </div>
       </div>
@@ -1034,7 +1450,9 @@ function ActionConfig({ config }: { config: StepConfig }) {
   )
 }
 
-function ConditionConfig({ config }: { config: StepConfig }) {
+function ConditionConfig({ config, onChange }: { config: StepConfig; onChange: (key: string, value: unknown) => void }) {
+  const conditionValue = config.condition || (config.threshold ? `urgency > ${config.threshold}` : "")
+
   return (
     <div className="space-y-3">
       <div className="p-3 rounded-lg border border-amber-500/20 bg-amber-500/5">
@@ -1043,7 +1461,8 @@ function ConditionConfig({ config }: { config: StepConfig }) {
           <div className="space-y-1.5">
             <label className="text-xs text-muted-foreground">If:</label>
             <Input
-              defaultValue={config.condition || (config.threshold ? `urgency > ${config.threshold}` : "")}
+              value={conditionValue}
+              onChange={(e) => onChange("condition", e.target.value)}
               className="h-9 font-mono"
               placeholder="days > 5"
             />

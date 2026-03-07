@@ -17,7 +17,7 @@ export type WorkflowRunInsert = Database['public']['Tables']['workflow_run']['In
 export type WorkflowRunUpdate = Database['public']['Tables']['workflow_run']['Update']
 
 // Extended workflow status for approvals
-export type WorkflowRunStatus = 'running' | 'completed' | 'failed' | 'pending_approval' | 'skipped'
+export type WorkflowRunStatus = 'running' | 'completed' | 'failed' | 'partial_failure' | 'pending_approval' | 'skipped'
 
 // ============================================================================
 // TRIGGER TYPES
@@ -242,6 +242,7 @@ export interface ClientSnapshot {
   healthStatus: HealthStatus
   contactEmail?: string
   contactName?: string
+  notes?: string
   daysInStage: number
   tags: string[]
   totalSpend?: number
@@ -251,7 +252,7 @@ export interface ClientSnapshot {
 // EXECUTION RESULTS
 // ============================================================================
 
-export type ActionResultStatus = 'completed' | 'failed' | 'skipped' | 'pending_approval'
+export type ActionResultStatus = 'completed' | 'failed' | 'skipped' | 'pending_approval' | 'partial_failure'
 
 export interface ActionResult {
   actionId: string

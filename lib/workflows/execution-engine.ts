@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck - Temporary: Generated Database types have Insert type mismatch after RBAC migration
 /**
  * Workflow Execution Engine
  * Core engine for executing workflow triggers and actions
@@ -72,6 +70,27 @@ export class WorkflowEngine {
     let clientSnapshot: ClientSnapshot | undefined
     if (clientId) {
       clientSnapshot = await this.getClientSnapshot(clientId)
+      if (!clientSnapshot) {
+        await completeWorkflowRun(
+          this.supabase,
+          run.id,
+          this.agencyId,
+          workflowId,
+          false,
+          [],
+          'Client not found or query failed'
+        )
+        return {
+          runId: run.id,
+          workflowId,
+          status: 'failed',
+          triggerData,
+          actionResults: [],
+          startedAt: run.started_at,
+          completedAt: new Date().toISOString(),
+          error: 'Client not found or query failed',
+        }
+      }
     }
 
     // Build execution context
@@ -121,9 +140,13 @@ export class WorkflowEngine {
         context
       )
 
-      // Determine overall success
-      const hasFailures = actionResults.some((r) => r.status === 'failed')
-      const success = !hasFailures
+      // Determine overall success (skipped actions don't count as failures)
+      const failedCount = actionResults.filter((r) => r.status === 'failed').length
+      const completedCount = actionResults.filter((r) => r.status === 'completed').length
+      const runStatus = failedCount === 0 ? 'completed'
+        : completedCount > 0 ? 'partial_failure'
+        : 'failed'
+      const success = runStatus === 'completed'
 
       // Complete the run
       await completeWorkflowRun(
@@ -133,18 +156,18 @@ export class WorkflowEngine {
         workflowId,
         success,
         actionResults,
-        hasFailures ? 'One or more actions failed' : undefined
+        failedCount > 0 ? `${failedCount} action(s) failed` : undefined
       )
 
       return {
         runId: run.id,
         workflowId,
-        status: success ? 'completed' : 'failed',
+        status: runStatus,
         triggerData,
         actionResults,
         startedAt: run.started_at,
         completedAt: new Date().toISOString(),
-        error: hasFailures ? 'One or more actions failed' : undefined,
+        error: failedCount > 0 ? `${failedCount} action(s) failed` : undefined,
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -362,20 +385,30 @@ export class WorkflowEngine {
   ): Promise<ActionResult> {
     const { channel, message, recipients } = action.config
 
+    // Skip if no recipients configured (not an error — just unconfigured)
+    if (!recipients || recipients.length === 0) {
+      return {
+        actionId: action.id,
+        actionType: 'send_notification',
+        status: 'skipped',
+        result: { channel, recipientCount: 0, reason: 'No recipients configured' },
+        executedAt: new Date().toISOString(),
+      }
+    }
+
     const processedMessage = substituteVariables(message, {
       client: context.clientSnapshot,
       trigger: context.triggerData,
     })
 
-    // In production, this would integrate with Slack/email APIs
-    // For now, we'll simulate by logging (dev only)
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`[Workflow Notification] Channel: ${channel}, Recipients: ${recipients.join(', ')}`)
-      console.log(`[Workflow Notification] Message: ${processedMessage}`)
+    if (channel === 'slack') {
+      return this.sendSlackNotification(action, processedMessage, recipients)
+    } else if (channel === 'email') {
+      return this.sendEmailNotification(action, processedMessage, recipients, context)
     }
 
-    // TODO: Implement actual notification sending via integrations
-
+    // Unknown channel — log and return completed (backwards compat)
+    console.warn('[WorkflowEngine]', { action: 'sendNotification', channel, warning: 'Unknown notification channel' })
     return {
       actionId: action.id,
       actionType: 'send_notification',
@@ -385,18 +418,163 @@ export class WorkflowEngine {
     }
   }
 
+  private async sendSlackNotification(
+    action: WorkflowAction & { type: 'send_notification' },
+    message: string,
+    recipients: string[]
+  ): Promise<ActionResult> {
+    const gatewayUrl = process.env.DIIIPLOY_GATEWAY_URL
+    const gatewayKey = process.env.DIIIPLOY_GATEWAY_API_KEY
+    const tenantId = process.env.DIIIPLOY_TENANT_ID
+
+    if (!gatewayUrl || !gatewayKey) {
+      throw new Error('Slack gateway not configured (DIIIPLOY_GATEWAY_URL + DIIIPLOY_GATEWAY_API_KEY)')
+    }
+
+    const results: { recipient: string; ok: boolean; error?: string }[] = []
+
+    for (const recipient of recipients) {
+      try {
+        const response = await fetch(`${gatewayUrl}/slack/send`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${gatewayKey}`,
+            ...(tenantId ? { 'X-Tenant-ID': tenantId } : {}),
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ channel: recipient, text: message }),
+          signal: AbortSignal.timeout(10000),
+        })
+
+        const data = await response.json() as { ok?: boolean; error?: string }
+        const ok = response.ok && (data.ok !== false)
+        results.push({ recipient, ok, error: data.error })
+
+        if (!ok) {
+          console.error('[WorkflowEngine]', { action: 'sendSlackNotification', recipient, error: data.error })
+        }
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : 'Unknown error'
+        results.push({ recipient, ok: false, error: errMsg })
+        console.error('[WorkflowEngine]', { action: 'sendSlackNotification', recipient, error: errMsg })
+      }
+    }
+
+    const allOk = results.every((r) => r.ok)
+    const anyOk = results.some((r) => r.ok)
+
+    return {
+      actionId: action.id,
+      actionType: 'send_notification',
+      status: anyOk ? 'completed' : 'failed',
+      result: {
+        channel: 'slack',
+        recipientCount: recipients.length,
+        successCount: results.filter((r) => r.ok).length,
+        results,
+      },
+      error: allOk ? undefined : `${results.filter((r) => !r.ok).length} of ${results.length} Slack messages failed`,
+      executedAt: new Date().toISOString(),
+    }
+  }
+
+  private async sendEmailNotification(
+    action: WorkflowAction & { type: 'send_notification' },
+    message: string,
+    recipients: string[],
+    context: WorkflowExecutionContext
+  ): Promise<ActionResult> {
+    const resendApiKey = process.env.RESEND_API_KEY
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@audienceos.io'
+
+    if (!resendApiKey) {
+      throw new Error('Email not configured (RESEND_API_KEY missing)')
+    }
+
+    const subject = context.clientSnapshot
+      ? `[AudienceOS] Automation: ${context.clientSnapshot.name}`
+      : '[AudienceOS] Workflow Notification'
+
+    const results: { recipient: string; ok: boolean; messageId?: string; error?: string }[] = []
+
+    for (const recipient of recipients) {
+      try {
+        const response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${resendApiKey}`,
+          },
+          body: JSON.stringify({
+            from: fromEmail,
+            to: recipient,
+            subject,
+            text: message,
+            html: `<div style="font-family: sans-serif; padding: 20px;">${message.replace(/\n/g, '<br>')}</div>`,
+          }),
+          signal: AbortSignal.timeout(10000),
+        })
+
+        const data = await response.json() as { id?: string; message?: string }
+        const ok = response.ok
+        results.push({ recipient, ok, messageId: data.id, error: ok ? undefined : data.message })
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : 'Unknown error'
+        results.push({ recipient, ok: false, error: errMsg })
+        console.error('[WorkflowEngine]', { action: 'sendEmailNotification', recipient, error: errMsg })
+      }
+    }
+
+    const successCount = results.filter((r) => r.ok).length
+    const allOk = successCount === results.length
+    const anyOk = successCount > 0
+
+    const status = allOk ? 'completed' : anyOk ? 'partial_failure' : 'failed'
+
+    return {
+      actionId: action.id,
+      actionType: 'send_notification',
+      status,
+      result: {
+        channel: 'email',
+        recipientCount: recipients.length,
+        successCount,
+        results,
+      },
+      error: allOk ? undefined : `${results.length - successCount} of ${results.length} email sends failed`,
+      executedAt: new Date().toISOString(),
+    }
+  }
+
   private async executeDraftCommunication(
     action: WorkflowAction & { type: 'draft_communication' },
     context: WorkflowExecutionContext
   ): Promise<ActionResult> {
-    const { platform, template, tone, instructions: _instructions } = action.config
+    const { platform, template, tone, instructions } = action.config
 
-    // In production, this would use Claude API to generate a draft
-    // For now, we'll create a simple template
-    const draftContent = `[AI Draft - ${tone || 'professional'}]\n\nTemplate: ${template}\n\nContext: ${JSON.stringify(context.triggerData, null, 2)}`
+    // Substitute variables in template
+    const processedTemplate = substituteVariables(template, {
+      client: context.clientSnapshot,
+      trigger: context.triggerData,
+    })
 
-    // Store the draft
-    // TODO: Create communication_drafts table and store there
+    // Try Gemini AI draft, fall back to template string
+    let draftContent: string
+    try {
+      draftContent = await this.generateGeminiDraft(
+        processedTemplate,
+        tone || 'professional',
+        instructions,
+        context
+      )
+    } catch (err) {
+      console.warn('[WorkflowEngine]', {
+        action: 'generateGeminiDraft',
+        warning: 'Gemini draft failed, using template fallback',
+        error: err instanceof Error ? err.message : String(err),
+      })
+      draftContent = processedTemplate
+    }
 
     return {
       actionId: action.id,
@@ -406,10 +584,60 @@ export class WorkflowEngine {
         platform,
         template,
         tone,
-        preview: draftContent.slice(0, 200) + '...',
+        draft: draftContent,
+        preview: draftContent.slice(0, 500),
+        aiGenerated: draftContent !== processedTemplate,
       },
       executedAt: new Date().toISOString(),
     }
+  }
+
+  private async generateGeminiDraft(
+    template: string,
+    tone: string,
+    instructions: string | undefined,
+    context: WorkflowExecutionContext
+  ): Promise<string> {
+    const apiKey = process.env.GOOGLE_AI_API_KEY
+    if (!apiKey) {
+      throw new Error('GOOGLE_AI_API_KEY not configured')
+    }
+
+    const { GoogleGenAI } = await import('@google/genai')
+    const genai = new GoogleGenAI({ apiKey })
+
+    const clientContext = context.clientSnapshot
+      ? `Client: ${context.clientSnapshot.name}, Stage: ${context.clientSnapshot.stage}, Health: ${context.clientSnapshot.healthStatus}`
+      : 'No client context available'
+
+    const prompt = [
+      `You are a professional agency communication writer. Draft a ${tone} message.`,
+      '',
+      `Template/Base: ${template}`,
+      `Client Context: ${clientContext}`,
+      `Trigger Data: ${JSON.stringify(context.triggerData)}`,
+      instructions ? `Additional Instructions: ${instructions}` : '',
+      '',
+      'Write the message directly — no preamble, no "Here is the draft", just the message content.',
+    ]
+      .filter(Boolean)
+      .join('\n')
+
+    const result = await genai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+      config: {
+        temperature: 0.7,
+        maxOutputTokens: 1024,
+      },
+    })
+
+    const text = result.text?.trim()
+    if (!text) {
+      throw new Error('Empty response from Gemini')
+    }
+
+    return text
   }
 
   private async executeCreateTicket(
@@ -434,7 +662,8 @@ export class WorkflowEngine {
         })
       : `Auto-generated by automation: ${context.workflowId}`
 
-    const { data, error } = await this.supabase
+    // number is auto-generated by DB but typed as required in generated types
+    const { data, error } = await (this.supabase as unknown as import('@supabase/supabase-js').SupabaseClient)
       .from('ticket')
       .insert({
         agency_id: context.agencyId,
@@ -478,7 +707,7 @@ export class WorkflowEngine {
     if (updates.healthStatus) updateData.health_status = updates.healthStatus
     if (updates.notes) {
       // Append to existing notes
-      const existingNotes = context.clientSnapshot.name || ''
+      const existingNotes = context.clientSnapshot.notes || ''
       updateData.notes = existingNotes
         ? `${existingNotes}\n\n[${new Date().toISOString()}] ${updates.notes}`
         : updates.notes
@@ -521,7 +750,7 @@ export class WorkflowEngine {
 
     // If stage changed, create stage event
     if (updates.stage && updates.stage !== context.clientSnapshot.stage) {
-      await this.supabase.from('stage_event').insert({
+      const { error: stageEventError } = await this.supabase.from('stage_event').insert({
         agency_id: context.agencyId,
         client_id: context.clientSnapshot.id,
         from_stage: context.clientSnapshot.stage,
@@ -529,6 +758,9 @@ export class WorkflowEngine {
         moved_by: context.userId,
         notes: `Automated stage change by workflow: ${context.workflowId}`,
       })
+      if (stageEventError) {
+        console.warn('[WorkflowEngine] Stage event insert failed (non-fatal):', stageEventError.message)
+      }
     }
 
     return {
@@ -596,12 +828,17 @@ export class WorkflowEngine {
   // ============================================================================
 
   private async getClientSnapshot(clientId: string): Promise<ClientSnapshot | undefined> {
-    const { data } = await this.supabase
+    const { data, error } = await this.supabase
       .from('client')
       .select('*')
       .eq('id', clientId)
       .eq('agency_id', this.agencyId)
       .single()
+
+    if (error) {
+      console.error('[WorkflowEngine] Failed to fetch client snapshot:', error.message)
+      return undefined
+    }
 
     if (!data) return undefined
 
@@ -612,6 +849,7 @@ export class WorkflowEngine {
       healthStatus: data.health_status,
       contactEmail: data.contact_email || undefined,
       contactName: data.contact_name || undefined,
+      notes: data.notes || undefined,
       daysInStage: data.days_in_stage,
       tags: data.tags || [],
       totalSpend: data.total_spend || undefined,
