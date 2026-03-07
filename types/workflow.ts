@@ -242,6 +242,7 @@ export interface ClientSnapshot {
   healthStatus: HealthStatus
   contactEmail?: string
   contactName?: string
+  notes?: string
   daysInStage: number
   tags: string[]
   totalSpend?: number

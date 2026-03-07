@@ -95,3 +95,7 @@ export {
 
 // Execution Engine
 export { WorkflowEngine, createWorkflowEngine } from './execution-engine'
+
+// Event Router
+export { dispatchWorkflowEvent } from './event-router'
+export type { WorkflowEvent, DispatchResult } from './event-router'

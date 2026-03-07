@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import { useSlideTransition } from "@/hooks/use-slide-transition"
 import { useToast } from "@/hooks/use-toast"
 import { fetchWithCsrf } from "@/lib/csrf"
 import { useAutomationsStore } from "@/stores/automations-store"
+import type { Workflow, WorkflowTrigger, WorkflowAction } from "@/types/workflow"
 import { cn } from "@/lib/utils"
 import { ListHeader } from "@/components/linear"
 import {
@@ -230,9 +231,91 @@ const stepTypeColors: Record<string, string> = {
   condition: "bg-amber-500 text-white",
 }
 
+// Convert a real Workflow from API into the UI's AutomationTemplate format
+function workflowToTemplate(workflow: Workflow): AutomationTemplate {
+  const triggers = (workflow.triggers as unknown as WorkflowTrigger[]) || []
+  const actions = (workflow.actions as unknown as WorkflowAction[]) || []
+
+  // Determine category from triggers
+  let category: AutomationTemplate["category"] = "monitoring"
+  if (triggers.some((t) => t.type === "stage_change")) category = "onboarding"
+  else if (triggers.some((t) => t.type === "ticket_created")) category = "triage"
+  else if (triggers.some((t) => t.type === "scheduled")) category = "communication"
+
+  // Build steps from triggers + actions
+  const steps: AutomationStep[] = []
+  triggers.forEach((trigger, i) => {
+    steps.push({
+      id: trigger.id || `t-${i}`,
+      order: i + 1,
+      name: trigger.name || trigger.type,
+      type: "trigger",
+      config: trigger.config as unknown as StepConfig,
+      icon: <Zap className="h-3.5 w-3.5" />,
+    })
+  })
+  actions.forEach((action, i) => {
+    const iconMap: Record<string, React.ReactNode> = {
+      create_task: <CheckCircle2 className="h-3.5 w-3.5" />,
+      send_notification: (action.config as { channel?: string })?.channel === "email"
+        ? <Mail className="h-3.5 w-3.5" />
+        : <SlackIcon className="h-3.5 w-3.5" />,
+      draft_communication: <Sparkles className="h-3.5 w-3.5" />,
+      create_ticket: <FileText className="h-3.5 w-3.5" />,
+      update_client: <Users className="h-3.5 w-3.5" />,
+      create_alert: <Bell className="h-3.5 w-3.5" />,
+    }
+    steps.push({
+      id: action.id || `a-${i}`,
+      order: triggers.length + i + 1,
+      name: action.name || action.type,
+      type: "action",
+      config: action.config as unknown as StepConfig,
+      icon: iconMap[action.type] || <Zap className="h-3.5 w-3.5" />,
+    })
+  })
+
+  // Format last run time
+  let lastRun: string | null = null
+  if (workflow.last_run_at) {
+    const diff = Date.now() - new Date(workflow.last_run_at).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 60) lastRun = `${mins}m ago`
+    else if (mins < 1440) lastRun = `${Math.floor(mins / 60)}h ago`
+    else lastRun = `${Math.floor(mins / 1440)}d ago`
+  }
+
+  // Determine icon based on category
+  const iconMap: Record<string, React.ReactNode> = {
+    onboarding: <Users className="h-4 w-4" />,
+    monitoring: <AlertTriangle className="h-4 w-4" />,
+    communication: <FileText className="h-4 w-4" />,
+    triage: <MessageSquare className="h-4 w-4" />,
+  }
+
+  return {
+    id: workflow.id,
+    name: workflow.name,
+    description: workflow.description || "",
+    category,
+    icon: iconMap[category],
+    status: workflow.is_active ? "active" : "inactive",
+    runs: workflow.run_count || 0,
+    lastRun,
+    steps,
+  }
+}
+
 export function AutomationsHub() {
   const { toast } = useToast()
-  const { toggleWorkflow, deleteWorkflow } = useAutomationsStore()
+  const { workflows, isLoading, fetchWorkflows, toggleWorkflow, deleteWorkflow } = useAutomationsStore()
+  const [isRunning, setIsRunning] = useState<string | null>(null)
+  const [isCreatingTemplate, setIsCreatingTemplate] = useState(false)
+
+  // Fetch real workflows on mount
+  useEffect(() => {
+    fetchWorkflows()
+  }, [fetchWorkflows])
 
   const [selectedAutomation, setSelectedAutomation] = useState<AutomationTemplate | null>(null)
   const [selectedStep, setSelectedStep] = useState<AutomationStep | null>(null)
@@ -410,15 +493,80 @@ export function AutomationsHub() {
     }
   }
 
+  // Convert real workflows to UI templates, falling back to mock data when empty
+  const liveTemplates = useMemo(() => {
+    if (workflows.length > 0) {
+      return workflows.map(workflowToTemplate)
+    }
+    return automationTemplates
+  }, [workflows])
+
+  // Run Now handler
+  const handleRunNow = useCallback(async (automation: AutomationTemplate) => {
+    setIsRunning(automation.id)
+    try {
+      const response = await fetchWithCsrf(`/api/v1/workflows/${automation.id}/execute`, {
+        method: "POST",
+        body: JSON.stringify({ triggerData: { manual: true } }),
+      })
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err.error || "Failed to execute")
+      }
+      toast({
+        title: "Workflow executed",
+        description: `${automation.name} ran successfully`,
+      })
+      // Refresh data to get updated run counts
+      fetchWorkflows()
+    } catch (error) {
+      toast({
+        title: "Execution failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      })
+    } finally {
+      setIsRunning(null)
+    }
+  }, [fetchWorkflows, toast])
+
+  // Create from template handler
+  const handleCreateFromTemplate = useCallback(async (templateKey: string) => {
+    setIsCreatingTemplate(true)
+    try {
+      const response = await fetchWithCsrf("/api/v1/workflows/templates", {
+        method: "POST",
+        body: JSON.stringify({ templateKey }),
+      })
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err.error || "Failed to create workflow")
+      }
+      toast({
+        title: "Workflow created",
+        description: "Template workflow has been activated",
+      })
+      fetchWorkflows()
+    } catch (error) {
+      toast({
+        title: "Creation failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      })
+    } finally {
+      setIsCreatingTemplate(false)
+    }
+  }, [fetchWorkflows, toast])
+
   // Calculate counts
   const counts = useMemo(() => {
     return {
-      all: automationTemplates.length,
-      active: automationTemplates.filter((a) => a.status === "active").length,
-      inactive: automationTemplates.filter((a) => a.status === "inactive").length,
-      draft: automationTemplates.filter((a) => a.status === "draft").length,
+      all: liveTemplates.length,
+      active: liveTemplates.filter((a) => a.status === "active").length,
+      inactive: liveTemplates.filter((a) => a.status === "inactive").length,
+      draft: liveTemplates.filter((a) => a.status === "draft").length,
     }
-  }, [])
+  }, [liveTemplates])
 
   const filterTabs: FilterTabConfig[] = [
     { id: "all", label: "All", icon: <Zap className="w-4 h-4" />, count: counts.all },
@@ -429,7 +577,7 @@ export function AutomationsHub() {
 
   // Filter automations
   const filteredAutomations = useMemo(() => {
-    let automations = automationTemplates
+    let automations = liveTemplates
 
     // Apply status filter
     if (activeFilter !== "all") {
@@ -448,7 +596,7 @@ export function AutomationsHub() {
     }
 
     return automations
-  }, [activeFilter, searchQuery])
+  }, [liveTemplates, activeFilter, searchQuery])
 
   // When automation is selected, select first step
   const handleSelectAutomation = (automation: AutomationTemplate) => {

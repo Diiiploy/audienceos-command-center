@@ -6,6 +6,7 @@ import { createRouteHandlerClient } from '@/lib/supabase'
 import { withRateLimit, withCsrfProtection, sanitizeString, sanitizeSearchPattern, isValidUUID, createErrorResponse } from '@/lib/security'
 import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission'
 import type { TicketCategory, TicketPriority, TicketStatus } from '@/types/database'
+import { dispatchWorkflowEvent } from '@/lib/workflows/event-router'
 
 // Valid enum values
 const VALID_STATUSES: TicketStatus[] = ['new', 'in_progress', 'waiting_client', 'resolved']
@@ -177,6 +178,21 @@ export const POST = withPermission({ resource: 'tickets', action: 'write' })(
     if (error) {
       return createErrorResponse(500, 'Failed to create ticket')
     }
+
+      // Dispatch workflow event — fire-and-forget
+      dispatchWorkflowEvent(supabase, agencyId, userId, {
+        type: 'ticket_created',
+        data: {
+          ticketId: ticket.id,
+          title: sanitizedTitle,
+          category: category as string,
+          priority: priority as string,
+          clientId: client_id as string,
+        },
+        clientId: client_id as string,
+      }).catch((err) => {
+        console.error('[tickets/route] Workflow dispatch error:', err)
+      })
 
       return NextResponse.json({ data: ticket }, { status: 201 })
     } catch {

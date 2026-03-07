@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { createRouteHandlerClient } from '@/lib/supabase'
 import { withCsrfProtection } from '@/lib/security'
 import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission'
+import { dispatchWorkflowEvent } from '@/lib/workflows/event-router'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -85,6 +86,15 @@ export const PUT = withPermission({ resource: 'clients', action: 'write' })(
       console.error('Error logging stage event:', eventError)
       // Don't fail the request, stage was updated successfully
     }
+
+      // Dispatch workflow event — fire-and-forget
+      dispatchWorkflowEvent(supabase, agencyId, userId, {
+        type: 'stage_change',
+        data: { fromStage: previousStage, toStage: stage, clientName: client.name },
+        clientId: id,
+      }).catch((err) => {
+        console.error('[stage/route] Workflow dispatch error:', err)
+      })
 
       return NextResponse.json({
         data: client,
