@@ -44,12 +44,26 @@ interface Competitor {
 }
 
 export function TriggerOnboardingModal({ open, onOpenChange }: TriggerOnboardingModalProps) {
-  const { triggerOnboarding, isTriggeringOnboarding } = useOnboardingStore()
+  const { triggerOnboarding, isTriggeringOnboarding, journeys, fetchJourneys } = useOnboardingStore()
 
   const [clientName, setClientName] = useState("")
   const [clientEmail, setClientEmail] = useState("")
   const [clientWebsite, setClientWebsite] = useState("")
   const [clientTier, setClientTier] = useState<"Core" | "Enterprise">("Core")
+  const [selectedJourneyId, setSelectedJourneyId] = useState<string>("")
+
+  // Fetch journeys on mount
+  useEffect(() => {
+    fetchJourneys()
+  }, [fetchJourneys])
+
+  // Auto-select default journey when journeys load
+  useEffect(() => {
+    if (journeys.length > 0 && !selectedJourneyId) {
+      const defaultJourney = journeys.find((j: any) => j.is_default)
+      setSelectedJourneyId(defaultJourney?.id || journeys[0].id)
+    }
+  }, [journeys, selectedJourneyId])
 
   // SEO enrichment state
   const [seoLoading, setSeoLoading] = useState(false)
@@ -64,6 +78,7 @@ export function TriggerOnboardingModal({ open, onOpenChange }: TriggerOnboarding
       setClientEmail("")
       setClientWebsite("")
       setClientTier("Core")
+      setSelectedJourneyId("")
       setSeoLoading(false)
       setSeoData(null)
       setSeoError(null)
@@ -149,6 +164,7 @@ export function TriggerOnboardingModal({ open, onOpenChange }: TriggerOnboarding
       client_name: clientName,
       client_email: clientEmail,
       client_tier: clientTier,
+      journey_id: selectedJourneyId || undefined,
       website_url: clientWebsite || undefined,
       ...(seoData?.summary && {
         seo_data: {
@@ -185,7 +201,7 @@ export function TriggerOnboardingModal({ open, onOpenChange }: TriggerOnboarding
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Trigger Onboarding</DialogTitle>
+          <DialogTitle>Send Onboarding Invite</DialogTitle>
           <DialogDescription>
             Start the onboarding process for a new client
           </DialogDescription>
@@ -259,6 +275,24 @@ export function TriggerOnboardingModal({ open, onOpenChange }: TriggerOnboarding
               </SelectContent>
             </Select>
           </div>
+
+          {journeys.length > 1 && (
+            <div className="space-y-2">
+              <Label htmlFor="journeySelect">Onboarding Journey</Label>
+              <Select value={selectedJourneyId} onValueChange={setSelectedJourneyId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a journey" />
+                </SelectTrigger>
+                <SelectContent>
+                  {journeys.map((journey) => (
+                    <SelectItem key={journey.id} value={journey.id}>
+                      {journey.name}{(journey as any).is_default ? " (default)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="rounded-md bg-muted p-3 text-sm">
             <div className="flex items-start gap-2">

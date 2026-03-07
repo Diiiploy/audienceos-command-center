@@ -340,7 +340,10 @@ export const POST = withPermission({ resource: 'ai-features', action: 'write' })
     });
 
     // Build suggested memory for the client (if detected)
-    const suggestedMemory = memoryDetection.should ? {
+    // Skip suggestion when dashboard route already stored via store_memory function call
+    // to prevent duplicates (dashboard stores with infer:true, suggestion stores with infer:false)
+    const dashboardAlreadyStored = functionCalls.some(f => f.name === 'store_memory');
+    const suggestedMemory = (memoryDetection.should && !dashboardAlreadyStored) ? {
       content: extractMemoryContent(message, responseContent, memoryDetection.type),
       type: memoryDetection.type,
       importance: memoryDetection.importance,
@@ -460,8 +463,39 @@ function extractMemoryContent(userMessage: string, assistantResponse: string, ty
     return preferMatch[1].trim();
   }
 
-  // Fallback: first 200 chars of the combined context
-  return `${userMessage} → ${assistantResponse.substring(0, 200)}${assistantResponse.length > 200 ? '...' : ''}`;
+  // Type-aware extraction — produce clean factual content per type
+  // mem0's infer engine works best with declarative statements, not instructions
+  switch (type) {
+    case 'decision': {
+      // Extract the decision itself — strip "we decided to" prefix for clean storage
+      const decisionMatch = userMessage.match(/(?:decided\s+to|let'?s\s+go\s+with|going\s+with|approved|agreed\s+to|committed\s+to)\s+(.+)/i);
+      return decisionMatch ? decisionMatch[1].trim() : userMessage;
+    }
+    case 'task': {
+      // Extract the action item as a factual statement
+      const taskMatch = userMessage.match(/(?:remind\s+me\s+to|todo|need\s+to|follow\s+up\s+(?:with|on)|make\s+sure\s+to|schedule\s+(?:a|the)|don'?t\s+forget\s+to)\s+(.+)/i);
+      const taskContent = taskMatch ? taskMatch[1].trim() : userMessage;
+      // Add deadline context if present
+      const deadlineMatch = userMessage.match(/(?:deadline|due\s+date|by)\s+(?:is\s+)?(.+?)(?:\.|$)/i);
+      return deadlineMatch ? `${taskContent} (deadline: ${deadlineMatch[1].trim()})` : taskContent;
+    }
+    case 'project': {
+      // Extract project context as a factual status
+      const projectMatch = userMessage.match(/(?:working\s+on|launching|building)\s+(.+?)(?:\.\s|$)/i);
+      const projectContent = projectMatch ? projectMatch[1].trim() : userMessage;
+      // Add milestone context if present
+      const milestoneMatch = userMessage.match(/(?:milestone|first\s+step|next\s+step)\s+(?:is\s+)?(.+?)(?:\.|$)/i);
+      return milestoneMatch ? `${projectContent} — milestone: ${milestoneMatch[1].trim()}` : projectContent;
+    }
+    case 'insight': {
+      // Extract the learning/insight as a factual statement
+      const insightMatch = userMessage.match(/(?:i\s+learned|i\s+realized|i\s+noticed|turns\s+out|key\s+takeaway:?|the\s+data\s+shows|we\s+found\s+that)\s+(.+)/i);
+      return insightMatch ? insightMatch[1].trim() : userMessage;
+    }
+    default:
+      // Fallback: user message only (no noisy response concatenation)
+      return userMessage.substring(0, 300);
+  }
 }
 
 /**
@@ -749,6 +783,22 @@ async function handleMemoryRoute(
     const memoryInjector = getMemoryInjector();
     const genai = new GoogleGenAI({ apiKey });
 
+    // Detect STORE intent — "remember that...", "please remember...", "keep in mind..."
+    // These are storage requests, not recall queries. The suggestion system handles actual storage.
+    const lowerMessage = message.toLowerCase();
+    const isStoreRequest =
+      lowerMessage.includes('remember that') ||
+      lowerMessage.includes('please remember') ||
+      lowerMessage.includes('can you remember') ||
+      lowerMessage.includes('keep in mind') ||
+      lowerMessage.includes('note that') ||
+      lowerMessage.includes('don\'t forget');
+
+    if (isStoreRequest) {
+      // Acknowledge storage intent — the memory suggestion card handles actual persistence
+      return "Absolutely, I've noted that down! I'll keep this in mind for our future conversations. Is there anything else you'd like me to remember?";
+    }
+
     // Detect recall intent and get suggested search query
     const recallDetection = memoryInjector.detectRecall(message);
 
@@ -854,9 +904,31 @@ async function handleCasualRoute(
     }
   }
 
-  // Get response text
-  let responseText = candidate?.content?.parts?.[0]?.text ||
-    "I'm here to help! You can ask me about clients, performance metrics, or app features.";
+  // Get response text — retry with explicit prompt if Gemini returns empty
+  let responseText = candidate?.content?.parts?.[0]?.text || "";
+
+  if (!responseText.trim()) {
+    console.warn('[Chat API] Casual route: Gemini returned empty text, retrying with minimal prompt');
+    try {
+      // Retry with MINIMAL prompt — the full systemPrompt can overwhelm preview models
+      // and trigger empty responses. Strip down to just the user's message.
+      const retryResponse = await callGeminiWithRetry(
+        () => genai.models.generateContent({
+          model: GEMINI_MODEL,
+          contents: `You are a helpful AI assistant for a marketing agency. Respond naturally and helpfully.\n\nUser: ${message}`,
+          config: { temperature: temperature + 0.1 },
+        }),
+        'Casual route retry'
+      );
+      responseText = retryResponse.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    } catch (retryErr) {
+      console.error('[Chat API] Casual route retry also failed:', retryErr);
+    }
+    // Final fallback — still better than generic
+    if (!responseText.trim()) {
+      responseText = `That's a great point! I'd love to dig deeper into that with you. Could you tell me more about what you're thinking, or is there a specific area you'd like me to help with?`;
+    }
+  }
 
   // Strip Gemini's decimal notation markers if present
   // Gemini uses formats like [1.1], [1.7] or comma-separated [1.1, 1.7]

@@ -134,12 +134,12 @@ Questions? Contact ${inviterName} for more information.
         'Authorization': `Bearer ${resendApiKey}`,
       },
       body: JSON.stringify({
-        from: process.env.RESEND_FROM_EMAIL || 'noreply@audienceos.com',
+        from: process.env.RESEND_FROM_EMAIL || 'noreply@audienceos.io',
         to,
         subject: `${inviterName} invited you to join ${agencyName}`,
         html: htmlContent,
         text: textContent,
-        reply_to: 'support@audienceos.com',
+        reply_to: 'support@audienceos.io',
       }),
     })
 

@@ -28,6 +28,7 @@ export interface OnboardingInstanceWithRelations extends OnboardingInstance {
     stages: Json
     welcome_video_url?: string | null
     ai_analysis_prompt?: string | null
+    access_delegation_config?: Json
   } | null
   triggered_by_user?: {
     id: string
@@ -59,6 +60,15 @@ export interface Stage {
   platforms?: string[]
 }
 
+export interface AccessDelegationItem {
+  id: string
+  name: string
+  description: string
+  email: string
+  instructions_url?: string
+  required: boolean
+}
+
 // =============================================================================
 // ONBOARDING STORE STATE
 // =============================================================================
@@ -80,7 +90,11 @@ interface OnboardingState {
   selectedInstanceId: string | null
   selectedInstance: OnboardingInstanceWithRelations | null
   isLoadingInstances: boolean
+  isLoadingInstance: boolean // [1C] Separate flag for single instance detail
   isTriggeringOnboarding: boolean
+
+  // Notification tracking [1F]
+  lastViewedInstances: Record<string, string>
 
   // UI state
   activeTab: 'active' | 'journey' | 'form-builder'
@@ -88,6 +102,7 @@ interface OnboardingState {
   // Actions - Journeys
   fetchJourneys: () => Promise<void>
   saveJourney: (data: Partial<OnboardingJourney>) => Promise<void>
+  createJourney: (name: string) => Promise<void> // [1D]
   setSelectedJourneyId: (id: string | null) => void
 
   // Actions - Fields
@@ -104,6 +119,7 @@ interface OnboardingState {
     client_name: string
     client_email: string
     client_tier?: string
+    journey_id?: string
     website_url?: string
     seo_data?: {
       summary: unknown
@@ -113,6 +129,11 @@ interface OnboardingState {
   }) => Promise<OnboardingInstanceWithRelations | null>
   updateStageStatus: (instanceId: string, stageId: string, status: string, platformStatuses?: Record<string, string>) => Promise<void>
   setSelectedInstanceId: (id: string | null) => void
+  resendEmail: (instanceId: string) => Promise<boolean> // [1E]
+
+  // Actions - Notifications [1F]
+  markInstanceViewed: (instanceId: string) => void
+  hasUnseenUpdates: (instance: OnboardingInstanceWithRelations) => boolean
 
   // Actions - UI
   setActiveTab: (tab: 'active' | 'journey' | 'form-builder') => void
@@ -139,7 +160,13 @@ export const useOnboardingStore = create<OnboardingState>()(
       selectedInstanceId: null,
       selectedInstance: null,
       isLoadingInstances: false,
+      isLoadingInstance: false, // [1C]
       isTriggeringOnboarding: false,
+
+      // [1F] Load last-viewed timestamps from localStorage
+      lastViewedInstances: typeof window !== 'undefined'
+        ? JSON.parse(localStorage.getItem('onboarding-last-viewed') || '{}')
+        : {},
 
       activeTab: 'active',
 
@@ -168,6 +195,7 @@ export const useOnboardingStore = create<OnboardingState>()(
         }
       },
 
+      // [1A] saveJourney now propagates errors instead of swallowing them
       saveJourney: async (data) => {
         set({ isSavingJourney: true })
         try {
@@ -183,13 +211,50 @@ export const useOnboardingStore = create<OnboardingState>()(
             body: JSON.stringify(data),
           })
 
-          if (!response.ok) throw new Error('Failed to save journey')
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+            throw new Error(errorData.error || 'Failed to save journey')
+          }
 
           await get().fetchJourneys()
           set({ isSavingJourney: false })
         } catch (error) {
           console.error('Failed to save journey:', error)
           set({ isSavingJourney: false })
+          throw error // Propagate so callers can show error toasts
+        }
+      },
+
+      // [1D] Create a new journey with default stages
+      createJourney: async (name) => {
+        set({ isSavingJourney: true })
+        try {
+          const response = await fetchWithCsrf('/api/v1/onboarding/journeys', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name,
+              stages: [
+                { id: crypto.randomUUID(), name: 'Intake Form', order: 1 },
+                { id: crypto.randomUUID(), name: 'Access Verification', order: 2 },
+                { id: crypto.randomUUID(), name: 'Platform Setup', order: 3 },
+                { id: crypto.randomUUID(), name: 'Audit & Launch', order: 4 },
+              ],
+            }),
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+            throw new Error(errorData.error || 'Failed to create journey')
+          }
+
+          const { data: journey } = await response.json()
+          await get().fetchJourneys()
+          set({ selectedJourneyId: journey.id, isSavingJourney: false })
+        } catch (error) {
+          console.error('Failed to create journey:', error)
+          set({ isSavingJourney: false })
+          throw error
         }
       },
 
@@ -338,7 +403,10 @@ export const useOnboardingStore = create<OnboardingState>()(
       // =========================================================================
 
       fetchInstances: async (status) => {
-        set({ isLoadingInstances: true })
+        // [1C] Only show full spinner if no data loaded yet
+        const hasExistingData = get().instances.length > 0
+        if (!hasExistingData) set({ isLoadingInstances: true })
+
         try {
           const url = status
             ? `/api/v1/onboarding/instances?status=${status}`
@@ -356,18 +424,19 @@ export const useOnboardingStore = create<OnboardingState>()(
         }
       },
 
+      // [1C] Uses isLoadingInstance (singular) instead of isLoadingInstances
       fetchInstance: async (id) => {
-        set({ isLoadingInstances: true })
+        set({ isLoadingInstance: true })
         try {
           const response = await fetch(`/api/v1/onboarding/instances/${id}`, {
             credentials: 'include',
           })
           if (!response.ok) throw new Error('Failed to fetch instance')
           const { data } = await response.json()
-          set({ selectedInstance: data, isLoadingInstances: false })
+          set({ selectedInstance: data, isLoadingInstance: false })
         } catch (error) {
           console.error('Failed to fetch instance:', error)
-          set({ isLoadingInstances: false })
+          set({ isLoadingInstance: false })
         }
       },
 
@@ -393,19 +462,34 @@ export const useOnboardingStore = create<OnboardingState>()(
         }
       },
 
+      // [1B] Also updates instances array for accordion board sync
       updateStageStatus: async (instanceId, stageId, status, platformStatuses) => {
-        // Optimistic update - instant UI feedback
+        // Optimistic update for selectedInstance
         const currentInstance = get().selectedInstance
         if (currentInstance && currentInstance.id === instanceId) {
           const updatedStageStatuses = currentInstance.stage_statuses?.map(s =>
             s.stage_id === stageId
-              ? { ...s, status: status as 'pending' | 'in_progress' | 'completed' | 'blocked' }
+              ? { ...s, status: status as 'pending' | 'in_progress' | 'completed' | 'blocked', updated_at: new Date().toISOString() }
               : s
           )
           set({
             selectedInstance: { ...currentInstance, stage_statuses: updatedStageStatuses }
           })
         }
+
+        // [1B] Also update the instances array so accordion board stays in sync
+        const updatedInstances = get().instances.map(inst => {
+          if (inst.id !== instanceId) return inst
+          return {
+            ...inst,
+            stage_statuses: inst.stage_statuses?.map(s =>
+              s.stage_id === stageId
+                ? { ...s, status: status as 'pending' | 'in_progress' | 'completed' | 'blocked', updated_at: new Date().toISOString() }
+                : s
+            )
+          }
+        })
+        set({ instances: updatedInstances })
 
         try {
           const response = await fetchWithCsrf(`/api/v1/onboarding/instances/${instanceId}/stage`, {
@@ -430,10 +514,49 @@ export const useOnboardingStore = create<OnboardingState>()(
       setSelectedInstanceId: (id) => {
         set({ selectedInstanceId: id })
         if (id) {
+          // [1F] Mark as viewed when selected
+          get().markInstanceViewed(id)
           get().fetchInstance(id)
         } else {
           set({ selectedInstance: null })
         }
+      },
+
+      // [1E] Resend onboarding email
+      resendEmail: async (instanceId) => {
+        try {
+          const response = await fetchWithCsrf(`/api/v1/onboarding/instances/${instanceId}/resend-email`, {
+            method: 'POST',
+          })
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({}))
+            throw new Error(err.error || 'Failed to resend email')
+          }
+          return true
+        } catch (error) {
+          console.error('Failed to resend email:', error)
+          return false
+        }
+      },
+
+      // =========================================================================
+      // NOTIFICATION ACTIONS [1F]
+      // =========================================================================
+
+      markInstanceViewed: (instanceId) => {
+        const updated = { ...get().lastViewedInstances, [instanceId]: new Date().toISOString() }
+        set({ lastViewedInstances: updated })
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('onboarding-last-viewed', JSON.stringify(updated))
+        }
+      },
+
+      hasUnseenUpdates: (instance) => {
+        const lastViewed = get().lastViewedInstances[instance.id]
+        if (!lastViewed) return true // Never viewed = new
+        return instance.stage_statuses?.some(
+          s => s.updated_at && new Date(s.updated_at) > new Date(lastViewed)
+        ) ?? false
       },
 
       // =========================================================================

@@ -187,10 +187,10 @@ describe('/api/v1/onboarding/instances', () => {
         link_token: 'abc123def456',
       }
 
-      const baseUrl = 'https://audienceos-agro-bros.vercel.app'
+      const baseUrl = 'https://v0-audience-os-command-center.vercel.app'
       const portalUrl = `${baseUrl}/onboarding/start?token=${mockInstance.link_token}`
 
-      expect(portalUrl).toBe('https://audienceos-agro-bros.vercel.app/onboarding/start?token=abc123def456')
+      expect(portalUrl).toBe('https://v0-audience-os-command-center.vercel.app/onboarding/start?token=abc123def456')
     })
   })
 

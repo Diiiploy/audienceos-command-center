@@ -114,6 +114,9 @@ export const POST = withPermission({ resource: 'ai-features', action: 'write' })
         type: body.type,
         importance: body.importance || 'high',
         topic: body.topic,
+        // User-confirmed suggestions: store as-is without mem0 AI inference.
+        // We already extracted clean content via extractMemoryContent().
+        infer: false,
       });
 
       return NextResponse.json({ success: true, memoryId: result?.id, action: 'confirmed' });

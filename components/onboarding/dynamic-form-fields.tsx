@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -19,6 +19,7 @@ interface FormField {
   placeholder: string | null
   is_required: boolean
   options?: unknown
+  validation_regex?: string | null
 }
 
 interface DynamicFormFieldsProps {
@@ -27,6 +28,8 @@ interface DynamicFormFieldsProps {
   onChange: (fieldId: string, value: string) => void
   disabled?: boolean
   darkMode?: boolean
+  errors?: Record<string, string>
+  touched?: Record<string, boolean>
 }
 
 export function DynamicFormFields({
@@ -35,6 +38,8 @@ export function DynamicFormFields({
   onChange,
   disabled = false,
   darkMode = false,
+  errors,
+  touched,
 }: DynamicFormFieldsProps) {
   const sortedFields = [...fields].sort((a, b) => {
     // Fields may have sort_order if available
@@ -157,38 +162,134 @@ export function DynamicFormFields({
             )}
           </Label>
           {renderField(field)}
+          {errors?.[field.id] && touched?.[field.id] && (
+            <p className="text-sm text-red-400 mt-1">{errors[field.id]}</p>
+          )}
         </div>
       ))}
     </div>
   )
 }
 
-// Hook to manage form state
-export function useDynamicFormState(fields: FormField[]) {
-  const [values, setValues] = useState<Record<string, string>>({})
-
-  const handleChange = (fieldId: string, value: string) => {
-    setValues((prev) => ({ ...prev, [fieldId]: value }))
+// Validate a single field value against its field definition
+function validateField(field: FormField, value: string): string | null {
+  // Required check
+  if (field.is_required && value.trim() === "") {
+    return `${field.field_label} is required`
   }
 
-  const isValid = () => {
-    return fields
+  // Skip format validation for empty optional fields
+  if (value.trim() === "") {
+    return null
+  }
+
+  // Email format
+  if (field.field_type === "email") {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(value)) {
+      return "Please enter a valid email address"
+    }
+  }
+
+  // URL format
+  if (field.field_type === "url") {
+    try {
+      new URL(value)
+    } catch {
+      return "Please enter a valid URL"
+    }
+  }
+
+  // Custom regex validation
+  if (field.validation_regex) {
+    try {
+      const regex = new RegExp(field.validation_regex)
+      if (!regex.test(value)) {
+        return `${field.field_label} format is invalid`
+      }
+    } catch {
+      // Invalid regex pattern in field config - skip this validation
+    }
+  }
+
+  return null
+}
+
+// Hook to manage form state with validation
+export function useDynamicFormState(
+  fields: FormField[],
+  initialValues?: Record<string, string>
+) {
+  const [values, setValues] = useState<Record<string, string>>(
+    initialValues ?? {}
+  )
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
+
+  // Merge initialValues when they change (e.g. session restore)
+  useEffect(() => {
+    if (initialValues) {
+      setValues((prev) => ({ ...prev, ...initialValues }))
+    }
+  }, [initialValues])
+
+  const handleChange = useCallback(
+    (fieldId: string, value: string) => {
+      setValues((prev) => ({ ...prev, [fieldId]: value }))
+      setTouched((prev) => ({ ...prev, [fieldId]: true }))
+
+      // Run validation for this field
+      const field = fields.find((f) => f.id === fieldId)
+      if (field) {
+        const error = validateField(field, value)
+        setErrors((prev) => {
+          const next = { ...prev }
+          if (error) {
+            next[fieldId] = error
+          } else {
+            delete next[fieldId]
+          }
+          return next
+        })
+      }
+    },
+    [fields]
+  )
+
+  const isValid = useCallback(() => {
+    // All required fields must be filled
+    const requiredFilled = fields
       .filter((f) => f.is_required)
       .every((f) => {
         const value = values[f.id]
         return value && value.trim() !== ""
       })
-  }
 
-  const getResponses = () => {
-    return Object.entries(values).map(([field_id, value]) => ({
-      field_id,
-      value,
-    }))
-  }
+    if (!requiredFilled) return false
+
+    // Validate all fields that have values and check for any errors
+    for (const field of fields) {
+      const value = values[field.id] || ""
+      const error = validateField(field, value)
+      if (error) return false
+    }
+
+    return true
+  }, [fields, values])
+
+  const getResponses = useCallback(() => {
+    return Object.entries(values)
+      .filter(([, value]) => value && value.trim() !== "")
+      .map(([field_id, value]) => ({
+        field_id,
+        value,
+      }))
+  }, [values])
 
   return {
     values,
+    errors,
+    touched,
     handleChange,
     isValid,
     getResponses,

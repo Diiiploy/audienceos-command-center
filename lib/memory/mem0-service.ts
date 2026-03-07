@@ -92,12 +92,13 @@ interface Mem0MCPClient {
 
 /**
  * Calculate expiration date based on memory type.
- * Returns ISO 8601 string or undefined (no expiration).
+ * Returns YYYY-MM-DD string or undefined (no expiration).
+ * CRITICAL: mem0 API requires YYYY-MM-DD format, NOT full ISO 8601.
  */
 function calculateExpiration(type: MemoryType): string | undefined {
   const ttlDays = EXPIRATION_DAYS[type];
   if (!ttlDays) return undefined;
-  return new Date(Date.now() + ttlDays * 86400000).toISOString();
+  return new Date(Date.now() + ttlDays * 86400000).toISOString().split('T')[0];
 }
 
 /**
@@ -178,7 +179,7 @@ export class Mem0Service {
       appId: request.agencyId,
       metadata,
       expirationDate,
-      infer: true,
+      infer: request.infer !== undefined ? request.infer : true,
     });
 
     return {
