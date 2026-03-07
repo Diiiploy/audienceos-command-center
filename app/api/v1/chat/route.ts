@@ -340,7 +340,10 @@ export const POST = withPermission({ resource: 'ai-features', action: 'write' })
     });
 
     // Build suggested memory for the client (if detected)
-    const suggestedMemory = memoryDetection.should ? {
+    // Skip suggestion when dashboard route already stored via store_memory function call
+    // to prevent duplicates (dashboard stores with infer:true, suggestion stores with infer:false)
+    const dashboardAlreadyStored = functionCalls.some(f => f.name === 'store_memory');
+    const suggestedMemory = (memoryDetection.should && !dashboardAlreadyStored) ? {
       content: extractMemoryContent(message, responseContent, memoryDetection.type),
       type: memoryDetection.type,
       importance: memoryDetection.importance,
@@ -779,6 +782,22 @@ async function handleMemoryRoute(
   try {
     const memoryInjector = getMemoryInjector();
     const genai = new GoogleGenAI({ apiKey });
+
+    // Detect STORE intent — "remember that...", "please remember...", "keep in mind..."
+    // These are storage requests, not recall queries. The suggestion system handles actual storage.
+    const lowerMessage = message.toLowerCase();
+    const isStoreRequest =
+      lowerMessage.includes('remember that') ||
+      lowerMessage.includes('please remember') ||
+      lowerMessage.includes('can you remember') ||
+      lowerMessage.includes('keep in mind') ||
+      lowerMessage.includes('note that') ||
+      lowerMessage.includes('don\'t forget');
+
+    if (isStoreRequest) {
+      // Acknowledge storage intent — the memory suggestion card handles actual persistence
+      return "Absolutely, I've noted that down! I'll keep this in mind for our future conversations. Is there anything else you'd like me to remember?";
+    }
 
     // Detect recall intent and get suggested search query
     const recallDetection = memoryInjector.detectRecall(message);

@@ -421,6 +421,8 @@ export class MemoryInjector {
     }
 
     // 2. TASKS — check before preferences so "remind me" goes to task, not preference
+    // Note: "schedule a" and "schedule the" use word-boundary regex to prevent
+    // false positives like "schedule all" (which contains "schedule a" as substring)
     if (
       lowerUser.includes('remind me') ||
       lowerUser.includes('todo') ||
@@ -431,8 +433,8 @@ export class MemoryInjector {
       lowerUser.includes('need to do') ||
       lowerUser.includes('don\'t forget to') ||
       lowerUser.includes('make sure to') ||
-      lowerUser.includes('schedule a') ||
-      lowerUser.includes('schedule the') ||
+      /\bschedule\s+a\b/.test(lowerUser) ||
+      /\bschedule\s+the\b/.test(lowerUser) ||
       lowerUser.includes('deadline is') ||
       lowerUser.includes('deadline for') ||
       lowerUser.includes('due date')
