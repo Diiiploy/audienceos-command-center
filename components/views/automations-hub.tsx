@@ -257,7 +257,7 @@ function workflowToTemplate(workflow: Workflow): AutomationTemplate {
       order: i + 1,
       name: trigger.name || trigger.type,
       type: "trigger",
-      config: trigger.config as unknown as StepConfig,
+      config: { ...(trigger.config as unknown as StepConfig), _triggerType: trigger.type } as StepConfig,
       icon: <Zap className="h-3.5 w-3.5" />,
     })
   })
@@ -464,9 +464,40 @@ export function AutomationsHub() {
         const idx = triggers.findIndex((t) => t.id === selectedStep.id)
         if (idx >= 0) {
           triggers[idx].name = editedStepName
-          // Merge edited values into existing config (preserves fields not shown in UI)
-          const existingConfig = (triggers[idx].config || {}) as Record<string, unknown>
-          triggers[idx].config = { ...existingConfig, ...cleanConfig }
+
+          // If the trigger type was changed, update the top-level type field
+          // and rebuild config to match the new type's required schema
+          const newTriggerType = editedStepConfig._triggerType as string | undefined
+          const currentTriggerType = triggers[idx].type as string
+          if (newTriggerType && newTriggerType !== currentTriggerType) {
+            triggers[idx].type = newTriggerType
+            // Build a fresh config for the new trigger type (old keys are irrelevant)
+            const freshConfig: Record<string, unknown> = {}
+            switch (newTriggerType) {
+              case "stage_change":
+                freshConfig.toStage = cleanConfig.toStage || cleanConfig.stage || "Onboarding"
+                break
+              case "scheduled":
+                freshConfig.schedule = cleanConfig.schedule || "0 9 * * 1"
+                freshConfig.timezone = cleanConfig.timezone || "America/Chicago"
+                break
+              case "inactivity":
+                freshConfig.days = cleanConfig.days || 5
+                freshConfig.activityTypes = cleanConfig.activityTypes || ["communication", "task", "ticket"]
+                break
+              case "ticket_created":
+                freshConfig.priorities = cleanConfig.priorities || ["critical", "high"]
+                break
+              default:
+                // For unknown types, pass through whatever config was set
+                Object.assign(freshConfig, cleanConfig)
+            }
+            triggers[idx].config = freshConfig
+          } else {
+            // Same trigger type — merge edited values into existing config
+            const existingConfig = (triggers[idx].config || {}) as Record<string, unknown>
+            triggers[idx].config = { ...existingConfig, ...cleanConfig }
+          }
         }
       } else {
         const idx = actions.findIndex((a) => a.id === selectedStep.id)
@@ -1253,23 +1284,26 @@ function TriggerConfig({ config, onChange }: { config: StepConfig; onChange: (ke
   const stageValue = config.stage || (realConfig.toStage as string) || ""
   const scheduleValue = config.schedule || ""
 
-  // Derive the trigger type from the config, but also allow it to be overridden
-  // once the user has explicitly selected a different type
+  // _triggerType is always injected by workflowToTemplate from trigger.type
+  // Fallback derivation only applies to legacy/mock data
   const triggerType = (realConfig._triggerType as string) ||
-    (scheduleValue ? "scheduled" : config.channels ? "slack_message" : stageValue ? "stage_change" : "client_added")
+    (scheduleValue ? "scheduled" : realConfig.days ? "inactivity" : realConfig.priorities ? "ticket_created" : stageValue ? "stage_change" : "stage_change")
 
   const handleTriggerTypeChange = (newType: string) => {
-    // Store the explicit selection
+    // Store the explicit selection so it persists before save
     onChange("_triggerType", newType)
-    // Reset sub-fields based on the new type
-    if (newType === "stage_change") {
-      onChange("toStage", stageValue || "Onboarding")
-      onChange("stage", stageValue || "Onboarding")
+    // Set up default sub-fields for the new trigger type
+    switch (newType) {
+      case "stage_change":
+        onChange("toStage", stageValue || "Onboarding")
+        onChange("stage", stageValue || "Onboarding")
+        break
+      case "scheduled":
+        onChange("schedule", scheduleValue || "0 9 * * 1")
+        onChange("timezone", "America/Chicago")
+        break
     }
   }
-
-  const showStageFields = triggerType === "stage_change"
-  const showScheduleFields = triggerType === "scheduled"
 
   return (
     <div className="space-y-3">
@@ -1283,13 +1317,14 @@ function TriggerConfig({ config, onChange }: { config: StepConfig; onChange: (ke
               onChange={(e) => handleTriggerTypeChange(e.target.value)}
               className="w-full h-9 text-sm rounded-md border border-border bg-background px-3"
             >
-              <option value="client_added">Client added to pipeline</option>
               <option value="stage_change">Client stage changes</option>
-              <option value="slack_message">New Slack message</option>
+              <option value="ticket_created">Ticket created</option>
+              <option value="inactivity">Client inactivity</option>
               <option value="scheduled">Scheduled time</option>
+              <option value="new_message">New message received</option>
             </select>
           </div>
-          {showStageFields && (
+          {triggerType === "stage_change" && (
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground">Stage:</label>
               <select
@@ -1307,7 +1342,7 @@ function TriggerConfig({ config, onChange }: { config: StepConfig; onChange: (ke
               </select>
             </div>
           )}
-          {showScheduleFields && (
+          {triggerType === "scheduled" && (
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground">Schedule (cron):</label>
               <Input
@@ -1316,6 +1351,33 @@ function TriggerConfig({ config, onChange }: { config: StepConfig; onChange: (ke
                 className="h-9 font-mono"
                 placeholder="0 9 * * 1"
               />
+            </div>
+          )}
+          {triggerType === "inactivity" && (
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground">Days of inactivity:</label>
+              <Input
+                type="number"
+                value={(realConfig.days as number) || 5}
+                onChange={(e) => onChange("days", Number(e.target.value))}
+                className="h-9 w-24"
+                min={1}
+                max={365}
+              />
+            </div>
+          )}
+          {triggerType === "ticket_created" && (
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground">Priority filter:</label>
+              <select
+                value={((realConfig.priorities as string[]) || ["critical", "high"]).join(",")}
+                onChange={(e) => onChange("priorities", e.target.value.split(","))}
+                className="w-full h-9 text-sm rounded-md border border-border bg-background px-3"
+              >
+                <option value="critical,high">Critical & High only</option>
+                <option value="critical,high,medium">Medium and above</option>
+                <option value="critical,high,medium,low">All priorities</option>
+              </select>
             </div>
           )}
         </div>
