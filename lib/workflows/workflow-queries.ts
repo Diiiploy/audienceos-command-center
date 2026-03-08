@@ -194,11 +194,17 @@ export async function deleteWorkflow(
   workflowId: string,
   agencyId: string
 ): Promise<{ error: Error | null }> {
-  // Soft delete by setting is_active to false
-  // TODO: Consider hard delete with cascade to workflow_runs
+  // Hard delete — workflow_runs reference this but are historical/audit data.
+  // Delete runs first to avoid FK constraint, then delete the workflow.
+  await supabase
+    .from('workflow_run')
+    .delete()
+    .eq('workflow_id', workflowId)
+    .eq('agency_id', agencyId)
+
   const { error } = await supabase
     .from('workflow')
-    .update({ is_active: false })
+    .delete()
     .eq('id', workflowId)
     .eq('agency_id', agencyId)
 

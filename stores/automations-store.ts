@@ -159,7 +159,11 @@ export const useAutomationsStore = create<AutomationsState>((set, get) => ({
         method: 'DELETE',
       })
 
-      if (!res.ok) throw new Error('Failed to delete workflow')
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}))
+        const msg = errBody.error || errBody.message || `Server returned ${res.status}`
+        throw new Error(msg)
+      }
 
       set((state) => ({
         workflows: state.workflows.filter((w) => w.id !== id),
@@ -168,7 +172,7 @@ export const useAutomationsStore = create<AutomationsState>((set, get) => ({
       return true
     } catch (err) {
       console.error('Failed to delete workflow:', err)
-      return false
+      throw err
     }
   },
 

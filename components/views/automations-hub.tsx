@@ -44,7 +44,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -333,8 +332,12 @@ export function AutomationsHub() {
   const [searchQuery, setSearchQuery] = useState("")
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteTargetName, setDeleteTargetName] = useState("")
   const [isDuplicating, setIsDuplicating] = useState(false)
   const [isSavingStep, setIsSavingStep] = useState(false)
+  const [showDeleteStepModal, setShowDeleteStepModal] = useState(false)
+  const [isDeletingStep, setIsDeletingStep] = useState(false)
+  const [stepToDelete, setStepToDelete] = useState<AutomationStep | null>(null)
 
   const slideTransition = useSlideTransition()
 
@@ -372,12 +375,13 @@ export function AutomationsHub() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || "Failed to duplicate automation")
+        throw new Error(errorData.error || errorData.message || `Server returned ${response.status}`)
       }
 
       toastSuccess("Automation duplicated", { description: `${selectedAutomation.name} has been duplicated` })
 
-      // Close detail panel
+      // Refresh list and close detail panel
+      await fetchWorkflows()
       setSelectedAutomation(null)
     } catch (error) {
       toastError("Failed to duplicate automation", {
@@ -393,24 +397,28 @@ export function AutomationsHub() {
     setIsDeleting(true)
 
     try {
-      const success = await deleteWorkflow(selectedAutomation.id)
-      if (success) {
-        toastSuccess("Workflow deleted", { description: "The workflow has been removed" })
-        setShowDeleteModal(false)
-        setSelectedAutomation(null)
-      } else {
-        throw new Error("Failed to delete automation")
-      }
+      await deleteWorkflow(selectedAutomation.id)
+      toastSuccess("Workflow deleted", { description: "The workflow has been removed" })
+      setShowDeleteModal(false)
+      setIsDeleting(false)
+      setSelectedAutomation(null)
+      setSelectedStep(null)
+      // Safety: restore pointer-events after React processes all cleanups.
+      // Prevents stuck DismissableLayer from any Radix layer (DropdownMenu, Dialog)
+      // from permanently locking pointer-events on the body.
+      requestAnimationFrame(() => {
+        document.body.style.pointerEvents = ''
+      })
     } catch (error) {
       toastError("Failed to delete workflow", {
         description: error instanceof Error ? error.message : "An unexpected error occurred",
       })
-    } finally {
       setIsDeleting(false)
     }
   }
 
   const handleDelete = () => {
+    setDeleteTargetName(selectedAutomation?.name || "")
     setShowDeleteModal(true)
   }
 
@@ -700,6 +708,112 @@ export function AutomationsHub() {
     setEditedStepConfig({ ...step.config })
   }
 
+  // Check if a step can be deleted (must keep at least 1 trigger and 1 action)
+  const canDeleteStep = useCallback((step: AutomationStep): boolean => {
+    if (!selectedAutomation) return false
+    if (step.type === "trigger") {
+      return selectedAutomation.steps.filter(s => s.type === "trigger").length > 1
+    }
+    if (step.type === "action") {
+      return selectedAutomation.steps.filter(s => s.type === "action").length > 1
+    }
+    return true
+  }, [selectedAutomation])
+
+  // Open delete confirmation for a step
+  const requestDeleteStep = (step: AutomationStep) => {
+    setStepToDelete(step)
+    setShowDeleteStepModal(true)
+  }
+
+  // Delete a step from the workflow (same pattern as handleAddAction)
+  const handleDeleteStep = async () => {
+    if (!selectedAutomation || !stepToDelete) return
+    setIsDeletingStep(true)
+
+    const workflow = workflows.find(w => w.id === selectedAutomation.id)
+    if (!workflow) {
+      toastError("Workflow not found")
+      setIsDeletingStep(false)
+      return
+    }
+
+    const triggers = JSON.parse(JSON.stringify(workflow.triggers)) as Record<string, unknown>[]
+    const actions = JSON.parse(JSON.stringify(workflow.actions)) as Record<string, unknown>[]
+
+    // Remove the step from the appropriate array
+    let updatedTriggers = triggers
+    let updatedActions = actions
+    if (stepToDelete.type === "trigger") {
+      updatedTriggers = triggers.filter((t: Record<string, unknown>) => t.id !== stepToDelete.id)
+      if (updatedTriggers.length === 0) {
+        toastError("Cannot delete the last trigger")
+        setIsDeletingStep(false)
+        return
+      }
+    } else {
+      updatedActions = actions.filter((a: Record<string, unknown>) => a.id !== stepToDelete.id)
+      if (updatedActions.length === 0) {
+        toastError("Cannot delete the last action")
+        setIsDeletingStep(false)
+        return
+      }
+    }
+
+    try {
+      const response = await fetchWithCsrf(`/api/v1/workflows/${selectedAutomation.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ triggers: updatedTriggers, actions: updatedActions }),
+      })
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err.message || "Failed to delete step")
+      }
+
+      toastSuccess("Step deleted", { description: `${stepToDelete.name} removed from workflow` })
+
+      await fetchWorkflows()
+
+      // Rebuild selectedAutomation from fresh store data
+      const freshWorkflows = useAutomationsStore.getState().workflows
+      const freshWorkflow = freshWorkflows.find(w => w.id === selectedAutomation.id)
+      if (freshWorkflow) {
+        const freshTemplate = workflowToTemplate(freshWorkflow)
+        setSelectedAutomation(freshTemplate)
+
+        // If deleted step was selected, move to adjacent step
+        if (selectedStep?.id === stepToDelete.id) {
+          const deletedIdx = selectedAutomation.steps.findIndex(s => s.id === stepToDelete.id)
+          const adjacentStep = freshTemplate.steps[Math.min(deletedIdx, freshTemplate.steps.length - 1)]
+          if (adjacentStep) {
+            setSelectedStep(adjacentStep)
+            setEditedStepName(adjacentStep.name)
+            setEditedStepConfig({ ...adjacentStep.config })
+          } else {
+            setSelectedStep(null)
+          }
+        } else if (selectedStep) {
+          // Refresh the currently selected step (order numbers may have shifted)
+          const refreshedStep = freshTemplate.steps.find(s => s.id === selectedStep.id)
+          if (refreshedStep) {
+            setSelectedStep(refreshedStep)
+            setEditedStepName(refreshedStep.name)
+            setEditedStepConfig({ ...refreshedStep.config })
+          }
+        }
+      }
+    } catch (error) {
+      toastError("Failed to delete step", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+      })
+    } finally {
+      setIsDeletingStep(false)
+      setShowDeleteStepModal(false)
+      setStepToDelete(null)
+    }
+  }
+
   return (
     <div className="flex h-full overflow-hidden">
       {/* LEFT PANEL - Automations list (shrinks when detail is open) */}
@@ -775,7 +889,7 @@ export function AutomationsHub() {
       </motion.div>
 
       {/* MIDDLE PANEL - Steps list (when automation selected) */}
-      <AnimatePresence mode="wait">
+      <AnimatePresence>
         {selectedAutomation && (
           <motion.div
             key="steps-panel"
@@ -801,7 +915,7 @@ export function AutomationsHub() {
                 onCheckedChange={() => handleToggleStatus(selectedAutomation)}
                 className="scale-90"
               />
-              <DropdownMenu>
+              <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-7 w-7">
                     <MoreHorizontal className="h-4 w-4" />
@@ -885,7 +999,7 @@ export function AutomationsHub() {
                   <button
                     onClick={() => handleStepSelect(step)}
                     className={cn(
-                      "w-full text-left p-2.5 rounded-lg border transition-colors cursor-pointer",
+                      "group w-full text-left p-2.5 rounded-lg border transition-colors cursor-pointer",
                       selectedStep?.id === step.id
                         ? "bg-primary/5 border-primary/30"
                         : "bg-card border-border hover:border-primary/30"
@@ -906,7 +1020,25 @@ export function AutomationsHub() {
                           {step.type}
                         </span>
                       </div>
-                      {step.icon}
+                      <div className="relative w-3.5 h-3.5 shrink-0">
+                        <span className="group-hover:hidden">{step.icon}</span>
+                        {canDeleteStep(step) ? (
+                          <span
+                            className="hidden group-hover:flex items-center justify-center text-destructive hover:text-destructive/80"
+                            title="Delete step"
+                            onClick={(e) => { e.stopPropagation(); requestDeleteStep(step) }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </span>
+                        ) : (
+                          <span
+                            className="hidden group-hover:flex items-center justify-center text-muted-foreground/40 cursor-not-allowed"
+                            title={`Cannot delete the last ${step.type}`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </button>
 
@@ -921,7 +1053,7 @@ export function AutomationsHub() {
             </div>
 
             {/* Add step button */}
-            <DropdownMenu>
+            <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <button className="w-full mt-3 p-2 border-2 border-dashed border-muted-foreground/20 rounded-lg flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors cursor-pointer">
                   <Plus className="h-3 w-3" />
@@ -953,7 +1085,7 @@ export function AutomationsHub() {
       </AnimatePresence>
 
       {/* RIGHT PANEL - Step configuration (when step selected) */}
-      <AnimatePresence mode="wait">
+      <AnimatePresence>
         {selectedAutomation && selectedStep && (
           <motion.div
             key="config-panel"
@@ -999,6 +1131,21 @@ export function AutomationsHub() {
                 {isRunning === selectedAutomation?.id ? "Running..." : "Test"}
               </Button>
               <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                onClick={() => requestDeleteStep(selectedStep)}
+                disabled={isDeletingStep || !canDeleteStep(selectedStep)}
+                title={!canDeleteStep(selectedStep) ? `Cannot delete the last ${selectedStep.type}` : "Delete this step"}
+              >
+                {isDeletingStep ? (
+                  <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                ) : (
+                  <Trash2 className="h-3 w-3 mr-1.5" />
+                )}
+                {isDeletingStep ? "Deleting..." : "Delete"}
+              </Button>
+              <Button
                 size="sm"
                 className="h-7 text-xs"
                 onClick={handleSaveStep}
@@ -1024,28 +1171,56 @@ export function AutomationsHub() {
       )}
       </AnimatePresence>
 
-      {/* Delete confirmation modal */}
-      <AlertDialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete automation</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete &quot;{selectedAutomation?.name}&quot;? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              {isDeleting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {isDeleting ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Delete confirmation modal — conditionally rendered to guarantee
+          DismissableLayer cleanup (restores body pointer-events on unmount) */}
+      {showDeleteModal && (
+        <AlertDialog open onOpenChange={setShowDeleteModal}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete automation</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete &quot;{deleteTargetName}&quot;? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <Button
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                variant="destructive"
+              >
+                {isDeleting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {isDeleting ? "Deleting..." : "Delete"}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      {/* Delete step confirmation modal — same conditional render pattern */}
+      {showDeleteStepModal && (
+        <AlertDialog open onOpenChange={setShowDeleteStepModal}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete step</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete the {stepToDelete?.type} step &quot;{stepToDelete?.name}&quot;? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeletingStep}>Cancel</AlertDialogCancel>
+              <Button
+                onClick={handleDeleteStep}
+                disabled={isDeletingStep}
+                variant="destructive"
+              >
+                {isDeletingStep && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {isDeletingStep ? "Deleting..." : "Delete"}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
 
       {/* Template picker dialog */}
       <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
