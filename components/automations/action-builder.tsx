@@ -22,6 +22,7 @@ import {
   Ticket,
   UserCog,
   AlertTriangle,
+  Hash,
   X,
   GripVertical,
   Plus,
@@ -46,6 +47,7 @@ const ACTION_ICONS: Record<ActionType, React.ComponentType<{ className?: string 
   create_ticket: Ticket,
   update_client: UserCog,
   create_alert: AlertTriangle,
+  create_slack_channel: Hash,
 }
 
 export function ActionBuilder({
@@ -87,6 +89,8 @@ export function ActionBuilder({
         return { updates: {} }
       case 'create_alert':
         return { title: '', type: 'risk_detected', severity: 'medium' }
+      case 'create_slack_channel':
+        return { channelName: 'client-{{client.name}}', isPrivate: false }
       default:
         return {}
     }
@@ -424,6 +428,32 @@ function ActionConfigCard({
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+              </>
+            )}
+
+            {/* Create Slack Channel Config */}
+            {action.type === 'create_slack_channel' && (
+              <>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Channel Name Pattern *</Label>
+                  <Input
+                    placeholder="e.g., client-{{client.name}}"
+                    value={(action.config as { channelName?: string }).channelName || ''}
+                    onChange={(e) => updateConfig('channelName', e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Use {'{{client.name}}'} for dynamic names. Will be lowercased and slugified.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id={`private-${action.id}`}
+                    checked={(action.config as { isPrivate?: boolean }).isPrivate || false}
+                    onCheckedChange={(checked) => updateConfig('isPrivate', !!checked)}
+                  />
+                  <Label htmlFor={`private-${action.id}`} className="text-xs">Private channel</Label>
                 </div>
               </>
             )}

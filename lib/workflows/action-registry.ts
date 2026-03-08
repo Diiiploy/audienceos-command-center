@@ -270,6 +270,39 @@ export const ACTION_TYPES: Record<ActionType, ActionTypeMetadata> = {
       required: ['title', 'type', 'severity'],
     },
   },
+
+  create_slack_channel: {
+    type: 'create_slack_channel',
+    name: 'Create Slack Channel',
+    description: 'Create a Slack channel for the client',
+    icon: 'Hash',
+    category: 'communication',
+    supportsApproval: true,
+    configSchema: {
+      type: 'object',
+      properties: {
+        channelName: {
+          type: 'string',
+          title: 'Channel Name Pattern',
+          description: 'Channel name pattern. Use {{client.name}} for variables.',
+          required: true,
+          examples: ['client-{{client.name}}', '{{client.name}}-support'],
+        },
+        isPrivate: {
+          type: 'boolean',
+          title: 'Private Channel',
+          description: 'Create as a private channel',
+          default: false,
+        },
+        label: {
+          type: 'string',
+          title: 'Label',
+          description: 'Optional label for the channel mapping',
+        },
+      },
+      required: ['channelName'],
+    },
+  },
 }
 
 // ============================================================================
@@ -355,6 +388,11 @@ export function validateActionConfig(action: WorkflowAction): { valid: boolean; 
       }
       if (!action.config.severity) {
         errors.push('Create alert action requires a severity')
+      }
+      break
+    case 'create_slack_channel':
+      if (!action.config.channelName) {
+        errors.push('Create Slack channel action requires a channel name pattern')
       }
       break
   }

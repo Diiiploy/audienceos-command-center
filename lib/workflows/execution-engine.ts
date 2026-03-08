@@ -15,6 +15,7 @@ import type {
 } from '@/types/workflow'
 import { substituteVariables } from './action-registry'
 import { createWorkflowRun, completeWorkflowRun, getWorkflow } from './workflow-queries'
+import { createSlackChannelForClient } from '@/lib/integrations/slack-channel-service'
 
 type SupabaseClientType = SupabaseClient<Database>
 
@@ -298,6 +299,8 @@ export class WorkflowEngine {
         return this.executeUpdateClient(action, context)
       case 'create_alert':
         return this.executeCreateAlert(action, context)
+      case 'create_slack_channel':
+        return this.executeCreateSlackChannel(action, context)
       default:
         throw new Error(`Unknown action type: ${(action as WorkflowAction).type}`)
     }
@@ -819,6 +822,47 @@ export class WorkflowEngine {
       actionType: 'create_alert',
       status: 'completed',
       result: { alertId: data.id, title: processedTitle, severity },
+      executedAt: new Date().toISOString(),
+    }
+  }
+
+  private async executeCreateSlackChannel(
+    action: WorkflowAction & { type: 'create_slack_channel' },
+    context: WorkflowExecutionContext
+  ): Promise<ActionResult> {
+    if (!context.clientSnapshot) {
+      throw new Error('Create Slack channel action requires a client context')
+    }
+
+    const channelName = substituteVariables(action.config.channelName, {
+      client: context.clientSnapshot,
+      trigger: context.triggerData,
+    })
+
+    const result = await createSlackChannelForClient({
+      agencyId: context.agencyId,
+      clientId: context.clientSnapshot.id,
+      clientName: channelName,
+      channelNameOverride: channelName,
+      isPrivate: action.config.isPrivate || false,
+      label: action.config.label,
+      supabase: this.supabase,
+    })
+
+    // 409 = idempotent success (channel already exists = desired end state)
+    if (!result.ok && result.status !== 409) {
+      throw new Error(`Failed to create Slack channel: ${result.error}`)
+    }
+
+    return {
+      actionId: action.id,
+      actionType: 'create_slack_channel',
+      status: 'completed',
+      result: {
+        channelName,
+        channelId: result.data?.slack_channel_id,
+        alreadyExisted: result.status === 409,
+      },
       executedAt: new Date().toISOString(),
     }
   }

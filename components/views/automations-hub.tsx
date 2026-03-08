@@ -271,6 +271,7 @@ function workflowToTemplate(workflow: Workflow): AutomationTemplate {
       create_ticket: <FileText className="h-3.5 w-3.5" />,
       update_client: <Users className="h-3.5 w-3.5" />,
       create_alert: <Bell className="h-3.5 w-3.5" />,
+      create_slack_channel: <SlackIcon className="h-3.5 w-3.5" />,
     }
     steps.push({
       id: action.id || `a-${i}`,
@@ -551,6 +552,7 @@ export function AutomationsHub() {
       create_ticket: { title: "Ticket for {{client.name}}", description: "", category: "general", priority: "medium" },
       update_client: { updates: { tags: { add: [] } } },
       draft_communication: { platform: "gmail", template: "Draft for {{client.name}}", tone: "professional", instructions: "" },
+      create_slack_channel: { channelName: "client-{{client.name}}", isPrivate: false },
     }
 
     const newAction = {
@@ -1065,6 +1067,7 @@ export function AutomationsHub() {
                   { type: "create_task", label: "Create Task", icon: <CheckCircle2 className="h-4 w-4 mr-2" /> },
                   { type: "create_alert", label: "Create Alert", icon: <Bell className="h-4 w-4 mr-2" /> },
                   { type: "send_notification", label: "Send Notification", icon: <SlackIcon className="h-4 w-4 mr-2" /> },
+                  { type: "create_slack_channel", label: "Create Slack Channel", icon: <SlackIcon className="h-4 w-4 mr-2" /> },
                   { type: "create_ticket", label: "Create Ticket", icon: <FileText className="h-4 w-4 mr-2" /> },
                   { type: "update_client", label: "Update Client", icon: <Users className="h-4 w-4 mr-2" /> },
                   { type: "draft_communication", label: "Draft Communication", icon: <Sparkles className="h-4 w-4 mr-2" /> },
@@ -1565,6 +1568,7 @@ function ActionConfig({ config, onChange }: { config: StepConfig; onChange: (key
   const hasChannel = !!channelValue
   const hasTemplate = !!config.template
   const hasPattern = !!config.pattern
+  const hasChannelName = "channelName" in realConfig
 
   return (
     <div className="space-y-3">
@@ -1616,7 +1620,25 @@ function ActionConfig({ config, onChange }: { config: StepConfig; onChange: (key
               <Input value={config.pattern || ""} onChange={(e) => onChange("pattern", e.target.value)} className="h-9 font-mono" placeholder="#client-{name}" />
             </div>
           )}
-          {!hasTitle && !hasMessage && !hasPriority && !hasChannel && !hasTemplate && !hasPattern && (
+          {hasChannelName && (
+            <>
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">Channel Name Pattern:</label>
+                <Input value={(realConfig.channelName as string) || ""} onChange={(e) => onChange("channelName", e.target.value)} className="h-9 font-mono" placeholder="client-{{client.name}}" />
+                <p className="text-[10px] text-muted-foreground">{'Use {{client.name}} for dynamic names.'}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={!!realConfig.isPrivate}
+                  onChange={(e) => onChange("isPrivate", e.target.checked)}
+                  className="h-3.5 w-3.5"
+                />
+                <label className="text-xs text-muted-foreground">Private channel</label>
+              </div>
+            </>
+          )}
+          {!hasTitle && !hasMessage && !hasPriority && !hasChannel && !hasTemplate && !hasPattern && !hasChannelName && (
             <p className="text-xs text-muted-foreground">No configurable settings for this action.</p>
           )}
         </div>

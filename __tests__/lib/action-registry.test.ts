@@ -24,6 +24,7 @@ describe('action-registry', () => {
       expect(ACTION_TYPES.create_ticket).toBeDefined()
       expect(ACTION_TYPES.update_client).toBeDefined()
       expect(ACTION_TYPES.create_alert).toBeDefined()
+      expect(ACTION_TYPES.create_slack_channel).toBeDefined()
     })
 
     it('should have correct metadata structure', () => {
@@ -41,6 +42,7 @@ describe('action-registry', () => {
       expect(ACTION_TYPES.create_ticket.category).toBe('task')
       expect(ACTION_TYPES.send_notification.category).toBe('communication')
       expect(ACTION_TYPES.draft_communication.category).toBe('communication')
+      expect(ACTION_TYPES.create_slack_channel.category).toBe('communication')
       expect(ACTION_TYPES.update_client.category).toBe('data')
       expect(ACTION_TYPES.create_alert.category).toBe('alert')
     })
@@ -49,13 +51,14 @@ describe('action-registry', () => {
       expect(ACTION_TYPES.create_task.supportsApproval).toBe(false)
       expect(ACTION_TYPES.draft_communication.supportsApproval).toBe(true)
       expect(ACTION_TYPES.update_client.supportsApproval).toBe(true)
+      expect(ACTION_TYPES.create_slack_channel.supportsApproval).toBe(true)
     })
   })
 
   describe('getActionTypes', () => {
     it('should return all action types', () => {
       const types = getActionTypes()
-      expect(types.length).toBe(6)
+      expect(types.length).toBe(7)
     })
 
     it('should return array of ActionTypeMetadata', () => {
@@ -77,7 +80,7 @@ describe('action-registry', () => {
 
     it('should filter communication actions', () => {
       const comms = getActionTypesByCategory('communication')
-      expect(comms.length).toBe(2)
+      expect(comms.length).toBe(3)
       expect(comms.every((t) => t.category === 'communication')).toBe(true)
     })
 
@@ -272,6 +275,32 @@ describe('action-registry', () => {
       expect(result.errors).toContain('Create alert action requires a title')
       expect(result.errors).toContain('Create alert action requires a type')
       expect(result.errors).toContain('Create alert action requires a severity')
+    })
+
+    it('should validate create_slack_channel action', () => {
+      const action: WorkflowAction = {
+        id: 'test-1',
+        type: 'create_slack_channel',
+        name: 'Test Action',
+        config: {
+          channelName: 'client-{{client.name}}',
+        },
+      }
+      const result = validateActionConfig(action)
+      expect(result.valid).toBe(true)
+      expect(result.errors).toHaveLength(0)
+    })
+
+    it('should reject create_slack_channel without channelName', () => {
+      const action = {
+        id: 'test-1',
+        type: 'create_slack_channel',
+        name: 'Test Action',
+        config: {},
+      } as unknown as WorkflowAction
+      const result = validateActionConfig(action)
+      expect(result.valid).toBe(false)
+      expect(result.errors).toContain('Create Slack channel action requires a channel name pattern')
     })
 
     it('should reject unknown action type', () => {

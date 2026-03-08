@@ -107,6 +107,7 @@ export type ActionType =
   | 'create_ticket'
   | 'update_client'
   | 'create_alert'
+  | 'create_slack_channel'
 
 export interface BaseAction {
   id: string
@@ -182,6 +183,15 @@ export interface CreateAlertAction extends BaseAction {
   }
 }
 
+export interface CreateSlackChannelAction extends BaseAction {
+  type: 'create_slack_channel'
+  config: {
+    channelName: string // Supports {{client.name}} variables
+    isPrivate?: boolean
+    label?: string // Optional label for the channel mapping
+  }
+}
+
 export type WorkflowAction =
   | CreateTaskAction
   | SendNotificationAction
@@ -189,6 +199,7 @@ export type WorkflowAction =
   | CreateTicketAction
   | UpdateClientAction
   | CreateAlertAction
+  | CreateSlackChannelAction
 
 // ============================================================================
 // CONDITIONAL LOGIC
