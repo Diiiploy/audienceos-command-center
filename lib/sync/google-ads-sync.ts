@@ -16,6 +16,7 @@ import type { SyncResult, AdPerformanceRecord, SyncJobConfig } from './types'
 const DIIIPLOY_GATEWAY_URL = process.env.DIIIPLOY_GATEWAY_URL ||
   'https://diiiploy-gateway.diiiploy.workers.dev'
 const DIIIPLOY_GATEWAY_API_KEY = process.env.DIIIPLOY_GATEWAY_API_KEY || ''
+const DIIIPLOY_TENANT_ID = process.env.DIIIPLOY_TENANT_ID || ''
 
 // Google Ads API Response Types (from diiiploy-gateway)
 interface GoogleAdsCampaignResult {
@@ -60,6 +61,7 @@ async function fetchCampaigns(): Promise<GoogleAdsCampaignResult[]> {
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${DIIIPLOY_GATEWAY_API_KEY}`,
+      'X-Tenant-ID': DIIIPLOY_TENANT_ID,
     },
   })
 
@@ -81,6 +83,7 @@ async function fetchPerformance(days: number = 30): Promise<GoogleAdsPerformance
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${DIIIPLOY_GATEWAY_API_KEY}`,
+      'X-Tenant-ID': DIIIPLOY_TENANT_ID,
     },
   })
 

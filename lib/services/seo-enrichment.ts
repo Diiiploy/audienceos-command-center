@@ -73,12 +73,18 @@ async function fetchFromGateway(
 ): Promise<Response> {
   const apiKey = getGatewayApiKey()
 
+  const tenantId = process.env.DIIIPLOY_TENANT_ID || ''
+
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
   }
 
   if (apiKey) {
     headers['Authorization'] = `Bearer ${apiKey}`
+  }
+
+  if (tenantId) {
+    headers['X-Tenant-ID'] = tenantId
   }
 
   for (let i = 0; i < retries; i++) {
