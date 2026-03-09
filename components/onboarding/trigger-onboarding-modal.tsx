@@ -34,8 +34,6 @@ interface SEOSummary {
   traffic_value: number
   top_10_keywords: number
   competitors_count: number
-  domain_rank: number | null
-  backlinks: number | null
 }
 
 interface Competitor {

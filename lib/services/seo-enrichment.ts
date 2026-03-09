@@ -5,18 +5,21 @@
  * Product infrastructure - does NOT use chi-gateway (personal PAI).
  *
  * Gateway handles credentials, rate limiting, and audit logging.
- * Cost: ~$0.02 per enrichment (domain metrics + competitors call)
+ * Cost: ~$0.02 per enrichment (rank overview + competitors)
  */
 
 const DIIIPLOY_GATEWAY = process.env.DIIIPLOY_GATEWAY_URL || 'https://diiiploy-gateway.diiiploy.workers.dev'
+
+// Competitor filtering thresholds
+const MIN_RELEVANCE_RATIO = 0.01     // intersections / competitor's total keywords
+const MIN_INTERSECTIONS = 100        // absolute floor for keyword overlap
+const COMPETITOR_REQUEST_LIMIT = 20  // request more to filter down to quality results
 
 export interface SEOSummary {
   total_keywords: number
   traffic_value: number
   top_10_keywords: number
   competitors_count: number
-  domain_rank: number | null
-  backlinks: number | null
 }
 
 export interface SEOEnrichmentResult {
@@ -116,50 +119,76 @@ async function fetchFromGateway(
   throw new Error('Max retries exceeded')
 }
 
+interface DataForSEOCompetitorItem {
+  domain: string
+  intersections?: number
+  avg_position?: number
+  full_domain_metrics?: {
+    organic?: {
+      count?: number
+      etv?: number
+    }
+  }
+}
+
 /**
  * Fetches domain SEO metrics via diiiploy-gateway
+ *
+ * Competitor filtering uses relevance ratio (intersections / competitor's total keywords)
+ * to surface real industry competitors instead of mega-sites like YouTube, Facebook, etc.
  */
 export async function enrichDomainSEO(domain: string): Promise<SEOEnrichmentResult> {
   try {
-    // Parallel fetch: domain metrics + competitors via gateway
-    const [domainRes, competitorsRes] = await Promise.all([
-      // Domain metrics (backlinks summary)
-      fetchFromGateway('/dataforseo/domain', { target: domain }),
-      // Competitors
+    // Parallel fetch: rank overview + competitors via gateway
+    const [rankOverviewRes, competitorsRes] = await Promise.all([
+      fetchFromGateway('/dataforseo/rank-overview', {
+        target: domain,
+        location: 2840, // USA
+      }),
       fetchFromGateway('/dataforseo/competitors', {
         target: domain,
-        limit: 5,
+        limit: COMPETITOR_REQUEST_LIMIT,
         location: 2840, // USA
       }),
     ])
 
-    const [domainData, competitorsData] = await Promise.all([
-      domainRes.json(),
+    const [rankOverviewData, competitorsData] = await Promise.all([
+      rankOverviewRes.json(),
       competitorsRes.json(),
     ])
 
-    // Parse domain metrics response (DataForSEO format)
-    const domainMetrics = domainData.tasks?.[0]?.result?.[0] || {}
+    // Parse rank overview (keyword and traffic metrics)
+    const organicMetrics = rankOverviewData.tasks?.[0]?.result?.[0]?.items?.[0]?.metrics?.organic || {}
 
-    // Parse competitors response
-    const competitorItems = competitorsData.tasks?.[0]?.result?.[0]?.items || []
+    // Parse and filter competitors using relevance ratio
+    const allCompetitorItems: DataForSEOCompetitorItem[] =
+      competitorsData.tasks?.[0]?.result?.[0]?.items || []
+
+    const filteredCompetitors = allCompetitorItems
+      .filter((c) => c.domain !== domain)
+      .filter((c) => {
+        const intersections = c.intersections || 0
+        const totalKeywords = c.full_domain_metrics?.organic?.count || 0
+        if (intersections < MIN_INTERSECTIONS || totalKeywords === 0) return false
+        return (intersections / totalKeywords) >= MIN_RELEVANCE_RATIO
+      })
+      .sort((a, b) => {
+        const ratioA = (a.intersections || 0) / (a.full_domain_metrics?.organic?.count || 1)
+        const ratioB = (b.intersections || 0) / (b.full_domain_metrics?.organic?.count || 1)
+        return ratioB - ratioA
+      })
 
     const summary: SEOSummary = {
-      total_keywords: 0, // Would need ranked_keywords endpoint
-      traffic_value: 0, // Would need traffic analytics endpoint
-      top_10_keywords: 0, // Would need ranked_keywords endpoint
-      competitors_count: competitorItems.length,
-      domain_rank: domainMetrics.rank || null,
-      backlinks: domainMetrics.backlinks || null,
+      total_keywords: organicMetrics.count || 0,
+      traffic_value: Math.round((organicMetrics.etv || 0) * 100) / 100,
+      top_10_keywords: (organicMetrics.pos_1 || 0) + (organicMetrics.pos_2_3 || 0) + (organicMetrics.pos_4_10 || 0),
+      competitors_count: filteredCompetitors.length,
     }
 
-    // Map competitors
-    const competitors = competitorItems.slice(0, 5).map(
-      (c: { domain: string; intersecting_keywords?: number }) => ({
-        domain: c.domain,
-        intersecting_keywords: c.intersecting_keywords || 0,
-      })
-    )
+    const competitors = filteredCompetitors.slice(0, 5).map((c) => ({
+      domain: c.domain,
+      intersecting_keywords: c.intersections || 0,
+    }))
 
     return {
       success: true,

@@ -7,8 +7,6 @@ interface SEOSummary {
   traffic_value: number
   top_10_keywords: number
   competitors_count: number
-  domain_rank: number | null
-  backlinks: number | null
 }
 
 interface Competitor {
@@ -65,17 +63,23 @@ export function SEOPreviewCard({ loading, domain, summary, competitors, error }:
         <span className="text-sm font-medium">SEO Intelligence for {domain}</span>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <div className="rounded-md bg-muted p-2 text-center">
-          <p className="text-xs text-muted-foreground">Domain Rank</p>
+          <p className="text-xs text-muted-foreground">Keywords</p>
           <p className="text-lg font-semibold">
-            {summary.domain_rank ? formatNumber(summary.domain_rank) : "—"}
+            {summary.total_keywords ? formatNumber(summary.total_keywords) : "—"}
           </p>
         </div>
         <div className="rounded-md bg-muted p-2 text-center">
-          <p className="text-xs text-muted-foreground">Backlinks</p>
+          <p className="text-xs text-muted-foreground">Est. Traffic Value</p>
           <p className="text-lg font-semibold">
-            {summary.backlinks ? formatNumber(summary.backlinks) : "—"}
+            {summary.traffic_value ? `$${formatNumber(summary.traffic_value)}` : "—"}
+          </p>
+        </div>
+        <div className="rounded-md bg-muted p-2 text-center">
+          <p className="text-xs text-muted-foreground">Top 10 Keywords</p>
+          <p className="text-lg font-semibold">
+            {summary.top_10_keywords ? formatNumber(summary.top_10_keywords) : "—"}
           </p>
         </div>
         <div className="rounded-md bg-muted p-2 text-center">
@@ -84,7 +88,7 @@ export function SEOPreviewCard({ loading, domain, summary, competitors, error }:
         </div>
       </div>
 
-      {competitors.length > 0 && (
+      {competitors.length >= 3 && (
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Users className="h-3 w-3" />
