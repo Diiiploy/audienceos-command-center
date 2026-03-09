@@ -119,14 +119,14 @@ export const POST = withPermission({ resource: 'users', action: 'manage' })(
           .eq('id', agencyId)
           .single()
 
-        await sendInvitationEmail({
+        const emailResult = await sendInvitationEmail({
           to: trimmedEmail,
           inviterName: user.email || 'An administrator',
           agencyName: agencyData?.name || 'the agency',
           acceptUrl: `${process.env.NEXT_PUBLIC_APP_URL}/invite/${tokenHex}`,
           role: role as UserRole,
         })
-        emailSent = true
+        emailSent = emailResult.success
       } catch (emailError) {
         console.error('Failed to send invitation email:', emailError)
         // Don't fail the request if email fails - invitation is still created

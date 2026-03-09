@@ -63,6 +63,7 @@ const PUBLIC_ROUTES = [
   '/reset-password', // Password reset completion page (from email link)
   '/auth/callback',
   '/api/health', // Health check endpoint for monitoring
+  '/api/test/', // Diagnostic test endpoints (authenticated via INTERNAL_API_KEY)
   '/api/v1/oauth/callback', // OAuth callback needs to work without auth
   '/api/v1/settings/invitations/', // Invitation validation/accept API (public for invite flow)
   '/api/public/', // Public endpoints (onboarding portal) - uses service role key internally
