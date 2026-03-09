@@ -72,17 +72,20 @@ export async function POST(
       )
     }
 
-    // Idempotency check: if already provisioned, return cached results
+    // Load existing provisioning data for per-step idempotency
     const { data: existingInstance } = await (supabase as any)
       .from('onboarding_instance')
       .select('provisioning_data')
       .eq('id', instance.id)
       .single()
 
-    if (existingInstance?.provisioning_data?.provisioned_at) {
-      return NextResponse.json({
-        data: existingInstance.provisioning_data,
-      })
+    const existingData = existingInstance?.provisioning_data || {}
+
+    // Full idempotency: all steps already succeeded → return cached
+    const slackDone = existingData.slack?.ok || existingData.slack?.skipped
+    const driveDone = existingData.drive?.ok || existingData.drive?.skipped
+    if (slackDone && driveDone && existingData.provisioned_at) {
+      return NextResponse.json({ data: existingData })
     }
 
     const client = instance.client as unknown as { id: string; name: string } | null
@@ -97,12 +100,14 @@ export async function POST(
       )
     }
 
-    // --- Provision resources independently ---
+    // --- Provision resources independently (per-step idempotency) ---
 
-    // 1. Slack channel
+    // 1. Slack channel — skip if already succeeded
     let slackResult: { ok?: boolean; skipped?: boolean; reason?: string; channel_id?: string; channel_name?: string; error?: string }
 
-    if (!process.env.DIIIPLOY_GATEWAY_API_KEY) {
+    if (existingData.slack?.ok) {
+      slackResult = existingData.slack
+    } else if (!process.env.DIIIPLOY_GATEWAY_API_KEY) {
       slackResult = { skipped: true, reason: 'Slack not configured' }
     } else {
       const slackResponse = await createSlackChannelForClient({
@@ -128,10 +133,12 @@ export async function POST(
       }
     }
 
-    // 2. Google Drive folder
+    // 2. Google Drive folder — skip if already succeeded
     let driveResult: { ok?: boolean; skipped?: boolean; reason?: string; folder_id?: string; folder_url?: string; error?: string }
 
-    if (!process.env.DIIIPLOY_GATEWAY_URL) {
+    if (existingData.drive?.ok) {
+      driveResult = existingData.drive
+    } else if (!process.env.DIIIPLOY_GATEWAY_URL) {
       driveResult = { skipped: true, reason: 'Drive not configured' }
     } else {
       try {
@@ -139,6 +146,7 @@ export async function POST(
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${process.env.DIIIPLOY_GATEWAY_API_KEY}`,
+            'X-Tenant-ID': process.env.DIIIPLOY_TENANT_ID || '',
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -176,12 +184,13 @@ export async function POST(
 
     // --- Build provisioning data and update instance ---
 
+    const allDone = (slackResult.ok || slackResult.skipped) && (driveResult.ok || driveResult.skipped)
     const provisioningData = {
       client_id: clientId,
       client_name: clientName,
       slack: slackResult,
       drive: driveResult,
-      provisioned_at: new Date().toISOString(),
+      provisioned_at: allDone ? new Date().toISOString() : undefined,
     }
 
     // Update onboarding_instance with results
