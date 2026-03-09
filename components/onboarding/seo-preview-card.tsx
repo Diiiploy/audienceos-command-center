@@ -7,8 +7,6 @@ interface SEOSummary {
   traffic_value: number
   top_10_keywords: number
   competitors_count: number
-  domain_rank: number | null
-  backlinks: number | null
 }
 
 interface Competitor {
@@ -65,7 +63,7 @@ export function SEOPreviewCard({ loading, domain, summary, competitors, error }:
         <span className="text-sm font-medium">SEO Intelligence for {domain}</span>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <div className="rounded-md bg-muted p-2 text-center">
           <p className="text-xs text-muted-foreground">Keywords</p>
           <p className="text-lg font-semibold">
@@ -73,7 +71,7 @@ export function SEOPreviewCard({ loading, domain, summary, competitors, error }:
           </p>
         </div>
         <div className="rounded-md bg-muted p-2 text-center">
-          <p className="text-xs text-muted-foreground">Traffic Value</p>
+          <p className="text-xs text-muted-foreground">Est. Traffic Value</p>
           <p className="text-lg font-semibold">
             {summary.traffic_value ? `$${formatNumber(summary.traffic_value)}` : "—"}
           </p>
@@ -85,24 +83,12 @@ export function SEOPreviewCard({ loading, domain, summary, competitors, error }:
           </p>
         </div>
         <div className="rounded-md bg-muted p-2 text-center">
-          <p className="text-xs text-muted-foreground">Domain Rank</p>
-          <p className="text-lg font-semibold">
-            {summary.domain_rank ? formatNumber(summary.domain_rank) : "—"}
-          </p>
-        </div>
-        <div className="rounded-md bg-muted p-2 text-center">
-          <p className="text-xs text-muted-foreground">Backlinks</p>
-          <p className="text-lg font-semibold">
-            {summary.backlinks ? formatNumber(summary.backlinks) : "—"}
-          </p>
-        </div>
-        <div className="rounded-md bg-muted p-2 text-center">
           <p className="text-xs text-muted-foreground">Competitors</p>
           <p className="text-lg font-semibold">{summary.competitors_count}</p>
         </div>
       </div>
 
-      {competitors.length > 0 && (
+      {competitors.length >= 3 && (
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Users className="h-3 w-3" />
