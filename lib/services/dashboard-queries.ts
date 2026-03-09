@@ -241,6 +241,16 @@ export function getClientsNeedingAttention(
 // AD PERFORMANCE QUERIES
 // =============================================================================
 
+export interface AdPerformanceOptions {
+  days?: number
+  startDate?: string  // ISO date string YYYY-MM-DD
+  endDate?: string
+  platform?: string
+  accountId?: string  // for client function only
+  compareStartDate?: string  // custom comparison period
+  compareEndDate?: string
+}
+
 export interface AdPerformanceSummary {
   totalSpend: number
   totalImpressions: number
@@ -248,6 +258,9 @@ export interface AdPerformanceSummary {
   totalConversions: number
   ctr: number
   cpc: number
+  conversionRate: number
+  cpm: number
+  cpa: number
   platforms: Record<string, {
     spend: number
     impressions: number
@@ -259,13 +272,68 @@ export interface AdPerformanceSummary {
     spend: number
     impressions: number
     clicks: number
+    conversions: number
   }>
   previousPeriod: {
     totalSpend: number
     totalImpressions: number
     totalClicks: number
     totalConversions: number
+    ctr: number
+    cpc: number
+    conversionRate: number
+    cpm: number
+    cpa: number
   }
+  comparisonDailyTrend?: Array<{
+    date: string
+    spend: number
+    impressions: number
+    clicks: number
+    conversions: number
+  }>
+}
+
+/**
+ * Compute date ranges from AdPerformanceOptions.
+ * If startDate+endDate provided, use them directly. Else compute from days.
+ * Previous period = same duration shifted back (unless compareStartDate/compareEndDate provided).
+ */
+function computeDateRanges(options: AdPerformanceOptions = {}) {
+  const { days = 30, startDate: startStr, endDate: endStr, compareStartDate, compareEndDate } = options
+
+  let currentStart: string
+  let currentEnd: string
+
+  if (startStr && endStr) {
+    currentStart = startStr
+    currentEnd = endStr
+  } else {
+    const now = new Date()
+    const start = new Date()
+    start.setDate(now.getDate() - days)
+    currentStart = start.toISOString().split('T')[0]
+    currentEnd = now.toISOString().split('T')[0]
+  }
+
+  // Calculate duration in days for shifting previous period
+  const durationMs = new Date(currentEnd).getTime() - new Date(currentStart).getTime()
+  const durationDays = Math.ceil(durationMs / (1000 * 60 * 60 * 24))
+
+  let prevStart: string
+  let prevEnd: string
+
+  if (compareStartDate && compareEndDate) {
+    prevStart = compareStartDate
+    prevEnd = compareEndDate
+  } else {
+    const ps = new Date(currentStart)
+    ps.setDate(ps.getDate() - durationDays)
+    prevStart = ps.toISOString().split('T')[0]
+    prevEnd = currentStart
+  }
+
+  return { currentStart, currentEnd, prevStart, prevEnd }
 }
 
 /**
@@ -274,21 +342,18 @@ export interface AdPerformanceSummary {
 export async function fetchAdPerformanceSummary(
   supabase: SupabaseClient<Database>,
   agencyId: string,
-  days: number = 30,
-  platform?: string
+  options: AdPerformanceOptions = {}
 ): Promise<AdPerformanceSummary> {
-  const startDate = new Date()
-  startDate.setDate(startDate.getDate() - days)
-
-  const previousStart = new Date()
-  previousStart.setDate(previousStart.getDate() - days * 2)
+  const { currentStart, currentEnd, prevStart, prevEnd } = computeDateRanges(options)
+  const { platform } = options
 
   // Fetch current period data
   let currentQuery = supabase
     .from('ad_performance')
     .select('platform, date, spend, impressions, clicks, conversions')
     .eq('agency_id', agencyId)
-    .gte('date', startDate.toISOString().split('T')[0])
+    .gte('date', currentStart)
+    .lte('date', currentEnd)
     .order('date', { ascending: true })
 
   if (platform) {
@@ -308,8 +373,8 @@ export async function fetchAdPerformanceSummary(
     .from('ad_performance')
     .select('spend, impressions, clicks, conversions')
     .eq('agency_id', agencyId)
-    .gte('date', previousStart.toISOString().split('T')[0])
-    .lt('date', startDate.toISOString().split('T')[0])
+    .gte('date', prevStart)
+    .lt('date', prevEnd)
 
   if (platform) {
     previousQuery = previousQuery.eq('platform', platform as 'google_ads' | 'meta_ads')
@@ -325,7 +390,7 @@ export async function fetchAdPerformanceSummary(
   let totalClicks = 0
   let totalConversions = 0
   const platforms: Record<string, { spend: number; impressions: number; clicks: number; conversions: number }> = {}
-  const dailyMap = new Map<string, { spend: number; impressions: number; clicks: number }>()
+  const dailyMap = new Map<string, { spend: number; impressions: number; clicks: number; conversions: number }>()
 
   for (const r of records) {
     const spend = Number(r.spend) || 0
@@ -350,10 +415,11 @@ export async function fetchAdPerformanceSummary(
 
     // Daily trend
     const dateKey = r.date || 'unknown'
-    const existing = dailyMap.get(dateKey) || { spend: 0, impressions: 0, clicks: 0 }
+    const existing = dailyMap.get(dateKey) || { spend: 0, impressions: 0, clicks: 0, conversions: 0 }
     existing.spend += spend
     existing.impressions += impressions
     existing.clicks += clicks
+    existing.conversions += conversions
     dailyMap.set(dateKey, existing)
   }
 
@@ -377,6 +443,9 @@ export async function fetchAdPerformanceSummary(
     totalConversions,
     ctr: totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0,
     cpc: totalClicks > 0 ? totalSpend / totalClicks : 0,
+    conversionRate: totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0,
+    cpm: totalImpressions > 0 ? (totalSpend / totalImpressions) * 1000 : 0,
+    cpa: totalConversions > 0 ? totalSpend / totalConversions : 0,
     platforms,
     dailyTrend,
     previousPeriod: {
@@ -384,6 +453,11 @@ export async function fetchAdPerformanceSummary(
       totalImpressions: prevImpressions,
       totalClicks: prevClicks,
       totalConversions: prevConversions,
+      ctr: prevImpressions > 0 ? (prevClicks / prevImpressions) * 100 : 0,
+      cpc: prevClicks > 0 ? prevSpend / prevClicks : 0,
+      conversionRate: prevClicks > 0 ? (prevConversions / prevClicks) * 100 : 0,
+      cpm: prevImpressions > 0 ? (prevSpend / prevImpressions) * 1000 : 0,
+      cpa: prevConversions > 0 ? prevSpend / prevConversions : 0,
     },
   }
 }
@@ -395,25 +469,25 @@ export async function fetchAdPerformanceSummary(
 export async function fetchClientAdPerformance(
   supabase: SupabaseClient<Database>,
   clientId: string,
-  days: number = 30,
-  platform?: string
+  options: AdPerformanceOptions = {}
 ): Promise<AdPerformanceSummary> {
-  const startDate = new Date()
-  startDate.setDate(startDate.getDate() - days)
-
-  const previousStart = new Date()
-  previousStart.setDate(previousStart.getDate() - days * 2)
+  const { currentStart, currentEnd, prevStart, prevEnd } = computeDateRanges(options)
+  const { platform, accountId } = options
 
   // Fetch current period data for this client
   let currentQuery = supabase
     .from('ad_performance')
     .select('platform, date, spend, impressions, clicks, conversions')
     .eq('client_id', clientId)
-    .gte('date', startDate.toISOString().split('T')[0])
+    .gte('date', currentStart)
+    .lte('date', currentEnd)
     .order('date', { ascending: true })
 
   if (platform) {
     currentQuery = currentQuery.eq('platform', platform as 'google_ads' | 'meta_ads')
+  }
+  if (accountId) {
+    currentQuery = currentQuery.eq('account_id', accountId)
   }
 
   const { data: currentData, error } = await currentQuery
@@ -429,11 +503,14 @@ export async function fetchClientAdPerformance(
     .from('ad_performance')
     .select('spend, impressions, clicks, conversions')
     .eq('client_id', clientId)
-    .gte('date', previousStart.toISOString().split('T')[0])
-    .lt('date', startDate.toISOString().split('T')[0])
+    .gte('date', prevStart)
+    .lt('date', prevEnd)
 
   if (platform) {
     previousQuery = previousQuery.eq('platform', platform as 'google_ads' | 'meta_ads')
+  }
+  if (accountId) {
+    previousQuery = previousQuery.eq('account_id', accountId)
   }
 
   const { data: previousData } = await previousQuery
@@ -446,7 +523,7 @@ export async function fetchClientAdPerformance(
   let totalClicks = 0
   let totalConversions = 0
   const platforms: Record<string, { spend: number; impressions: number; clicks: number; conversions: number }> = {}
-  const dailyMap = new Map<string, { spend: number; impressions: number; clicks: number }>()
+  const dailyMap = new Map<string, { spend: number; impressions: number; clicks: number; conversions: number }>()
 
   for (const r of records) {
     const spend = Number(r.spend) || 0
@@ -469,10 +546,11 @@ export async function fetchClientAdPerformance(
     platforms[plat].conversions += conversions
 
     const dateKey = r.date || 'unknown'
-    const existing = dailyMap.get(dateKey) || { spend: 0, impressions: 0, clicks: 0 }
+    const existing = dailyMap.get(dateKey) || { spend: 0, impressions: 0, clicks: 0, conversions: 0 }
     existing.spend += spend
     existing.impressions += impressions
     existing.clicks += clicks
+    existing.conversions += conversions
     dailyMap.set(dateKey, existing)
   }
 
@@ -496,6 +574,9 @@ export async function fetchClientAdPerformance(
     totalConversions,
     ctr: totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0,
     cpc: totalClicks > 0 ? totalSpend / totalClicks : 0,
+    conversionRate: totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0,
+    cpm: totalImpressions > 0 ? (totalSpend / totalImpressions) * 1000 : 0,
+    cpa: totalConversions > 0 ? totalSpend / totalConversions : 0,
     platforms,
     dailyTrend,
     previousPeriod: {
@@ -503,6 +584,11 @@ export async function fetchClientAdPerformance(
       totalImpressions: prevImpressions,
       totalClicks: prevClicks,
       totalConversions: prevConversions,
+      ctr: prevImpressions > 0 ? (prevClicks / prevImpressions) * 100 : 0,
+      cpc: prevClicks > 0 ? prevSpend / prevClicks : 0,
+      conversionRate: prevClicks > 0 ? (prevConversions / prevClicks) * 100 : 0,
+      cpm: prevImpressions > 0 ? (prevSpend / prevImpressions) * 1000 : 0,
+      cpa: prevConversions > 0 ? prevSpend / prevConversions : 0,
     },
   }
 }

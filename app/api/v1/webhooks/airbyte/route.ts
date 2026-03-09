@@ -11,7 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { timingSafeEqual } from 'crypto'
+import { timingSafeEqual, createHmac } from 'crypto'
 import { serverEnv } from '@/lib/env'
 import { createServiceRoleClient } from '@/lib/supabase'
 
@@ -33,10 +33,12 @@ function validateWebhookToken(request: NextRequest): boolean {
   if (!token) return false
 
   try {
-    const tokenBuffer = Buffer.from(token, 'utf8')
-    const secretBuffer = Buffer.from(secret, 'utf8')
-    if (tokenBuffer.length !== secretBuffer.length) return false
-    return timingSafeEqual(tokenBuffer, secretBuffer)
+    // Use HMAC comparison to avoid length oracle attacks.
+    // Both sides produce fixed-length hashes regardless of input length.
+    const key = 'airbyte-webhook-token-compare'
+    const tokenHash = createHmac('sha256', key).update(token).digest()
+    const secretHash = createHmac('sha256', key).update(secret).digest()
+    return timingSafeEqual(tokenHash, secretHash)
   } catch {
     return false
   }

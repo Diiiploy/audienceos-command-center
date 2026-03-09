@@ -13,6 +13,9 @@ import { cookies } from 'next/headers'
 import { createRouteHandlerClient } from '@/lib/supabase'
 import { withRateLimit, withCsrfProtection, isValidUUID, createErrorResponse } from '@/lib/security'
 import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission'
+import { provisionAirbyteConnection, generateTablePrefix } from '@/lib/airbyte/provision'
+import { getAirbyteClient } from '@/lib/airbyte/client'
+import type { AirbytePlatform } from '@/lib/airbyte/types'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -35,12 +38,14 @@ export const GET = withPermission({ resource: 'clients', action: 'read' })(
       }
 
       const supabase = await createRouteHandlerClient(cookies)
+      const agencyId = request.user.agencyId
 
-      // Verify client belongs to user's agency
+      // Verify client belongs to user's agency (explicit agency_id check)
       const { data: client, error: clientError } = await supabase
         .from('client')
         .select('id')
         .eq('id', id)
+        .eq('agency_id', agencyId)
         .single()
 
       if (clientError || !client) {
@@ -88,11 +93,12 @@ export const POST = withPermission({ resource: 'clients', action: 'write' })(
       const supabase = await createRouteHandlerClient(cookies)
       const agencyId = request.user.agencyId
 
-      // Verify client belongs to user's agency
+      // Verify client belongs to user's agency (explicit agency_id check)
       const { data: client, error: clientError } = await supabase
         .from('client')
         .select('id')
         .eq('id', id)
+        .eq('agency_id', agencyId)
         .single()
 
       if (clientError || !client) {
@@ -119,6 +125,7 @@ export const POST = withPermission({ resource: 'clients', action: 'write' })(
       }
 
       const accountId = (external_account_id as string).trim()
+      const tablePrefix = generateTablePrefix(agencyId)
 
       const { data: mapping, error } = await (supabase as any)
         .from('airbyte_account_mapping')
@@ -127,6 +134,7 @@ export const POST = withPermission({ resource: 'clients', action: 'write' })(
           client_id: id,
           platform: platform as string,
           external_account_id: accountId,
+          table_prefix: tablePrefix,
           is_active: true,
         })
         .select()
@@ -141,7 +149,71 @@ export const POST = withPermission({ resource: 'clients', action: 'write' })(
         return createErrorResponse(500, 'Failed to link ad account')
       }
 
-      return NextResponse.json({ data: mapping }, { status: 201 })
+      // Auto-provision Airbyte connection if agency has platform credentials
+      let provisioning: { status: string; connectionId?: string; error?: string } = {
+        status: 'skipped',
+      }
+
+      const { data: integration } = await supabase
+        .from('integration')
+        .select('id, access_token, refresh_token, config')
+        .eq('agency_id', agencyId)
+        .eq('provider', platform as 'google_ads' | 'meta_ads')
+        .eq('is_connected', true)
+        .single()
+
+      if (integration) {
+        const creds = (integration.config as Record<string, unknown>)?.credentials as Record<string, string> | undefined
+        const accessToken = integration.access_token || creds?.access_token
+        const refreshToken = integration.refresh_token || undefined
+
+        if (accessToken) {
+          const result = await provisionAirbyteConnection(
+            {
+              agencyId,
+              clientId: id,
+              platform: platform as AirbytePlatform,
+              externalAccountId: accountId,
+              accessToken,
+              refreshToken,
+              ...(platform === 'google_ads' && creds && {
+                googleAds: {
+                  customerId: accountId,
+                  developerToken: creds.developer_token,
+                  loginCustomerId: creds.login_customer_id,
+                },
+              }),
+              ...(platform === 'meta_ads' && {
+                metaAds: { accountId },
+              }),
+            },
+            supabase,
+            integration.id
+          )
+
+          if (result.success) {
+            // Update mapping with Airbyte IDs
+            await (supabase as any)
+              .from('airbyte_account_mapping')
+              .update({
+                airbyte_source_id: result.sourceId,
+                airbyte_connection_id: result.connectionId,
+                table_prefix: result.tablePrefix,
+              })
+              .eq('id', mapping.id)
+
+            provisioning = { status: 'provisioned', connectionId: result.connectionId }
+          } else {
+            provisioning = { status: 'failed', error: result.error }
+          }
+        } else {
+          provisioning = { status: 'pending', error: 'No access token found for this platform integration' }
+        }
+      } else {
+        provisioning = { status: 'pending', error: 'Connect the platform integration first to enable auto-provisioning' }
+      }
+
+      return NextResponse.json({ data: mapping, provisioning }, { status: 201 })
     } catch {
       return createErrorResponse(500, 'Internal server error')
     }
@@ -151,6 +223,7 @@ export const POST = withPermission({ resource: 'clients', action: 'write' })(
 /**
  * DELETE /api/v1/clients/[id]/ad-accounts
  * Unlink an ad account (soft delete: sets is_active = false)
+ * Also deprovisions Airbyte source + connection if they exist.
  * Body: { mapping_id: string }
  */
 export const DELETE = withPermission({ resource: 'clients', action: 'manage' })(
@@ -169,6 +242,19 @@ export const DELETE = withPermission({ resource: 'clients', action: 'manage' })(
       }
 
       const supabase = await createRouteHandlerClient(cookies)
+      const agencyId = request.user.agencyId
+
+      // Verify client belongs to user's agency (explicit agency_id check)
+      const { data: client, error: clientError } = await supabase
+        .from('client')
+        .select('id')
+        .eq('id', id)
+        .eq('agency_id', agencyId)
+        .single()
+
+      if (clientError || !client) {
+        return createErrorResponse(404, 'Client not found')
+      }
 
       let body: Record<string, unknown>
       try {
@@ -181,6 +267,36 @@ export const DELETE = withPermission({ resource: 'clients', action: 'manage' })(
 
       if (!mapping_id || typeof mapping_id !== 'string') {
         return createErrorResponse(400, 'mapping_id is required')
+      }
+
+      // Fetch the mapping first to get Airbyte IDs for cleanup
+      const { data: existingMapping } = await (supabase as any)
+        .from('airbyte_account_mapping')
+        .select('id, airbyte_source_id, airbyte_connection_id')
+        .eq('id', mapping_id)
+        .eq('client_id', id)
+        .single()
+
+      // Deprovision Airbyte resources if they exist (best-effort, don't block unlink)
+      if (existingMapping) {
+        const airbyteConnectionId = existingMapping.airbyte_connection_id as string | null
+        const airbyteSourceId = existingMapping.airbyte_source_id as string | null
+
+        if (airbyteConnectionId || airbyteSourceId) {
+          try {
+            const airbyteClient = getAirbyteClient()
+            if (airbyteConnectionId) {
+              const { error: connErr } = await airbyteClient.deleteConnection(airbyteConnectionId)
+              if (connErr) console.error('[ad-accounts] Failed to delete Airbyte connection:', connErr)
+            }
+            if (airbyteSourceId) {
+              const { error: srcErr } = await airbyteClient.deleteSource(airbyteSourceId)
+              if (srcErr) console.error('[ad-accounts] Failed to delete Airbyte source:', srcErr)
+            }
+          } catch (err) {
+            console.error('[ad-accounts] Airbyte cleanup error (non-fatal):', err)
+          }
+        }
       }
 
       // Soft delete — set is_active to false

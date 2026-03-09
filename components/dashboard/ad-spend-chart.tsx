@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { format } from "date-fns"
 import {
   AreaChart,
@@ -22,6 +23,8 @@ interface AdSpendChartProps {
 }
 
 export function AdSpendChart({ data, className, periodLabel }: AdSpendChartProps) {
+  const [visibleMetrics, setVisibleMetrics] = useState<Set<string>>(new Set(["spend", "clicks"]))
+
   const chartData = data.dailyTrend.map((point) => ({
     ...point,
     formattedDate: format(new Date(point.date), "MMM dd"),
@@ -39,6 +42,36 @@ export function AdSpendChart({ data, className, periodLabel }: AdSpendChartProps
   return (
     <div className={cn("bg-card border border-border rounded-lg p-4", className)}>
       <h3 className="text-sm font-medium text-foreground mb-4">Ad Spend Trend ({periodLabel || "30 Days"})</h3>
+      <div className="flex gap-1 mb-3">
+        {[
+          { key: "spend", label: "Spend", color: "oklch(0.65 0.15 250)" },
+          { key: "clicks", label: "Clicks", color: "oklch(0.72 0.17 162)" },
+          { key: "conversions", label: "Conversions", color: "oklch(0.75 0.15 50)" },
+          { key: "impressions", label: "Impressions", color: "oklch(0.65 0.12 300)" },
+        ].map(({ key, label, color }) => (
+          <button
+            key={key}
+            onClick={() => setVisibleMetrics(prev => {
+              const next = new Set(prev)
+              if (next.has(key)) {
+                if (next.size > 1) next.delete(key)
+              } else {
+                next.add(key)
+              }
+              return next
+            })}
+            className={cn(
+              "px-2.5 py-1 rounded text-xs font-medium transition-colors border",
+              visibleMetrics.has(key)
+                ? "border-transparent text-white"
+                : "border-border text-muted-foreground bg-transparent hover:bg-muted"
+            )}
+            style={visibleMetrics.has(key) ? { backgroundColor: color } : undefined}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
       <div className="h-[240px]">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
@@ -50,6 +83,14 @@ export function AdSpendChart({ data, className, periodLabel }: AdSpendChartProps
               <linearGradient id="colorClicks" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="oklch(0.72 0.17 162)" stopOpacity={0.3} />
                 <stop offset="95%" stopColor="oklch(0.72 0.17 162)" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="colorConversions" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="oklch(0.75 0.15 50)" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="oklch(0.75 0.15 50)" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="colorImpressions" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="oklch(0.65 0.12 300)" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="oklch(0.65 0.12 300)" stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#333" />
@@ -85,39 +126,79 @@ export function AdSpendChart({ data, className, periodLabel }: AdSpendChartProps
                 color: "#fff",
               }}
               labelStyle={{ color: "#999" }}
-              formatter={(value: number, name: string) => [
-                name === "spend" ? `$${value.toFixed(2)}` : value.toLocaleString(),
-                name === "spend" ? "Spend" : "Clicks",
-              ]}
+              formatter={(value: number, name: string) => {
+                const labels: Record<string, string> = {
+                  spend: "Spend",
+                  clicks: "Clicks",
+                  conversions: "Conversions",
+                  impressions: "Impressions",
+                }
+                const formatted = name === "spend"
+                  ? `$${value.toFixed(2)}`
+                  : value.toLocaleString()
+                return [formatted, labels[name] || name]
+              }}
             />
             <Legend
               wrapperStyle={{ paddingTop: "12px" }}
-              formatter={(value) => (
-                <span style={{ color: "#999" }}>
-                  {value === "spend" ? "Spend" : "Clicks"}
-                </span>
-              )}
+              formatter={(value) => {
+                const labels: Record<string, string> = {
+                  spend: "Spend",
+                  clicks: "Clicks",
+                  conversions: "Conversions",
+                  impressions: "Impressions",
+                }
+                return <span style={{ color: "#999" }}>{labels[value] || value}</span>
+              }}
             />
-            <Area
-              type="monotone"
-              dataKey="spend"
-              name="spend"
-              stroke="oklch(0.65 0.15 250)"
-              fillOpacity={1}
-              fill="url(#colorSpend)"
-              strokeWidth={2}
-              yAxisId="left"
-            />
-            <Area
-              type="monotone"
-              dataKey="clicks"
-              name="clicks"
-              stroke="oklch(0.72 0.17 162)"
-              fillOpacity={1}
-              fill="url(#colorClicks)"
-              strokeWidth={2}
-              yAxisId="right"
-            />
+            {visibleMetrics.has("spend") && (
+              <Area
+                type="monotone"
+                dataKey="spend"
+                name="spend"
+                stroke="oklch(0.65 0.15 250)"
+                fillOpacity={1}
+                fill="url(#colorSpend)"
+                strokeWidth={2}
+                yAxisId="left"
+              />
+            )}
+            {visibleMetrics.has("clicks") && (
+              <Area
+                type="monotone"
+                dataKey="clicks"
+                name="clicks"
+                stroke="oklch(0.72 0.17 162)"
+                fillOpacity={1}
+                fill="url(#colorClicks)"
+                strokeWidth={2}
+                yAxisId="right"
+              />
+            )}
+            {visibleMetrics.has("conversions") && (
+              <Area
+                type="monotone"
+                dataKey="conversions"
+                name="conversions"
+                stroke="oklch(0.75 0.15 50)"
+                fillOpacity={1}
+                fill="url(#colorConversions)"
+                strokeWidth={2}
+                yAxisId="right"
+              />
+            )}
+            {visibleMetrics.has("impressions") && (
+              <Area
+                type="monotone"
+                dataKey="impressions"
+                name="impressions"
+                stroke="oklch(0.65 0.12 300)"
+                fillOpacity={1}
+                fill="url(#colorImpressions)"
+                strokeWidth={2}
+                yAxisId="right"
+              />
+            )}
           </AreaChart>
         </ResponsiveContainer>
       </div>
