@@ -5,7 +5,10 @@
  * Product infrastructure - does NOT use chi-gateway (personal PAI).
  *
  * Gateway handles credentials, rate limiting, and audit logging.
- * Cost: ~$0.02 per enrichment (domain metrics + competitors call)
+ * Cost: ~$0.03 per enrichment (domain metrics + rank overview + competitors)
+ *
+ * Note: Backlinks API requires a separate DataForSEO subscription.
+ * When inactive, domain_rank and backlinks will be null.
  */
 
 const DIIIPLOY_GATEWAY = process.env.DIIIPLOY_GATEWAY_URL || 'https://diiiploy-gateway.diiiploy.workers.dev'
@@ -121,43 +124,58 @@ async function fetchFromGateway(
  */
 export async function enrichDomainSEO(domain: string): Promise<SEOEnrichmentResult> {
   try {
-    // Parallel fetch: domain metrics + competitors via gateway
-    const [domainRes, competitorsRes] = await Promise.all([
-      // Domain metrics (backlinks summary)
+    // Parallel fetch: domain metrics + rank overview + competitors via gateway
+    const [domainRes, rankOverviewRes, competitorsRes] = await Promise.all([
+      // Domain metrics (backlinks summary — requires Backlinks subscription)
       fetchFromGateway('/dataforseo/domain', { target: domain }),
-      // Competitors
+      // Rank overview (keyword counts, traffic value)
+      fetchFromGateway('/dataforseo/rank-overview', {
+        target: domain,
+        location: 2840, // USA
+      }),
+      // Competitors (request 6 to account for self-domain in results)
       fetchFromGateway('/dataforseo/competitors', {
         target: domain,
-        limit: 5,
+        limit: 6,
         location: 2840, // USA
       }),
     ])
 
-    const [domainData, competitorsData] = await Promise.all([
+    const [domainData, rankOverviewData, competitorsData] = await Promise.all([
       domainRes.json(),
+      rankOverviewRes.json(),
       competitorsRes.json(),
     ])
 
-    // Parse domain metrics response (DataForSEO format)
-    const domainMetrics = domainData.tasks?.[0]?.result?.[0] || {}
+    // Parse domain metrics (may be null if Backlinks subscription inactive)
+    const domainTask = domainData.tasks?.[0]
+    const domainMetrics = domainTask?.status_code === 20000
+      ? domainTask?.result?.[0] || {}
+      : {}
 
-    // Parse competitors response
-    const competitorItems = competitorsData.tasks?.[0]?.result?.[0]?.items || []
+    // Parse rank overview (keyword and traffic metrics)
+    const organicMetrics = rankOverviewData.tasks?.[0]?.result?.[0]?.items?.[0]?.metrics?.organic || {}
+
+    // Parse competitors (filter out self-domain from results)
+    const allCompetitorItems = competitorsData.tasks?.[0]?.result?.[0]?.items || []
+    const competitorItems = allCompetitorItems.filter(
+      (c: { domain: string }) => c.domain !== domain
+    )
 
     const summary: SEOSummary = {
-      total_keywords: 0, // Would need ranked_keywords endpoint
-      traffic_value: 0, // Would need traffic analytics endpoint
-      top_10_keywords: 0, // Would need ranked_keywords endpoint
+      total_keywords: organicMetrics.count || 0,
+      traffic_value: Math.round((organicMetrics.etv || 0) * 100) / 100,
+      top_10_keywords: (organicMetrics.pos_1 || 0) + (organicMetrics.pos_2_3 || 0) + (organicMetrics.pos_4_10 || 0),
       competitors_count: competitorItems.length,
       domain_rank: domainMetrics.rank || null,
       backlinks: domainMetrics.backlinks || null,
     }
 
-    // Map competitors
+    // Map competitors — DataForSEO uses "intersections" as the field name
     const competitors = competitorItems.slice(0, 5).map(
-      (c: { domain: string; intersecting_keywords?: number }) => ({
+      (c: { domain: string; intersections?: number }) => ({
         domain: c.domain,
-        intersecting_keywords: c.intersecting_keywords || 0,
+        intersecting_keywords: c.intersections || 0,
       })
     )
 

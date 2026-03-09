@@ -67,6 +67,24 @@ export function SEOPreviewCard({ loading, domain, summary, competitors, error }:
 
       <div className="grid grid-cols-3 gap-3">
         <div className="rounded-md bg-muted p-2 text-center">
+          <p className="text-xs text-muted-foreground">Keywords</p>
+          <p className="text-lg font-semibold">
+            {summary.total_keywords ? formatNumber(summary.total_keywords) : "—"}
+          </p>
+        </div>
+        <div className="rounded-md bg-muted p-2 text-center">
+          <p className="text-xs text-muted-foreground">Traffic Value</p>
+          <p className="text-lg font-semibold">
+            {summary.traffic_value ? `$${formatNumber(summary.traffic_value)}` : "—"}
+          </p>
+        </div>
+        <div className="rounded-md bg-muted p-2 text-center">
+          <p className="text-xs text-muted-foreground">Top 10 Keywords</p>
+          <p className="text-lg font-semibold">
+            {summary.top_10_keywords ? formatNumber(summary.top_10_keywords) : "—"}
+          </p>
+        </div>
+        <div className="rounded-md bg-muted p-2 text-center">
           <p className="text-xs text-muted-foreground">Domain Rank</p>
           <p className="text-lg font-semibold">
             {summary.domain_rank ? formatNumber(summary.domain_rank) : "—"}
