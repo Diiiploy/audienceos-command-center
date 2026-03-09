@@ -33,7 +33,7 @@ async function fetchClientAdPerformance(options: UseClientAdPerformanceOptions):
   if (compareEndDate) params.set('compareEndDate', compareEndDate)
   if (accountId) params.set('accountId', accountId)
 
-  const response = await fetch(`/api/v1/clients/${clientId}/ad-performance?${params}`)
+  const response = await fetch(`/api/v1/clients/${clientId}/ad-performance?${params}`, { credentials: 'include' })
 
   if (!response.ok) {
     throw new Error(`Failed to fetch client ad performance: ${response.status}`)

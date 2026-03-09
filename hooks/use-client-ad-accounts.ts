@@ -16,7 +16,7 @@ export const clientAdAccountKeys = {
 }
 
 async function fetchAdAccounts(clientId: string): Promise<AdAccountMapping[]> {
-  const response = await fetch(`/api/v1/clients/${clientId}/ad-accounts`)
+  const response = await fetch(`/api/v1/clients/${clientId}/ad-accounts`, { credentials: 'include' })
 
   if (!response.ok) {
     throw new Error(`Failed to fetch ad accounts: ${response.status}`)
@@ -43,6 +43,7 @@ export function useLinkAdAccount(clientId: string) {
       const response = await fetch(`/api/v1/clients/${clientId}/ad-accounts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(params),
       })
 
@@ -67,6 +68,7 @@ export function useUnlinkAdAccount(clientId: string) {
       const response = await fetch(`/api/v1/clients/${clientId}/ad-accounts`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ mapping_id: mappingId }),
       })
 

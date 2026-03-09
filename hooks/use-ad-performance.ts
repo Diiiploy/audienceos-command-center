@@ -37,7 +37,7 @@ async function fetchAdPerformance(options: UseAdPerformanceOptions): Promise<AdP
     ? `/api/v1/clients/${clientId}/ad-performance?${params}`
     : `/api/v1/dashboard/ad-performance?${params}`
 
-  const response = await fetch(url)
+  const response = await fetch(url, { credentials: 'include' })
 
   if (!response.ok) {
     throw new Error(`Failed to fetch ad performance: ${response.status}`)

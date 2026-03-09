@@ -66,7 +66,7 @@ const META_ADS_STREAMS: AirbyteStreamConfiguration[] = [
  * Generate a table prefix for multi-tenant isolation in airbyte_staging
  * Format: agency_{short_uuid}_ (e.g., "agency_a1b2c3d4_")
  */
-function generateTablePrefix(agencyId: string): string {
+export function generateTablePrefix(agencyId: string): string {
   const shortId = agencyId.replace(/-/g, '').substring(0, 8)
   return `agency_${shortId}_`
 }
@@ -204,22 +204,26 @@ export async function provisionAirbyteConnection(
       // Non-fatal - Airbyte resources were created successfully
     }
 
-    // Step 4: Create account mapping record
+    // Step 4: Upsert account mapping record
+    // Uses upsert because the ad-accounts POST handler may have already created the row
     const { error: mappingError } = await supabase
       .from('airbyte_account_mapping')
-      .insert({
-        agency_id: config.agencyId,
-        client_id: config.clientId,
-        platform: config.platform,
-        external_account_id: config.externalAccountId,
-        airbyte_source_id: source.sourceId,
-        airbyte_connection_id: connection.connectionId,
-        table_prefix: tablePrefix,
-        is_active: true,
-      })
+      .upsert(
+        {
+          agency_id: config.agencyId,
+          client_id: config.clientId,
+          platform: config.platform,
+          external_account_id: config.externalAccountId,
+          airbyte_source_id: source.sourceId,
+          airbyte_connection_id: connection.connectionId,
+          table_prefix: tablePrefix,
+          is_active: true,
+        },
+        { onConflict: 'agency_id,platform,external_account_id' }
+      )
 
     if (mappingError) {
-      console.error('[airbyte-provision] Failed to create mapping:', mappingError)
+      console.error('[airbyte-provision] Failed to upsert mapping:', mappingError)
       // Non-fatal - Airbyte resources were created successfully
     }
 

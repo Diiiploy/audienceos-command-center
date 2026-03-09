@@ -34,12 +34,14 @@ export const GET = withPermission({ resource: 'clients', action: 'read' })(
       }
 
       const supabase = await createRouteHandlerClient(cookies)
+      const agencyId = request.user.agencyId
 
-      // Verify client belongs to user's agency via RLS
+      // Verify client belongs to user's agency (explicit agency_id check)
       const { data: client, error: clientError } = await supabase
         .from('client')
         .select('id')
         .eq('id', id)
+        .eq('agency_id', agencyId)
         .single()
 
       if (clientError || !client) {
