@@ -718,10 +718,7 @@ function CommandCenterContent() {
       case "onboarding":
         return (
           <OnboardingHub
-            onClientClick={(clientId) => {
-              const client = clients.find((c) => c.id === clientId)
-              if (client) setSelectedClient(client)
-            }}
+            onClientClick={handleOpenClientDetail}
           />
         )
 

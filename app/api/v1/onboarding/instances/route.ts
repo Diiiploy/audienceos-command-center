@@ -157,12 +157,14 @@ export const POST = withPermission({ resource: 'clients', action: 'write' })(
       // Create or find the client
       let clientId: string
 
-      // Check if client with this email already exists
+      // Check if client with this name AND email already exists (compound match)
+      // Email alone is not sufficient — one contact email can represent different clients
       const { data: existingClient } = await supabase
         .from('client')
         .select('id')
         .eq('agency_id', agencyId)
         .eq('contact_email', sanitizedEmail)
+        .ilike('name', sanitizedName)
         .single()
 
       // Sanitize optional website URL
