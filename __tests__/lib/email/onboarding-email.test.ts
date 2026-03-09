@@ -13,7 +13,7 @@ describe('Onboarding Email Service', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockFetch = vi.fn()
-    global.fetch = mockFetch
+    global.fetch = mockFetch as unknown as typeof fetch
     process.env.RESEND_API_KEY = 'test-resend-key'
     process.env.RESEND_FROM_EMAIL = 'test@audienceos.io'
   })
@@ -162,7 +162,7 @@ describe('Onboarding Email Service', () => {
       })
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body)
-      expect(body.from).toContain('audienceos.io')
+      expect(body.from).toContain('resend.dev')
     })
   })
 

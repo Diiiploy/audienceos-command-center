@@ -2,8 +2,10 @@
  * Onboarding Email Service
  *
  * Sends welcome and confirmation emails for client onboarding.
- * Uses Resend API for delivery.
+ * Uses shared Resend client for delivery.
  */
+
+import { sendEmail, type SendEmailResult } from '@/lib/email/client'
 
 interface OnboardingEmailParams {
   to: string
@@ -15,12 +17,6 @@ interface OnboardingEmailParams {
     traffic_value?: number
     competitors_count?: number
   } | null
-}
-
-interface SendEmailResult {
-  success: boolean
-  messageId?: string
-  error?: string
 }
 
 /**
@@ -35,20 +31,6 @@ export async function sendOnboardingEmail({
   portalUrl,
   seoSummary,
 }: OnboardingEmailParams): Promise<SendEmailResult> {
-  const resendApiKey = process.env.RESEND_API_KEY
-  const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@audienceos.io'
-
-  console.log('[email] Sending onboarding email:', {
-    to,
-    from: fromEmail,
-    hasApiKey: !!resendApiKey,
-    environment: process.env.NODE_ENV,
-  })
-
-  if (!resendApiKey) {
-    console.error('[email] RESEND_API_KEY not configured - onboarding email not sent')
-    return { success: false, error: 'Email service not configured' }
-  }
 
   // Build SEO insight section if data available
   const seoSection = seoSummary && (seoSummary.total_keywords || seoSummary.traffic_value)
@@ -177,58 +159,13 @@ Questions? Just reply to this email!
 (c) ${new Date().getFullYear()} ${agencyName} powered by AudienceOS
   `
 
-  try {
-    const requestBody = {
-      from: fromEmail,
-      to,
-      reply_to: 'support@audienceos.io',
-      subject: `Welcome to ${agencyName} - Let's Get Started!`,
-      html: htmlContent,
-      text: textContent,
-    }
-
-    console.log('[email] Making Resend API request:', {
-      url: 'https://api.resend.com/emails',
-      from: fromEmail,
-      to,
-      hasAuth: !!resendApiKey,
-    })
-
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${resendApiKey}`,
-      },
-      body: JSON.stringify(requestBody),
-    })
-
-    const responseData = await response.json()
-
-    if (!response.ok) {
-      console.error('[email] Resend API error (status ' + response.status + '):', {
-        error: responseData,
-        statusCode: response.status,
-        statusText: response.statusText,
-      })
-      return { success: false, error: responseData.message || 'Email delivery failed' }
-    }
-
-    console.log(`[email] Onboarding email sent to ${to}:`, {
-      messageId: responseData.id,
-      timestamp: new Date().toISOString(),
-    })
-    return { success: true, messageId: responseData.id }
-  } catch (error) {
-    console.error('[email] Failed to send onboarding email:', {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    })
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Email service error'
-    }
-  }
+  return sendEmail({
+    to,
+    subject: `Welcome to ${agencyName} - Let's Get Started!`,
+    html: htmlContent,
+    text: textContent,
+    replyTo: 'support@audienceos.io',
+  })
 }
 
 /**
@@ -247,20 +184,6 @@ export async function sendOnboardingConfirmationEmail({
   agencyName: string
   slackChannelName?: string | null
 }): Promise<SendEmailResult> {
-  const resendApiKey = process.env.RESEND_API_KEY
-  const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@audienceos.io'
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://v0-audience-os-command-center.vercel.app'
-
-  console.log('[email] Sending onboarding confirmation email:', {
-    to,
-    from: fromEmail,
-    hasApiKey: !!resendApiKey,
-  })
-
-  if (!resendApiKey) {
-    console.error('[email] RESEND_API_KEY not configured - confirmation email not sent')
-    return { success: false, error: 'Email service not configured' }
-  }
 
   const slackSection = slackChannelName
     ? `
@@ -364,55 +287,11 @@ Expect to hear from us within 3-5 business days. If you have any urgent question
 (c) ${new Date().getFullYear()} ${agencyName} powered by AudienceOS
   `
 
-  try {
-    const requestBody = {
-      from: fromEmail,
-      to,
-      reply_to: 'support@audienceos.io',
-      subject: `Onboarding Complete - Welcome to ${agencyName}!`,
-      html: htmlContent,
-      text: textContent,
-    }
-
-    console.log('[email] Making Resend API request (confirmation):', {
-      url: 'https://api.resend.com/emails',
-      from: fromEmail,
-      to,
-    })
-
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${resendApiKey}`,
-      },
-      body: JSON.stringify(requestBody),
-    })
-
-    const responseData = await response.json()
-
-    if (!response.ok) {
-      console.error('[email] Resend API error (status ' + response.status + '):', {
-        error: responseData,
-        statusCode: response.status,
-        statusText: response.statusText,
-      })
-      return { success: false, error: responseData.message || 'Email delivery failed' }
-    }
-
-    console.log(`[email] Confirmation email sent to ${to}:`, {
-      messageId: responseData.id,
-      timestamp: new Date().toISOString(),
-    })
-    return { success: true, messageId: responseData.id }
-  } catch (error) {
-    console.error('[email] Failed to send confirmation email:', {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    })
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Email service error'
-    }
-  }
+  return sendEmail({
+    to,
+    subject: `Onboarding Complete - Welcome to ${agencyName}!`,
+    html: htmlContent,
+    text: textContent,
+    replyTo: 'support@audienceos.io',
+  })
 }

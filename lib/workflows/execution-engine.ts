@@ -5,6 +5,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database, Json } from '@/types/database'
+import { sendEmail } from '@/lib/email/client'
 import type {
   WorkflowTrigger,
   WorkflowAction,
@@ -487,13 +488,6 @@ export class WorkflowEngine {
     recipients: string[],
     context: WorkflowExecutionContext
   ): Promise<ActionResult> {
-    const resendApiKey = process.env.RESEND_API_KEY
-    const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@audienceos.io'
-
-    if (!resendApiKey) {
-      throw new Error('Email not configured (RESEND_API_KEY missing)')
-    }
-
     const subject = context.clientSnapshot
       ? `[AudienceOS] Automation: ${context.clientSnapshot.name}`
       : '[AudienceOS] Workflow Notification'
@@ -501,31 +495,19 @@ export class WorkflowEngine {
     const results: { recipient: string; ok: boolean; messageId?: string; error?: string }[] = []
 
     for (const recipient of recipients) {
-      try {
-        const response = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${resendApiKey}`,
-          },
-          body: JSON.stringify({
-            from: fromEmail,
-            to: recipient,
-            subject,
-            text: message,
-            html: `<div style="font-family: sans-serif; padding: 20px;">${message.replace(/\n/g, '<br>')}</div>`,
-          }),
-          signal: AbortSignal.timeout(10000),
-        })
-
-        const data = await response.json() as { id?: string; message?: string }
-        const ok = response.ok
-        results.push({ recipient, ok, messageId: data.id, error: ok ? undefined : data.message })
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : 'Unknown error'
-        results.push({ recipient, ok: false, error: errMsg })
-        console.error('[WorkflowEngine]', { action: 'sendEmailNotification', recipient, error: errMsg })
-      }
+      const result = await sendEmail({
+        to: recipient,
+        subject,
+        text: message,
+        html: `<div style="font-family: sans-serif; padding: 20px;">${message.replace(/\n/g, '<br>')}</div>`,
+        signal: AbortSignal.timeout(10000),
+      })
+      results.push({
+        recipient,
+        ok: result.success,
+        messageId: result.messageId,
+        error: result.error,
+      })
     }
 
     const successCount = results.filter((r) => r.ok).length

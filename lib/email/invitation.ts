@@ -1,4 +1,5 @@
 import type { UserRole } from '@/types/database'
+import { sendEmail, type SendEmailResult } from '@/lib/email/client'
 
 interface InvitationEmailParams {
   to: string
@@ -11,7 +12,7 @@ interface InvitationEmailParams {
 /**
  * Send user invitation email
  *
- * This integrates with the email service (Resend, SendGrid, etc.)
+ * This integrates with the email service (Resend) via the shared client.
  * Template: User invitation with role assignment and 7-day expiry notice
  */
 export async function sendInvitationEmail({
@@ -20,7 +21,7 @@ export async function sendInvitationEmail({
   agencyName,
   acceptUrl,
   role,
-}: InvitationEmailParams): Promise<void> {
+}: InvitationEmailParams): Promise<SendEmailResult> {
   // Template content
   const roleDescription = role === 'admin'
     ? 'admin with full access to settings and team management'
@@ -115,44 +116,17 @@ Questions? Contact ${inviterName} for more information.
 © ${new Date().getFullYear()} AudienceOS. All rights reserved.
   `
 
-  // Send email using the configured email service
-  // This is a placeholder - integrate with your actual email service (Resend, SendGrid, etc.)
+  const result = await sendEmail({
+    to,
+    subject: `${inviterName} invited you to join ${agencyName}`,
+    html: htmlContent,
+    text: textContent,
+    replyTo: 'support@audienceos.io',
+  })
 
-  try {
-    // Using Resend as example - adjust based on your email service
-    const resendApiKey = process.env.RESEND_API_KEY
-
-    if (!resendApiKey) {
-      console.warn('RESEND_API_KEY not configured - invitation email not sent')
-      return
-    }
-
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${resendApiKey}`,
-      },
-      body: JSON.stringify({
-        from: process.env.RESEND_FROM_EMAIL || 'noreply@audienceos.io',
-        to,
-        subject: `${inviterName} invited you to join ${agencyName}`,
-        html: htmlContent,
-        text: textContent,
-        reply_to: 'support@audienceos.io',
-      }),
-    })
-
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(`Failed to send email: ${error.message}`)
-    }
-
-    const result = await response.json()
-    console.log(`Invitation email sent to ${to}:`, result.id)
-  } catch (error) {
-    console.error('Failed to send invitation email:', error)
-    // Don't throw - allow invitation creation even if email fails
-    // This should be logged for monitoring
+  if (result.success) {
+    console.log(`[email] Invitation email sent to ${to}:`, result.messageId)
   }
+
+  return result
 }
