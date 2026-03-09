@@ -469,7 +469,7 @@ export default function ClientPage({ params }: { params: Promise<{ id: string }>
                 <SelectContent>
                   <SelectItem value="all">All Accounts</SelectItem>
                   {adAccounts?.filter(a => a.is_active).map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
+                    <SelectItem key={account.id} value={account.external_account_id}>
                       {account.platform === 'google_ads' ? 'Google' : 'Meta'} - {account.external_account_id}
                     </SelectItem>
                   ))}
