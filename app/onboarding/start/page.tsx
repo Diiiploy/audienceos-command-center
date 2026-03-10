@@ -100,8 +100,13 @@ function OnboardingPageContent() {
   const token = searchParams.get("token")
   const { toast } = useToast()
 
+  // Session restore (computed once on mount via useState initializer — must be
+  // stable to avoid infinite re-render loop with useDynamicFormState's useEffect)
+  const [savedProgress] = useState(() => token ? loadSessionProgress(token) : null)
+  const initialFormValues = savedProgress?.formValues
+
   // Core state
-  const [currentStep, setCurrentStep] = useState<Step>(1)
+  const [currentStep, setCurrentStep] = useState<Step>((savedProgress?.step as Step) ?? 1)
   const [onboardingData, setOnboardingData] = useState<OnboardingData | null>(null)
   const [isLoadingOnboarding, setIsLoadingOnboarding] = useState(true)
   const [onboardingError, setOnboardingError] = useState<string | null>(null)
@@ -116,10 +121,6 @@ function OnboardingPageContent() {
     driveError?: string
   }>({ clientId: "pending", slack: "pending", drive: "pending" })
   const isProvisioningRef = useRef(false)
-
-  // Session restore
-  const savedProgress = token ? loadSessionProgress(token) : null
-  const initialFormValues = savedProgress?.formValues
 
   // Step 2: Dynamic form (with session restore)
   const dynamicForm = useDynamicFormState(onboardingData?.fields || [], initialFormValues)
@@ -145,13 +146,6 @@ function OnboardingPageContent() {
     return p.required ? (status === "granted" || status === "na") : true
   })
 
-  // Restore step from session on mount
-  useEffect(() => {
-    if (savedProgress?.step && savedProgress.step > 1) {
-      setCurrentStep(savedProgress.step as Step)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   // Fetch onboarding data
   useEffect(() => {
