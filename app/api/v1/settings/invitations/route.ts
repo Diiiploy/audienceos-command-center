@@ -31,8 +31,8 @@ export const POST = withPermission({ resource: 'users', action: 'manage' })(
         return createErrorResponse(400, 'Email is required')
       }
 
-      if (!role || !['admin', 'user'].includes(role)) {
-        return createErrorResponse(400, 'Valid role is required (admin or user)')
+      if (!role || !['owner', 'admin', 'manager', 'member'].includes(role)) {
+        return createErrorResponse(400, 'Valid role is required (owner, admin, manager, or member)')
       }
 
       const trimmedEmail = email.toLowerCase().trim()
