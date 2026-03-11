@@ -23,10 +23,12 @@ import {
   UserCog,
   AlertTriangle,
   Hash,
+  Sparkles,
   X,
   GripVertical,
   Plus,
   Clock,
+  Loader2,
 } from 'lucide-react'
 import type { WorkflowAction, ActionType } from '@/types/workflow'
 import { ACTION_TYPES, DELAY_PRESETS, AVAILABLE_VARIABLES } from '@/lib/workflows/action-registry'
@@ -48,6 +50,7 @@ const ACTION_ICONS: Record<ActionType, React.ComponentType<{ className?: string 
   update_client: UserCog,
   create_alert: AlertTriangle,
   create_slack_channel: Hash,
+  run_prompt: Sparkles,
 }
 
 export function ActionBuilder({
@@ -91,6 +94,8 @@ export function ActionBuilder({
         return { title: '', type: 'risk_detected', severity: 'medium' }
       case 'create_slack_channel':
         return { channelName: 'client-{{client.name}}', isPrivate: false }
+      case 'run_prompt':
+        return { promptId: '', outputDestination: 'draft', additionalContext: '' }
       default:
         return {}
     }
@@ -559,6 +564,11 @@ function ActionConfigCard({
               </>
             )}
 
+            {/* Run Prompt Config */}
+            {action.type === 'run_prompt' && (
+              <RunPromptConfig action={action} updateConfig={updateConfig} />
+            )}
+
             {/* Common Options */}
             <div className="pt-2 border-t border-border space-y-2">
               <div className="flex items-center gap-3">
@@ -611,5 +621,175 @@ function ActionConfigCard({
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+// Run Prompt Config — fetches available prompts from API
+function RunPromptConfig({
+  action,
+  updateConfig,
+}: {
+  action: WorkflowAction
+  updateConfig: (key: string, value: unknown) => void
+}) {
+  const config = action.config as {
+    promptId?: string
+    promptName?: string
+    outputDestination?: string
+    additionalContext?: string
+    ticketConfig?: { category?: string; priority?: string }
+    notificationConfig?: { channel?: string; recipients?: string[] }
+  }
+
+  const [prompts, setPrompts] = useState<{ id: string; name: string; category: string; prompt_template: string }[]>([])
+  const [isLoadingPrompts, setIsLoadingPrompts] = useState(false)
+
+  // Fetch prompts on mount
+  if (prompts.length === 0 && !isLoadingPrompts) {
+    setIsLoadingPrompts(true)
+    fetch('/api/v1/prompts', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((data) => {
+        setPrompts(data.data || [])
+        setIsLoadingPrompts(false)
+      })
+      .catch(() => setIsLoadingPrompts(false))
+  }
+
+  const selectedPrompt = prompts.find((p) => p.id === config.promptId)
+
+  return (
+    <>
+      <div className="space-y-1.5">
+        <Label className="text-xs">Prompt Template *</Label>
+        {isLoadingPrompts ? (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Loading prompts...
+          </div>
+        ) : (
+          <Select
+            value={config.promptId || ''}
+            onValueChange={(v) => {
+              const p = prompts.find((pr) => pr.id === v)
+              updateConfig('promptId', v)
+              if (p) updateConfig('promptName', p.name)
+            }}
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder="Select a prompt" />
+            </SelectTrigger>
+            <SelectContent>
+              {prompts.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  <span className="flex items-center gap-2">
+                    {p.name}
+                    <span className="text-muted-foreground text-[10px]">({p.category})</span>
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+
+      {/* Template preview */}
+      {selectedPrompt && (
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Template Preview</Label>
+          <p className="text-[10px] text-muted-foreground/70 font-mono bg-secondary/50 px-2 py-1.5 rounded max-h-20 overflow-y-auto">
+            {selectedPrompt.prompt_template}
+          </p>
+        </div>
+      )}
+
+      <div className="space-y-1.5">
+        <Label className="text-xs">Output Destination *</Label>
+        <Select
+          value={config.outputDestination || 'draft'}
+          onValueChange={(v) => updateConfig('outputDestination', v)}
+        >
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="draft">Draft (show in result)</SelectItem>
+            <SelectItem value="client_notes">Append to Client Notes</SelectItem>
+            <SelectItem value="create_ticket">Create Ticket</SelectItem>
+            <SelectItem value="notification">Send Notification</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Conditional sub-config: Ticket */}
+      {config.outputDestination === 'create_ticket' && (
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Category</Label>
+            <Select
+              value={config.ticketConfig?.category || 'general'}
+              onValueChange={(v) => updateConfig('ticketConfig', { ...config.ticketConfig, category: v })}
+            >
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="technical">Technical</SelectItem>
+                <SelectItem value="billing">Billing</SelectItem>
+                <SelectItem value="campaign">Campaign</SelectItem>
+                <SelectItem value="general">General</SelectItem>
+                <SelectItem value="escalation">Escalation</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Priority</Label>
+            <Select
+              value={config.ticketConfig?.priority || 'medium'}
+              onValueChange={(v) => updateConfig('ticketConfig', { ...config.ticketConfig, priority: v })}
+            >
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="critical">Critical</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
+
+      {/* Conditional sub-config: Notification */}
+      {config.outputDestination === 'notification' && (
+        <div className="space-y-1.5">
+          <Label className="text-xs">Channel</Label>
+          <Select
+            value={config.notificationConfig?.channel || 'slack'}
+            onValueChange={(v) => updateConfig('notificationConfig', { ...config.notificationConfig, channel: v })}
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="slack">Slack</SelectItem>
+              <SelectItem value="email">Email</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      <div className="space-y-1.5">
+        <Label className="text-xs">Additional Context</Label>
+        <Textarea
+          placeholder="Extra instructions for AI (optional)"
+          value={config.additionalContext || ''}
+          onChange={(e) => updateConfig('additionalContext', e.target.value)}
+          className="text-xs min-h-[60px]"
+        />
+      </div>
+    </>
   )
 }

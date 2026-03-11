@@ -108,6 +108,7 @@ export type ActionType =
   | 'update_client'
   | 'create_alert'
   | 'create_slack_channel'
+  | 'run_prompt'
 
 export interface BaseAction {
   id: string
@@ -192,6 +193,24 @@ export interface CreateSlackChannelAction extends BaseAction {
   }
 }
 
+export interface RunPromptAction extends BaseAction {
+  type: 'run_prompt'
+  config: {
+    promptId: string              // FK to custom_prompt.id
+    promptName?: string           // Cached display name
+    outputDestination: 'client_notes' | 'create_ticket' | 'notification' | 'draft'
+    ticketConfig?: {
+      category: 'technical' | 'billing' | 'campaign' | 'general' | 'escalation'
+      priority: 'low' | 'medium' | 'high' | 'critical'
+    }
+    notificationConfig?: {
+      channel: 'slack' | 'email'
+      recipients: string[]
+    }
+    additionalContext?: string    // Extra instructions appended to prompt
+  }
+}
+
 export type WorkflowAction =
   | CreateTaskAction
   | SendNotificationAction
@@ -200,6 +219,7 @@ export type WorkflowAction =
   | UpdateClientAction
   | CreateAlertAction
   | CreateSlackChannelAction
+  | RunPromptAction
 
 // ============================================================================
 // CONDITIONAL LOGIC

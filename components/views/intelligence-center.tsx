@@ -50,6 +50,8 @@ import {
   Loader2,
   ChevronDown,
   ChevronRight,
+  Copy,
+  Search,
 } from "lucide-react"
 
 const PROMPT_CATEGORIES = [
@@ -98,6 +100,8 @@ export function IntelligenceCenter({ onBack, initialSection = "overview", initia
     prompt: "",
     category: "other",
   })
+  const [promptSearch, setPromptSearch] = useState("")
+  const [promptCategoryFilter, setPromptCategoryFilter] = useState<string>("all")
 
   // Custom Prompts handlers
   const handleOpenPromptModal = (prompt?: CustomPromptRow) => {
@@ -156,6 +160,24 @@ export function IntelligenceCenter({ onBack, initialSection = "overview", initia
   const handleDeletePrompt = (id: string) => {
     deletePromptMutation.mutate(id)
   }
+
+  const handleDuplicatePrompt = (prompt: CustomPromptRow) => {
+    createPrompt.mutate({
+      name: `${prompt.name} (Copy)`,
+      description: prompt.description || "",
+      prompt_template: prompt.prompt_template,
+      category: prompt.category,
+    })
+  }
+
+  // Filter prompts by search and category
+  const filteredPrompts = promptsData?.data?.filter((prompt) => {
+    const matchesSearch = !promptSearch ||
+      prompt.name.toLowerCase().includes(promptSearch.toLowerCase()) ||
+      (prompt.description || "").toLowerCase().includes(promptSearch.toLowerCase())
+    const matchesCategory = promptCategoryFilter === "all" || prompt.category === promptCategoryFilter
+    return matchesSearch && matchesCategory
+  })
 
   // Activity Feed — real data from /api/v1/activity (polls every 30s)
   const { data: activityItems, isLoading: isLoadingActivity } = useActivityFeed()
@@ -477,6 +499,32 @@ export function IntelligenceCenter({ onBack, initialSection = "overview", initia
             </Button>
           }
         >
+          {/* Search + Category Filter */}
+          <div className="space-y-3 mb-4">
+            <Input
+              placeholder="Search prompts..."
+              value={promptSearch}
+              onChange={(e) => setPromptSearch(e.target.value)}
+              className="h-8 text-[12px]"
+            />
+            <div className="flex flex-wrap gap-1.5">
+              {[{ value: "all", label: "All" }, ...PROMPT_CATEGORIES].map((cat) => (
+                <button
+                  key={cat.value}
+                  onClick={() => setPromptCategoryFilter(cat.value)}
+                  className={cn(
+                    "px-2.5 py-1 text-[10px] rounded-full transition-colors cursor-pointer",
+                    promptCategoryFilter === cat.value
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Loading state */}
           {isLoadingPrompts && (
             <div className="space-y-3">
@@ -490,9 +538,9 @@ export function IntelligenceCenter({ onBack, initialSection = "overview", initia
             </div>
           )}
 
-          {!isLoadingPrompts && promptsData?.data && promptsData.data.length > 0 ? (
+          {!isLoadingPrompts && filteredPrompts && filteredPrompts.length > 0 ? (
             <div className="space-y-3">
-              {promptsData.data.map((prompt) => (
+              {filteredPrompts.map((prompt) => (
                 <div
                   key={prompt.id}
                   onClick={() => handleOpenPromptModal(prompt)}
@@ -522,6 +570,18 @@ export function IntelligenceCenter({ onBack, initialSection = "overview", initia
                         }}
                       >
                         <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        title="Duplicate"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDuplicatePrompt(prompt)
+                        }}
+                      >
+                        <Copy className="h-3.5 w-3.5" />
                       </Button>
                       <Button
                         variant="ghost"
@@ -614,15 +674,54 @@ export function IntelligenceCenter({ onBack, initialSection = "overview", initia
                 <div className="space-y-2">
                   <label className="text-[11px] font-medium">Prompt Template</label>
                   <Textarea
+                    id="prompt-template-textarea"
                     placeholder="Enter your prompt template. Use {{variable_name}} for dynamic values."
                     value={promptForm.prompt}
                     onChange={(e) => setPromptForm({ ...promptForm, prompt: e.target.value })}
                     rows={4}
                     className="text-[12px] font-mono"
                   />
-                  <p className="text-[10px] text-muted-foreground">
-                    Tip: Use {"{{client_name}}"} or {"{{campaign_name}}"} as placeholders.
-                  </p>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-muted-foreground">Insert variable:</label>
+                    <div className="flex flex-wrap gap-1">
+                      {[
+                        { path: '{{client.name}}', label: 'client.name' },
+                        { path: '{{client.industry}}', label: 'client.industry' },
+                        { path: '{{client.stage}}', label: 'client.stage' },
+                        { path: '{{client.health_status}}', label: 'client.health_status' },
+                        { path: '{{client.website}}', label: 'client.website' },
+                        { path: '{{trigger.type}}', label: 'trigger.type' },
+                        { path: '{{trigger.days}}', label: 'trigger.days' },
+                        { path: '{{time.date}}', label: 'time.date' },
+                        { path: '{{time.dayOfWeek}}', label: 'time.dayOfWeek' },
+                      ].map((v) => (
+                        <button
+                          key={v.path}
+                          type="button"
+                          onClick={() => {
+                            const textarea = document.getElementById('prompt-template-textarea') as HTMLTextAreaElement
+                            if (textarea) {
+                              const start = textarea.selectionStart
+                              const end = textarea.selectionEnd
+                              const current = promptForm.prompt
+                              const newValue = current.slice(0, start) + v.path + current.slice(end)
+                              setPromptForm({ ...promptForm, prompt: newValue })
+                              // Restore cursor position after React re-render
+                              requestAnimationFrame(() => {
+                                textarea.focus()
+                                textarea.setSelectionRange(start + v.path.length, start + v.path.length)
+                              })
+                            } else {
+                              setPromptForm({ ...promptForm, prompt: promptForm.prompt + v.path })
+                            }
+                          }}
+                          className="px-1.5 py-0.5 text-[10px] font-mono bg-secondary hover:bg-secondary/80 rounded transition-colors cursor-pointer"
+                        >
+                          {v.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
 

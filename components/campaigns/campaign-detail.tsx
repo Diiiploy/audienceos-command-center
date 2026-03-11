@@ -1,14 +1,18 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import type { Campaign, CampaignPlatform, CampaignType } from "@/types/campaign"
 import { CAMPAIGN_TYPES, CAMPAIGN_PLATFORMS } from "@/types/campaign"
+import type { Creative } from "@/types/creative"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { Calendar, Target, Palette, BarChart3, Image as ImageIcon, FileText, Sparkles, Copy, DollarSign, Eye, MousePointerClick, TrendingUp } from "lucide-react"
+import { Calendar, Target, Palette, BarChart3, Image as ImageIcon, FileText, Sparkles, Copy, DollarSign, Eye, MousePointerClick, TrendingUp, Plus, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { CreativeCard } from "./creative-card"
+import { CreateCreativeModal } from "./create-creative-modal"
 
 interface CampaignDetailProps {
   campaign: Campaign | null
@@ -147,6 +151,22 @@ function MetricCard({
 // ---------------------------------------------------------------------------
 
 export function CampaignDetail({ campaign, open, onOpenChange }: CampaignDetailProps) {
+  const [creatives, setCreatives] = useState<Creative[]>([])
+  const [isLoadingCreatives, setIsLoadingCreatives] = useState(false)
+  const [showCreateCreative, setShowCreateCreative] = useState(false)
+
+  // Fetch linked creatives when dialog opens
+  useEffect(() => {
+    if (open && campaign?.id) {
+      setIsLoadingCreatives(true)
+      fetch(`/api/v1/creatives?campaign_id=${campaign.id}`, { credentials: 'include' })
+        .then((r) => r.json())
+        .then((data) => setCreatives(data.data || []))
+        .catch(() => setCreatives([]))
+        .finally(() => setIsLoadingCreatives(false))
+    }
+  }, [open, campaign?.id])
+
   if (!campaign) return null
 
   const assigneeInitial = campaign.assignee
@@ -427,6 +447,59 @@ export function CampaignDetail({ campaign, open, onOpenChange }: CampaignDetailP
                       No copy variations yet
                     </p>
                   </div>
+                )}
+              </div>
+
+              {/* Linked Creatives section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Linked Creatives
+                  </h3>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs gap-1.5"
+                    onClick={() => setShowCreateCreative(true)}
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add Creative
+                  </Button>
+                </div>
+
+                {isLoadingCreatives ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : creatives.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {creatives.map((creative) => (
+                      <CreativeCard key={creative.id} creative={creative} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed border-border p-8 text-center">
+                    <Sparkles className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      No creatives linked to this campaign yet
+                    </p>
+                  </div>
+                )}
+
+                {campaign.client_id && (
+                  <CreateCreativeModal
+                    open={showCreateCreative}
+                    onOpenChange={setShowCreateCreative}
+                    clientId={campaign.client_id}
+                    campaignId={campaign.id}
+                    onCreated={() => {
+                      // Refresh creatives
+                      fetch(`/api/v1/creatives?campaign_id=${campaign.id}`, { credentials: 'include' })
+                        .then((r) => r.json())
+                        .then((data) => setCreatives(data.data || []))
+                        .catch(() => {})
+                    }}
+                  />
                 )}
               </div>
             </TabsContent>

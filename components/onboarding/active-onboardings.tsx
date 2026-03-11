@@ -62,6 +62,7 @@ import {
   Inbox,
   Play,
   Mail,
+  Sparkles,
 } from "lucide-react"
 import { differenceInDays } from "date-fns"
 
@@ -166,6 +167,8 @@ interface ClientDetailPanelProps {
 function ClientDetailPanel({ instance, stage, onClose, onUpdateStageStatus, onResendEmail, onViewFullProfile }: ClientDetailPanelProps) {
   const [isResending, setIsResending] = useState(false)
   const [resendResult, setResendResult] = useState<'success' | 'error' | null>(null)
+  const [isGeneratingConcepts, setIsGeneratingConcepts] = useState(false)
+  const [conceptResult, setConceptResult] = useState<'success' | 'error' | null>(null)
 
   const handleResendEmail = async () => {
     setIsResending(true)
@@ -173,8 +176,23 @@ function ClientDetailPanel({ instance, stage, onClose, onUpdateStageStatus, onRe
     const success = await onResendEmail(instance.id)
     setResendResult(success ? 'success' : 'error')
     setIsResending(false)
-    // Clear result message after 3 seconds
     setTimeout(() => setResendResult(null), 3000)
+  }
+
+  const handleGenerateConcepts = async () => {
+    setIsGeneratingConcepts(true)
+    setConceptResult(null)
+    try {
+      const { fetchWithCsrf } = await import('@/lib/csrf')
+      const response = await fetchWithCsrf(`/api/v1/onboarding/instances/${instance.id}/generate-concepts`, {
+        method: 'POST',
+      })
+      setConceptResult(response.ok ? 'success' : 'error')
+    } catch {
+      setConceptResult('error')
+    }
+    setIsGeneratingConcepts(false)
+    setTimeout(() => setConceptResult(null), 5000)
   }
 
   const clientName = instance.client?.name || "Unknown Client"
@@ -348,6 +366,35 @@ function ClientDetailPanel({ instance, stage, onClose, onUpdateStageStatus, onRe
                 : resendResult === 'error'
                   ? "Failed - Try Again"
                   : "Resend Onboarding Email"}
+          </button>
+
+          <button
+            onClick={handleGenerateConcepts}
+            disabled={isGeneratingConcepts}
+            className={cn(
+              "w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors",
+              conceptResult === 'success'
+                ? "text-emerald-600 bg-emerald-500/10"
+                : conceptResult === 'error'
+                  ? "text-red-600 bg-red-500/10"
+                  : "text-foreground bg-secondary/50 hover:bg-secondary/80",
+              isGeneratingConcepts && "opacity-60 cursor-not-allowed"
+            )}
+          >
+            {isGeneratingConcepts ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : conceptResult === 'success' ? (
+              <CheckCircle2 className="w-4 h-4" />
+            ) : (
+              <Sparkles className="w-4 h-4" />
+            )}
+            {isGeneratingConcepts
+              ? "Generating Concepts..."
+              : conceptResult === 'success'
+                ? "3 Concepts Generated + Ticket Created"
+                : conceptResult === 'error'
+                  ? "Failed - Try Again"
+                  : "Generate Creative Concepts"}
           </button>
         </div>
       </div>

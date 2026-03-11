@@ -302,6 +302,8 @@ export class WorkflowEngine {
         return this.executeCreateAlert(action, context)
       case 'create_slack_channel':
         return this.executeCreateSlackChannel(action, context)
+      case 'run_prompt':
+        return this.executeRunPrompt(action, context)
       default:
         throw new Error(`Unknown action type: ${(action as WorkflowAction).type}`)
     }
@@ -846,6 +848,152 @@ export class WorkflowEngine {
         alreadyExisted: result.status === 409,
       },
       executedAt: new Date().toISOString(),
+    }
+  }
+
+  private async executeRunPrompt(
+    action: WorkflowAction & { type: 'run_prompt' },
+    context: WorkflowExecutionContext
+  ): Promise<ActionResult> {
+    const { promptId, outputDestination, additionalContext, ticketConfig, notificationConfig } = action.config
+
+    // Fetch the prompt template from custom_prompt (no is_active filter — handle gracefully)
+    const { data: promptRecord, error: promptError } = await (this.supabase as unknown as import('@supabase/supabase-js').SupabaseClient)
+      .from('custom_prompt')
+      .select('name, prompt_template, is_active')
+      .eq('id', promptId)
+      .single()
+
+    if (promptError || !promptRecord) {
+      throw new Error(`Prompt template not found: ${promptId}`)
+    }
+
+    if (!promptRecord.is_active) {
+      console.warn('[WorkflowEngine] Running inactive prompt:', promptId)
+    }
+
+    // Substitute variables in the template
+    const processedTemplate = substituteVariables(promptRecord.prompt_template, {
+      client: context.clientSnapshot,
+      trigger: context.triggerData,
+    })
+
+    // Generate AI content via Gemini
+    let aiOutput: string
+    try {
+      aiOutput = await this.generateGeminiDraft(
+        processedTemplate,
+        'professional',
+        additionalContext,
+        context
+      )
+    } catch (err) {
+      console.warn('[WorkflowEngine] Gemini draft failed for run_prompt, using template fallback:', err instanceof Error ? err.message : String(err))
+      aiOutput = processedTemplate
+    }
+
+    // Route output based on destination
+    switch (outputDestination) {
+      case 'client_notes': {
+        if (!context.clientSnapshot) {
+          throw new Error('Run prompt with client_notes destination requires a client context')
+        }
+        const existingNotes = context.clientSnapshot.notes || ''
+        const updatedNotes = existingNotes
+          ? `${existingNotes}\n\n[${new Date().toISOString()}] [AI - ${promptRecord.name}]\n${aiOutput}`
+          : `[AI - ${promptRecord.name}]\n${aiOutput}`
+
+        const { error: updateError } = await this.supabase
+          .from('client')
+          .update({ notes: updatedNotes })
+          .eq('id', context.clientSnapshot.id)
+          .eq('agency_id', context.agencyId)
+
+        if (updateError) {
+          throw new Error(`Failed to update client notes: ${updateError.message}`)
+        }
+
+        return {
+          actionId: action.id,
+          actionType: 'run_prompt',
+          status: 'completed',
+          result: { destination: 'client_notes', promptName: promptRecord.name, outputPreview: aiOutput.slice(0, 500) },
+          executedAt: new Date().toISOString(),
+        }
+      }
+
+      case 'create_ticket': {
+        if (!context.clientSnapshot) {
+          throw new Error('Run prompt with create_ticket destination requires a client context')
+        }
+        const category = ticketConfig?.category || 'general'
+        const priority = ticketConfig?.priority || 'medium'
+
+        const { data: ticket, error: ticketError } = await (this.supabase as unknown as import('@supabase/supabase-js').SupabaseClient)
+          .from('ticket')
+          .insert({
+            agency_id: context.agencyId,
+            client_id: context.clientSnapshot.id,
+            title: `AI Analysis: ${promptRecord.name} — ${context.clientSnapshot.name}`,
+            description: aiOutput,
+            category,
+            priority,
+            created_by: context.userId,
+          })
+          .select('id, number')
+          .single()
+
+        if (ticketError) {
+          throw new Error(`Failed to create ticket: ${ticketError.message}`)
+        }
+
+        return {
+          actionId: action.id,
+          actionType: 'run_prompt',
+          status: 'completed',
+          result: { destination: 'create_ticket', promptName: promptRecord.name, ticketId: ticket.id, ticketNumber: ticket.number },
+          executedAt: new Date().toISOString(),
+        }
+      }
+
+      case 'notification': {
+        const channel = notificationConfig?.channel || 'slack'
+        const recipients = notificationConfig?.recipients || []
+
+        if (recipients.length === 0) {
+          return {
+            actionId: action.id,
+            actionType: 'run_prompt',
+            status: 'skipped',
+            result: { destination: 'notification', reason: 'No recipients configured' },
+            executedAt: new Date().toISOString(),
+          }
+        }
+
+        // Reuse existing notification infrastructure
+        const notificationAction = {
+          ...action,
+          type: 'send_notification' as const,
+          config: { channel, message: `[${promptRecord.name}]\n${aiOutput}`, recipients },
+        }
+        return this.executeSendNotification(notificationAction, context)
+      }
+
+      case 'draft':
+      default:
+        return {
+          actionId: action.id,
+          actionType: 'run_prompt',
+          status: 'completed',
+          result: {
+            destination: 'draft',
+            promptName: promptRecord.name,
+            draft: aiOutput,
+            preview: aiOutput.slice(0, 500),
+            aiGenerated: aiOutput !== processedTemplate,
+          },
+          executedAt: new Date().toISOString(),
+        }
     }
   }
 

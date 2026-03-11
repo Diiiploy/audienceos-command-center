@@ -233,6 +233,49 @@ export const SEED_TEMPLATES: Record<string, WorkflowTemplate> = {
     ],
   },
 
+  'ai-client-analysis': {
+    name: 'AI Client Analysis',
+    description:
+      'Uses a custom prompt to generate an AI analysis of the client and creates a ticket with the findings.',
+    triggers: [
+      {
+        id: 'trigger-analysis-1',
+        type: 'stage_change',
+        name: 'Client Moved to Audit',
+        config: { toStage: 'Audit' },
+      },
+    ],
+    actions: [
+      {
+        id: 'action-analysis-1',
+        type: 'run_prompt',
+        name: 'Run Client Analysis Prompt',
+        config: {
+          promptId: '', // User must select their own prompt template
+          promptName: 'Client Analysis',
+          outputDestination: 'create_ticket' as const,
+          ticketConfig: {
+            category: 'campaign' as const,
+            priority: 'medium' as const,
+          },
+          additionalContext: 'Focus on identifying quick wins and immediate opportunities for this client.',
+        },
+        requiresApproval: true,
+      },
+      {
+        id: 'action-analysis-2',
+        type: 'send_notification',
+        name: 'Notify Team of Analysis',
+        config: {
+          channel: 'slack' as const,
+          message:
+            '🔍 AI analysis complete for {{client.name}}. A ticket has been created with findings and recommendations.',
+          recipients: [] as string[],
+        },
+      },
+    ],
+  },
+
   'weekly-report': {
     name: 'Weekly Report Generator',
     description:

@@ -303,6 +303,39 @@ export const ACTION_TYPES: Record<ActionType, ActionTypeMetadata> = {
       required: ['channelName'],
     },
   },
+
+  run_prompt: {
+    type: 'run_prompt',
+    name: 'Run AI Prompt',
+    description: 'Execute a custom prompt template with AI and route the output',
+    icon: 'Sparkles',
+    category: 'communication',
+    supportsApproval: true,
+    configSchema: {
+      type: 'object',
+      properties: {
+        promptId: {
+          type: 'string',
+          title: 'Prompt Template',
+          description: 'Select a custom prompt to execute',
+          required: true,
+        },
+        outputDestination: {
+          type: 'string',
+          title: 'Output Destination',
+          description: 'Where to route the AI output',
+          enum: ['client_notes', 'create_ticket', 'notification', 'draft'],
+          required: true,
+        },
+        additionalContext: {
+          type: 'string',
+          title: 'Additional Context',
+          description: 'Extra instructions appended to the prompt',
+        },
+      },
+      required: ['promptId', 'outputDestination'],
+    },
+  },
 }
 
 // ============================================================================
@@ -393,6 +426,14 @@ export function validateActionConfig(action: WorkflowAction): { valid: boolean; 
     case 'create_slack_channel':
       if (!action.config.channelName) {
         errors.push('Create Slack channel action requires a channel name pattern')
+      }
+      break
+    case 'run_prompt':
+      if (!action.config.promptId) {
+        errors.push('Run prompt action requires a prompt template')
+      }
+      if (!action.config.outputDestination) {
+        errors.push('Run prompt action requires an output destination')
       }
       break
   }
