@@ -70,11 +70,12 @@ export const GET = withPermission({ resource: 'users', action: 'manage' })(
       }
 
       // Flatten role info from nested role_info into each user object
+      // Prefer role table name (the RBAC source of truth) over legacy DB enum
       const usersWithHierarchy = (users || []).map((user: any) => {
         const { role_info, ...rest } = user
         return {
           ...rest,
-          role: rest.role ?? role_info?.name ?? 'member',
+          role: role_info?.name?.toLowerCase() ?? rest.role ?? 'member',
           hierarchy_level: role_info?.hierarchy_level ?? null,
         }
       })

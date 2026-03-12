@@ -1,12 +1,12 @@
 /**
  * Individual User Management API
  * PATCH /api/v1/settings/users/[id] - Update user profile, role, or status
- * DELETE /api/v1/settings/users/[id] - Deactivate or delete user
+ * DELETE /api/v1/settings/users/[id] - Remove user (soft-delete: deactivate + anonymize PII)
  */
 
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { createRouteHandlerClient } from '@/lib/supabase'
+import { createRouteHandlerClient, createServiceRoleClient } from '@/lib/supabase'
 import { withRateLimit, withCsrfProtection, createErrorResponse } from '@/lib/security'
 import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission'
 
@@ -94,15 +94,28 @@ export const PATCH = withPermission({ resource: 'users', action: 'manage' })(
         updates.nickname = nickname === null ? null : (nickname as string).trim() || null
       }
 
-      // Handle role change
+      // Handle role change — uses role table (RBAC) as source of truth
       if (role !== undefined) {
         if (typeof role !== 'string' || !['owner', 'admin', 'manager', 'member'].includes(role)) {
           return createErrorResponse(400, 'Role must be "owner", "admin", "manager", or "member"')
         }
 
-        // Prevent removing the last admin
-        if (targetUser.role === 'admin' && role !== 'admin') {
-          // Check if this is the last admin
+        // Look up the target role in the role table (names are Capitalized)
+        const roleName = role.charAt(0).toUpperCase() + role.slice(1)
+        const { data: roleRecord, error: roleError } = await supabase
+          .from('role')
+          .select('id, hierarchy_level')
+          .eq('agency_id', agencyId)
+          .eq('name', roleName)
+          .single()
+
+        if (roleError || !roleRecord) {
+          console.error('[PATCH /settings/users] Role lookup failed:', roleName, roleError?.message)
+          return createErrorResponse(400, `Role "${role}" not found in this workspace`)
+        }
+
+        // Prevent removing the last admin (check role table hierarchy_level <= 2)
+        if (targetUser.role === 'admin' && role !== 'admin' && role !== 'owner') {
           const { count } = await supabase
             .from('user')
             .select('id', { count: 'exact' })
@@ -114,7 +127,9 @@ export const PATCH = withPermission({ resource: 'users', action: 'manage' })(
           }
         }
 
-        updates.role = role
+        // Update role_id (RBAC FK) and map legacy enum column
+        updates.role_id = roleRecord.id
+        updates.role = (role === 'admin' || role === 'owner') ? 'admin' : 'user'
       }
 
       // Handle activation status change
@@ -129,8 +144,13 @@ export const PATCH = withPermission({ resource: 'users', action: 'manage' })(
         return createErrorResponse(400, 'No fields to update')
       }
 
-      // Update user
-      const { data: updated, error } = await supabase
+      // Use service role client for mutation — RLS blocks cross-user updates
+      const serviceClient = createServiceRoleClient()
+      if (!serviceClient) {
+        return createErrorResponse(500, 'Service configuration error')
+      }
+
+      const { data: updated, error } = await serviceClient
         .from('user')
         .update({
           ...updates,
@@ -142,11 +162,13 @@ export const PATCH = withPermission({ resource: 'users', action: 'manage' })(
         .single()
 
       if (error) {
+        console.error('[PATCH /settings/users] Update failed:', error.message)
         return createErrorResponse(500, 'Failed to update user')
       }
 
       return NextResponse.json({ data: updated })
-    } catch {
+    } catch (err) {
+      console.error('[PATCH /settings/users] Unhandled error:', err)
       return createErrorResponse(500, 'Internal server error')
     }
   }
@@ -158,7 +180,7 @@ export const PATCH = withPermission({ resource: 'users', action: 'manage' })(
 
 export const DELETE = withPermission({ resource: 'users', action: 'manage' })(
   async (request: AuthenticatedRequest, { params }: RouteParams) => {
-    // Rate limit: 10 deletes per minute
+    // Rate limit: 10 removals per minute
     const rateLimitResponse = withRateLimit(request, { maxRequests: 10, windowMs: 60000 })
     if (rateLimitResponse) return rateLimitResponse
 
@@ -198,6 +220,11 @@ export const DELETE = withPermission({ resource: 'users', action: 'manage' })(
         return createErrorResponse(404, 'User not found')
       }
 
+      // Cannot delete owners
+      if (targetUser.role === 'owner') {
+        return createErrorResponse(403, 'Cannot delete workspace owners')
+      }
+
       // Check if this is the last admin
       if (targetUser.role === 'admin') {
         const { count } = await supabase
@@ -209,6 +236,12 @@ export const DELETE = withPermission({ resource: 'users', action: 'manage' })(
         if (count === 1) {
           return createErrorResponse(400, 'Cannot delete the last admin from the agency')
         }
+      }
+
+      // Use service role client for mutations — RLS blocks cross-user operations
+      const serviceClient = createServiceRoleClient()
+      if (!serviceClient) {
+        return createErrorResponse(500, 'Service configuration error')
       }
 
       // Check for client assignments
@@ -255,30 +288,48 @@ export const DELETE = withPermission({ resource: 'users', action: 'manage' })(
           return createErrorResponse(400, 'Invalid reassignment target user')
         }
 
-        // Reassign all clients
-        const { error: reassignError } = await supabase
+        // Reassign all clients (service role to bypass RLS)
+        const { error: reassignError } = await serviceClient
           .from('client_assignment')
           .update({ user_id: reassign_to })
           .eq('user_id', userId)
 
         if (reassignError) {
+          console.error('[DELETE /settings/users] Reassign failed:', reassignError.message)
           return createErrorResponse(500, 'Failed to reassign clients')
         }
       }
 
-      // Delete user
-      const { error } = await supabase
+      // Nullify ticket assignments so removed user's tickets go back to unassigned
+      await serviceClient
+        .from('ticket')
+        .update({ assignee_id: null })
+        .eq('assignee_id', userId)
+
+      // Soft-delete: deactivate + anonymize PII instead of hard delete
+      // Hard delete is impossible without a migration — 13+ FK constraints
+      // reference user(id) without ON DELETE CASCADE, many are NOT NULL
+      const { error } = await serviceClient
         .from('user')
-        .delete()
+        .update({
+          is_active: false,
+          first_name: 'Removed',
+          last_name: 'User',
+          nickname: null,
+          avatar_url: null,
+          updated_at: new Date().toISOString(),
+        })
         .eq('id', userId)
         .eq('agency_id', agencyId)
 
       if (error) {
-        return createErrorResponse(500, 'Failed to delete user')
+        console.error('[DELETE /settings/users] Deactivate failed:', error.message)
+        return createErrorResponse(500, 'Failed to remove user')
       }
 
-      return NextResponse.json({ message: 'User deleted successfully' })
-    } catch {
+      return NextResponse.json({ message: 'User removed successfully' })
+    } catch (err) {
+      console.error('[DELETE /settings/users] Unhandled error:', err)
       return createErrorResponse(500, 'Internal server error')
     }
   }
