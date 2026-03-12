@@ -43,6 +43,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  closestCenter,
 } from "@dnd-kit/core"
 import {
   ClipboardList,
@@ -148,6 +149,16 @@ function getOnboardingStageForInstance(instance: OnboardingInstanceWithRelations
 
   // Default to intake if pending
   return "intake"
+}
+
+// Map onboarding stage ID back to journey stage index
+const ONBOARDING_STAGE_INDEX: Record<OnboardingStageId, number | null> = {
+  intake: 0,
+  access: 1,
+  installation: 2,
+  audit: 3,
+  live: null,          // Computed state — not a droppable target
+  needs_support: null, // Computed state — not a droppable target
 }
 
 // =============================================================================
@@ -498,9 +509,12 @@ interface StageRowProps {
 }
 
 function StageRow({ stage, instances, isExpanded, isCompact, selectedInstanceId, checkUnseen, onToggle, onInstanceSelect }: StageRowProps) {
+  const isDroppable = stage.id !== 'live' && stage.id !== 'needs_support'
+
   const { setNodeRef, isOver } = useDroppable({
     id: stage.id,
     data: { stage },
+    disabled: !isDroppable,
   })
 
   if (isCompact) {
@@ -685,12 +699,20 @@ export function ActiveOnboardings({ onClientClick }: ActiveOnboardingsProps) {
       return
     }
 
-    const instance = active.data.current?.instance
-    const targetStage = over.data.current?.stage
+    const instance = active.data.current?.instance as OnboardingInstanceWithRelations | undefined
+    const targetStage = over.data.current?.stage as OnboardingStageConfig | undefined
 
     if (instance && targetStage) {
-      // Move instance to new stage via store API call
-      updateStageStatus(instance.id, targetStage.id, 'in_progress')
+      // Resolve the onboarding stage ID to the actual journey stage UUID
+      const targetIndex = ONBOARDING_STAGE_INDEX[targetStage.id]
+      if (targetIndex === null) return // Can't drag to computed states
+
+      const journeyStages = (instance.journey?.stages as Stage[] | undefined) || []
+      const journeyStage = journeyStages[targetIndex]
+
+      if (journeyStage?.id) {
+        updateStageStatus(instance.id, journeyStage.id, 'in_progress')
+      }
     }
   }
 
@@ -766,6 +788,7 @@ export function ActiveOnboardings({ onClientClick }: ActiveOnboardingsProps) {
   return (
     <DndContext
       sensors={sensors}
+      collisionDetection={closestCenter}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
