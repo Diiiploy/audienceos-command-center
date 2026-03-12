@@ -83,7 +83,10 @@ interface OnboardingState {
   // Form fields
   fields: IntakeFormField[]
   isLoadingFields: boolean
-  isSavingField: boolean
+  savingFieldIds: Record<string, boolean>
+  isReordering: boolean
+  fieldSaveVersions: Record<string, number>
+  lastSaveAt: number | null
 
   // Onboarding instances (active onboardings)
   instances: OnboardingInstanceWithRelations[]
@@ -155,7 +158,10 @@ export const useOnboardingStore = create<OnboardingState>()(
 
       fields: [],
       isLoadingFields: false,
-      isSavingField: false,
+      savingFieldIds: {},
+      isReordering: false,
+      fieldSaveVersions: {},
+      lastSaveAt: null,
 
       instances: [],
       selectedInstanceId: null,
@@ -305,7 +311,7 @@ export const useOnboardingStore = create<OnboardingState>()(
 
         set({
           fields: [...get().fields, tempField],
-          isSavingField: true
+          savingFieldIds: { ...get().savingFieldIds, [tempId]: true },
         })
 
         try {
@@ -320,41 +326,74 @@ export const useOnboardingStore = create<OnboardingState>()(
           const { data: newField } = await response.json()
 
           // Replace temp field with real field from server
+          const { [tempId]: _, ...restSaving } = get().savingFieldIds
           set({
             fields: get().fields.map(f => f.id === tempId ? newField : f),
-            isSavingField: false
+            savingFieldIds: restSaving,
+            lastSaveAt: Date.now(),
           })
         } catch (error) {
           console.error('Failed to create field:', error)
           // Remove temp field on error
+          const { [tempId]: _, ...restSaving } = get().savingFieldIds
           set({
             fields: get().fields.filter(f => f.id !== tempId),
-            isSavingField: false
+            savingFieldIds: restSaving,
           })
         }
       },
 
       updateField: async (id, data) => {
-        set({ isSavingField: true })
+        // Version guard — prevents stale PATCH responses from overwriting newer optimistic state
+        const saveVersion = (get().fieldSaveVersions[id] ?? 0) + 1
+        const previousFields = get().fields
+
+        // 1. Optimistic update — merge immediately + bump version
+        set({
+          fields: previousFields.map(f => f.id === id ? { ...f, ...data } : f),
+          savingFieldIds: { ...get().savingFieldIds, [id]: true },
+          fieldSaveVersions: { ...get().fieldSaveVersions, [id]: saveVersion },
+        })
+
         try {
           const response = await fetchWithCsrf(`/api/v1/onboarding/fields/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
           })
-
           if (!response.ok) throw new Error('Failed to update field')
 
-          await get().fetchFields()
-          set({ isSavingField: false })
+          const { data: serverField } = await response.json()
+
+          // 2. Only apply server state if no newer optimistic write happened
+          if (get().fieldSaveVersions[id] === saveVersion) {
+            set({
+              fields: get().fields.map(f => f.id === id ? serverField : f),
+              lastSaveAt: Date.now(),
+            })
+          }
+          // If version advanced, a newer optimistic write is already in the store — skip
         } catch (error) {
           console.error('Failed to update field:', error)
-          set({ isSavingField: false })
+          // 3. Rollback only if no newer write superseded us
+          if (get().fieldSaveVersions[id] === saveVersion) {
+            set({ fields: previousFields })
+          }
+        } finally {
+          const { [id]: _, ...rest } = get().savingFieldIds
+          set({ savingFieldIds: rest })
         }
       },
 
       deleteField: async (id) => {
-        set({ isSavingField: true })
+        const previousFields = get().fields
+
+        // Optimistic — remove from array immediately
+        set({
+          fields: previousFields.filter(f => f.id !== id),
+          savingFieldIds: { ...get().savingFieldIds, [id]: true },
+        })
+
         try {
           const response = await fetchWithCsrf(`/api/v1/onboarding/fields/${id}`, {
             method: 'DELETE',
@@ -362,11 +401,14 @@ export const useOnboardingStore = create<OnboardingState>()(
 
           if (!response.ok) throw new Error('Failed to delete field')
 
-          await get().fetchFields()
-          set({ isSavingField: false })
+          set({ lastSaveAt: Date.now() })
         } catch (error) {
           console.error('Failed to delete field:', error)
-          set({ isSavingField: false })
+          // Rollback — restore the deleted field
+          set({ fields: previousFields })
+        } finally {
+          const { [id]: _, ...rest } = get().savingFieldIds
+          set({ savingFieldIds: rest })
         }
       },
 
@@ -378,7 +420,7 @@ export const useOnboardingStore = create<OnboardingState>()(
           return update ? { ...field, sort_order: update.sort_order } : field
         })
 
-        set({ fields: updatedFields, isSavingField: true })
+        set({ fields: updatedFields, isReordering: true })
 
         try {
           // Batch update all sort orders
@@ -391,11 +433,11 @@ export const useOnboardingStore = create<OnboardingState>()(
               })
             )
           )
-          set({ isSavingField: false })
+          set({ isReordering: false, lastSaveAt: Date.now() })
         } catch (error) {
           console.error('Failed to reorder fields:', error)
           // Revert on error
-          set({ fields: currentFields, isSavingField: false })
+          set({ fields: currentFields, isReordering: false })
         }
       },
 
