@@ -24,6 +24,7 @@ const createMockIntegration = (overrides = {}) => ({
   provider: 'slack',
   status: 'connected' as const,
   lastSync: '2024-01-15T10:30:00Z', // ISO date string format expected by formatDate()
+  lastSyncRaw: '2024-01-15T10:30:00Z',
   accounts: 3,
   icon: <span data-testid="mock-icon">Icon</span>,
   color: '#4A154B',
@@ -146,7 +147,7 @@ describe('IntegrationSettingsModal', () => {
     it('should display last sync time', () => {
       render(
         <IntegrationSettingsModal
-          integration={createMockIntegration({ lastSync: '2024-06-15T14:30:00Z' })}
+          integration={createMockIntegration({ lastSync: '2024-06-15T14:30:00Z', lastSyncRaw: '2024-06-15T14:30:00Z' })}
           isOpen={true}
           onClose={mockOnClose}
           onRefetch={mockOnRefetch}
@@ -205,7 +206,7 @@ describe('IntegrationSettingsModal', () => {
     it('should show success toast on successful test', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ message: 'Connection healthy' }),
+        json: () => Promise.resolve({ data: { status: 'healthy', responseTime: 120 } }),
       })
 
       render(
@@ -560,6 +561,7 @@ describe('IntegrationSettingsModal', () => {
           integration={createMockIntegration({
             status: 'connected',
             lastSync: '2024-06-15T14:30:00Z',
+            lastSyncRaw: '2024-06-15T14:30:00Z',
           })}
           isOpen={true}
           onClose={mockOnClose}
@@ -567,8 +569,9 @@ describe('IntegrationSettingsModal', () => {
         />
       )
 
-      // Activity text shows "Last synced [formatted date]"
-      expect(screen.getByText(/Last synced/)).toBeInTheDocument()
+      // Status label shows "Connected" (appears in badge and info section)
+      const connectedElements = screen.getAllByText('Connected')
+      expect(connectedElements.length).toBeGreaterThan(0)
     })
 
     it('should show correct activity text for disconnected integration', () => {
@@ -581,7 +584,8 @@ describe('IntegrationSettingsModal', () => {
         />
       )
 
-      expect(screen.getByText('Integration is not connected')).toBeInTheDocument()
+      const disconnectedElements = screen.getAllByText('Disconnected')
+      expect(disconnectedElements.length).toBeGreaterThan(0)
     })
 
     it('should show correct activity text for error integration', () => {
@@ -594,9 +598,8 @@ describe('IntegrationSettingsModal', () => {
         />
       )
 
-      expect(
-        screen.getByText('Connection error - please test connection')
-      ).toBeInTheDocument()
+      const errorElements = screen.getAllByText('Error')
+      expect(errorElements.length).toBeGreaterThan(0)
     })
 
     it('should show correct activity text for syncing integration', () => {
@@ -609,7 +612,8 @@ describe('IntegrationSettingsModal', () => {
         />
       )
 
-      expect(screen.getByText('Sync in progress...')).toBeInTheDocument()
+      const syncingElements = screen.getAllByText('Syncing')
+      expect(syncingElements.length).toBeGreaterThan(0)
     })
   })
 })

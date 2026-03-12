@@ -17,8 +17,8 @@ vi.mock('@/stores/onboarding-store', () => ({
 // Mock Framer Motion to avoid animation timing issues in tests
 vi.mock('motion/react', () => ({
   motion: {
-    div: ({ children, ...props }: React.PropsWithChildren<Record<string, unknown>>) => (
-      <div {...props}>{children}</div>
+    div: ({ children, initial, animate, exit, transition, layout, whileHover, whileTap, variants, style, className, ...domProps }: any) => (
+      <div style={style} className={className} {...domProps}>{children}</div>
     ),
   },
   AnimatePresence: ({ children }: React.PropsWithChildren) => <>{children}</>,
@@ -52,6 +52,19 @@ vi.mock('@/hooks/use-slide-transition', () => ({
 // Import after mocks
 import { ActiveOnboardings } from '@/components/onboarding/active-onboardings'
 
+// Base store mock with all required values from useOnboardingStore()
+const baseStoreMock = {
+  instances: [],
+  isLoadingInstances: false,
+  fetchInstances: vi.fn(),
+  selectedInstance: null,
+  setSelectedInstanceId: vi.fn(),
+  updateStageStatus: vi.fn(),
+  resendEmail: vi.fn(),
+  hasUnseenUpdates: vi.fn().mockReturnValue(false),
+  markInstanceViewed: vi.fn(),
+}
+
 describe('ActiveOnboardings Component', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -64,6 +77,7 @@ describe('ActiveOnboardings Component', () => {
   describe('loading state', () => {
     it('should show loading spinner when loading instances', () => {
       mockUseOnboardingStore.mockReturnValue({
+        ...baseStoreMock,
         instances: [],
         isLoadingInstances: true,
         fetchInstances: vi.fn(),
@@ -84,6 +98,7 @@ describe('ActiveOnboardings Component', () => {
   describe('empty state', () => {
     it('should show empty state when no instances', () => {
       mockUseOnboardingStore.mockReturnValue({
+        ...baseStoreMock,
         instances: [],
         isLoadingInstances: false,
         fetchInstances: vi.fn(),
@@ -135,6 +150,7 @@ describe('ActiveOnboardings Component', () => {
 
     it('should render all 6 onboarding stages', () => {
       mockUseOnboardingStore.mockReturnValue({
+        ...baseStoreMock,
         instances: mockInstances,
         isLoadingInstances: false,
         fetchInstances: vi.fn(),
@@ -153,6 +169,7 @@ describe('ActiveOnboardings Component', () => {
 
     it('should show header text', () => {
       mockUseOnboardingStore.mockReturnValue({
+        ...baseStoreMock,
         instances: mockInstances,
         isLoadingInstances: false,
         fetchInstances: vi.fn(),
@@ -197,6 +214,7 @@ describe('ActiveOnboardings Component', () => {
       ]
 
       mockUseOnboardingStore.mockReturnValue({
+        ...baseStoreMock,
         instances: mockInstances,
         isLoadingInstances: false,
         fetchInstances: vi.fn(),
@@ -230,6 +248,7 @@ describe('ActiveOnboardings Component', () => {
       ]
 
       mockUseOnboardingStore.mockReturnValue({
+        ...baseStoreMock,
         instances: mockInstances,
         isLoadingInstances: false,
         fetchInstances: vi.fn(),
@@ -250,6 +269,7 @@ describe('ActiveOnboardings Component', () => {
       const mockFetchInstances = vi.fn()
 
       mockUseOnboardingStore.mockReturnValue({
+        ...baseStoreMock,
         instances: [],
         isLoadingInstances: false,
         fetchInstances: mockFetchInstances,
@@ -296,6 +316,7 @@ describe('ActiveOnboardings Component', () => {
 
     it('should show client name in expanded stage', () => {
       mockUseOnboardingStore.mockReturnValue({
+        ...baseStoreMock,
         instances: mockInstances,
         isLoadingInstances: false,
         fetchInstances: vi.fn(),
@@ -309,6 +330,7 @@ describe('ActiveOnboardings Component', () => {
 
     it('should allow stage expansion toggle', () => {
       mockUseOnboardingStore.mockReturnValue({
+        ...baseStoreMock,
         instances: mockInstances,
         isLoadingInstances: false,
         fetchInstances: vi.fn(),
@@ -367,6 +389,7 @@ describe('ActiveOnboardings Component', () => {
       }
 
       mockUseOnboardingStore.mockReturnValue({
+        ...baseStoreMock,
         instances: [completedInstance],
         isLoadingInstances: false,
         fetchInstances: vi.fn(),
@@ -405,6 +428,7 @@ describe('ActiveOnboardings Component', () => {
       }
 
       mockUseOnboardingStore.mockReturnValue({
+        ...baseStoreMock,
         instances: [blockedInstance],
         isLoadingInstances: false,
         fetchInstances: vi.fn(),
@@ -456,6 +480,7 @@ describe('ActiveOnboardings Component', () => {
 
     it('should render DndContext wrapper', () => {
       mockUseOnboardingStore.mockReturnValue({
+        ...baseStoreMock,
         instances: mockInstances,
         isLoadingInstances: false,
         fetchInstances: vi.fn(),
@@ -468,6 +493,7 @@ describe('ActiveOnboardings Component', () => {
 
     it('should render DragOverlay component', () => {
       mockUseOnboardingStore.mockReturnValue({
+        ...baseStoreMock,
         instances: mockInstances,
         isLoadingInstances: false,
         fetchInstances: vi.fn(),
@@ -480,6 +506,7 @@ describe('ActiveOnboardings Component', () => {
 
     it('should render draggable clients in expanded stages', () => {
       mockUseOnboardingStore.mockReturnValue({
+        ...baseStoreMock,
         instances: mockInstances,
         isLoadingInstances: false,
         fetchInstances: vi.fn(),
@@ -525,6 +552,7 @@ describe('ActiveOnboardings Component', () => {
       ]
 
       mockUseOnboardingStore.mockReturnValue({
+        ...baseStoreMock,
         instances: completedInstances,
         isLoadingInstances: false,
         fetchInstances: vi.fn(),
