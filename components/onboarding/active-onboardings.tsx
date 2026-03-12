@@ -151,14 +151,14 @@ function getOnboardingStageForInstance(instance: OnboardingInstanceWithRelations
   return "intake"
 }
 
-// Map onboarding stage ID back to journey stage index
+// Map onboarding stage ID to journey stage index (null = computed state, handled separately in handleDragEnd)
 const ONBOARDING_STAGE_INDEX: Record<OnboardingStageId, number | null> = {
   intake: 0,
   access: 1,
   installation: 2,
   audit: 3,
-  live: null,          // Computed state — not a droppable target
-  needs_support: null, // Computed state — not a droppable target
+  live: null,          // Computed: all stages completed
+  needs_support: null, // Computed: any stage blocked
 }
 
 // =============================================================================
@@ -509,12 +509,9 @@ interface StageRowProps {
 }
 
 function StageRow({ stage, instances, isExpanded, isCompact, selectedInstanceId, checkUnseen, onToggle, onInstanceSelect }: StageRowProps) {
-  const isDroppable = stage.id !== 'live' && stage.id !== 'needs_support'
-
   const { setNodeRef, isOver } = useDroppable({
     id: stage.id,
     data: { stage },
-    disabled: !isDroppable,
   })
 
   if (isCompact) {
@@ -702,18 +699,47 @@ export function ActiveOnboardings({ onClientClick }: ActiveOnboardingsProps) {
     const instance = active.data.current?.instance as OnboardingInstanceWithRelations | undefined
     const targetStage = over.data.current?.stage as OnboardingStageConfig | undefined
 
-    if (instance && targetStage) {
-      // Resolve the onboarding stage ID to the actual journey stage UUID
-      const targetIndex = ONBOARDING_STAGE_INDEX[targetStage.id]
-      if (targetIndex === null) return // Can't drag to computed states
+    if (!instance || !targetStage) return
 
-      const journeyStages = (instance.journey?.stages as Stage[] | undefined) || []
-      const journeyStage = journeyStages[targetIndex]
+    const journeyStages = (instance.journey?.stages as Stage[] | undefined) || []
 
-      if (journeyStage?.id) {
-        updateStageStatus(instance.id, journeyStage.id, 'in_progress')
+    // --- Live Support: complete all remaining stages ---
+    if (targetStage.id === 'live') {
+      for (const stage of journeyStages) {
+        const stageStatus = instance.stage_statuses?.find(s => s.stage_id === stage.id)
+        if (stageStatus?.status !== 'completed') {
+          updateStageStatus(instance.id, stage.id, 'completed')
+        }
       }
+      return
     }
+
+    // --- Needs Support: block the current active stage ---
+    if (targetStage.id === 'needs_support') {
+      const activeStage = instance.stage_statuses?.find(s => s.status === 'in_progress')
+        || instance.stage_statuses?.find(s => s.status === 'pending')
+      if (activeStage) {
+        updateStageStatus(instance.id, activeStage.stage_id, 'blocked')
+      } else if (journeyStages[0]) {
+        updateStageStatus(instance.id, journeyStages[0].id, 'blocked')
+      }
+      return
+    }
+
+    // --- Normal stage: resolve UUID from index ---
+    const targetIndex = ONBOARDING_STAGE_INDEX[targetStage.id]
+    if (targetIndex === null || targetIndex === undefined) return
+
+    const journeyStage = journeyStages[targetIndex]
+    if (!journeyStage?.id) return
+
+    // Clear any blocked stages first so instance leaves needs_support
+    const blockedStatuses = instance.stage_statuses?.filter(s => s.status === 'blocked') || []
+    for (const blocked of blockedStatuses) {
+      updateStageStatus(instance.id, blocked.stage_id, 'pending')
+    }
+
+    updateStageStatus(instance.id, journeyStage.id, 'in_progress')
   }
 
   const slideTransition = useSlideTransition()
