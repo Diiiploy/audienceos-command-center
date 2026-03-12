@@ -25,9 +25,6 @@ import {
   Download,
   ChevronDown,
   ChevronLeft,
-  Calendar,
-  Github,
-  Slack,
   Loader2,
   AlertCircle,
   Users,
@@ -233,69 +230,6 @@ function MemberProfile({ member, onBack, onUpdate }: MemberProfileProps) {
         </div>
       </div>
 
-      {/* Connected Integrations */}
-      <div className="border border-border rounded-lg">
-        <div className="p-4 border-b border-border">
-          <p className="text-sm text-muted-foreground">Personal integrations</p>
-        </div>
-
-        <div className="divide-y divide-border">
-          {/* Google Calendar */}
-          <div className="p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-md bg-secondary">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">Google Calendar</p>
-                <p className="text-sm text-muted-foreground">
-                  Display out of office status
-                </p>
-              </div>
-            </div>
-            <Button variant="ghost" className="text-primary">
-              Connect →
-            </Button>
-          </div>
-
-          {/* Slack */}
-          <div className="p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-md bg-secondary">
-                <Slack className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">Slack</p>
-                <p className="text-sm text-muted-foreground">
-                  Receive notifications in Slack
-                </p>
-              </div>
-            </div>
-            <Button variant="ghost" className="text-primary">
-              Connect →
-            </Button>
-          </div>
-
-          {/* GitHub */}
-          <div className="p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-md bg-secondary">
-                <Github className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">GitHub</p>
-                <p className="text-sm text-muted-foreground">
-                  Link activity with account
-                </p>
-              </div>
-            </div>
-            <Button variant="ghost" className="text-primary">
-              Connect →
-            </Button>
-          </div>
-        </div>
-      </div>
-
       {/* Save Button */}
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={!hasChanges || isSaving}>
@@ -333,6 +267,14 @@ function canChangeRole(currentRole: string, targetRole: string, targetId: string
   return currentLevel <= targetLevel && currentLevel <= 3 // Members (4) can't change anyone
 }
 
+/** Check if currentUser can delete targetMember */
+function canDelete(currentRole: string, targetRole: string, targetId: string, currentId: string): boolean {
+  if (targetId === currentId) return false      // Can't delete self
+  if (targetRole === 'owner') return false       // Can't delete owners
+  const currentLevel = ROLE_HIERARCHY[currentRole] ?? 99
+  return currentLevel <= 2                        // Only owners (1) and admins (2) can delete
+}
+
 /** Get roles that currentUser is allowed to assign */
 function getAssignableRoles(currentRole: string): string[] {
   const currentLevel = ROLE_HIERARCHY[currentRole] ?? 99
@@ -346,25 +288,20 @@ function getAssignableRoles(currentRole: string): string[] {
 // ============================================================================
 
 interface ChangeRoleDialogProps {
-  member: TeamMember | null
+  member: TeamMember
   currentUserRole: string
   onClose: () => void
   onSuccess: (updated: TeamMember) => void
 }
 
 function ChangeRoleDialog({ member, currentUserRole, onClose, onSuccess }: ChangeRoleDialogProps) {
-  const [newRole, setNewRole] = useState("")
+  const [newRole, setNewRole] = useState<string>(member.role)
   const [isSaving, setIsSaving] = useState(false)
 
   const assignableRoles = getAssignableRoles(currentUserRole)
 
-  // Reset when member changes
-  useEffect(() => {
-    if (member) setNewRole(member.role)
-  }, [member])
-
   const handleSave = async () => {
-    if (!member || newRole === member.role) return
+    if (newRole === member.role) return
     setIsSaving(true)
     try {
       const response = await fetchWithCsrf(`/api/v1/settings/users/${member.id}`, {
@@ -387,12 +324,12 @@ function ChangeRoleDialog({ member, currentUserRole, onClose, onSuccess }: Chang
   }
 
   return (
-    <AlertDialog open={!!member} onOpenChange={() => onClose()}>
+    <AlertDialog open onOpenChange={() => onClose()}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Change role</AlertDialogTitle>
           <AlertDialogDescription>
-            Select a new role for {member?.first_name} {member?.last_name}.
+            Select a new role for {member.first_name} {member.last_name}.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div className="py-4">
@@ -413,7 +350,7 @@ function ChangeRoleDialog({ member, currentUserRole, onClose, onSuccess }: Chang
           <AlertDialogCancel disabled={isSaving}>Cancel</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleSave}
-            disabled={isSaving || newRole === member?.role}
+            disabled={isSaving || newRole === member.role}
           >
             {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Update Role
@@ -454,7 +391,7 @@ export function TeamMembersSection() {
     try {
       setIsLoading(true)
       setError(null)
-      const response = await fetch('/api/v1/settings/users', {
+      const response = await fetch('/api/v1/settings/users?is_active=true', {
         credentials: 'include',
       })
       if (!response.ok) {
@@ -485,7 +422,7 @@ export function TeamMembersSection() {
 
     setIsRemoving(true)
     try {
-      const response = await fetch(`/api/v1/settings/users/${memberToRemove.id}`, {
+      const response = await fetchWithCsrf(`/api/v1/settings/users/${memberToRemove.id}`, {
         method: 'DELETE',
       })
 
@@ -638,7 +575,7 @@ export function TeamMembersSection() {
             className="pl-9 bg-background"
           />
         </div>
-        <DropdownMenu>
+        <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="gap-2 min-w-[100px]">
               {roleFilter === "all" ? "All" : roleFilter.charAt(0).toUpperCase() + roleFilter.slice(1)}
@@ -694,7 +631,7 @@ export function TeamMembersSection() {
               >
                 {member.role}
               </Badge>
-              <DropdownMenu>
+              <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
@@ -732,16 +669,20 @@ export function TeamMembersSection() {
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem>View activity</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="text-destructive"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setMemberToRemove(member)
-                    }}
-                  >
-                    Remove from workspace
-                  </DropdownMenuItem>
+                  {canDelete(currentUserRole, member.role, member.id, profile?.id ?? "") && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setMemberToRemove(member)
+                        }}
+                      >
+                        Remove from workspace
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -784,36 +725,40 @@ export function TeamMembersSection() {
       />
 
       {/* Change Role Dialog */}
-      <ChangeRoleDialog
-        member={memberToChangeRole}
-        currentUserRole={currentUserRole}
-        onClose={() => setMemberToChangeRole(null)}
-        onSuccess={handleMemberUpdate}
-      />
+      {memberToChangeRole && (
+        <ChangeRoleDialog
+          member={memberToChangeRole}
+          currentUserRole={currentUserRole}
+          onClose={() => setMemberToChangeRole(null)}
+          onSuccess={handleMemberUpdate}
+        />
+      )}
 
       {/* Remove Member Confirmation Dialog */}
-      <AlertDialog open={!!memberToRemove} onOpenChange={() => setMemberToRemove(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove team member?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to remove {memberToRemove?.first_name} {memberToRemove?.last_name} from the workspace?
-              This action will revoke their access immediately.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isRemoving}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleRemoveMember}
-              disabled={isRemoving}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isRemoving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Remove
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {memberToRemove && (
+        <AlertDialog open onOpenChange={() => setMemberToRemove(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove team member?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to remove {memberToRemove.first_name} {memberToRemove.last_name} from the workspace?
+                This action will revoke their access immediately.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isRemoving}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleRemoveMember}
+                disabled={isRemoving}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isRemoving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Remove
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   )
 }
