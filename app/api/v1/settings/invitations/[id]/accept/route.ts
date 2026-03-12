@@ -6,10 +6,10 @@ import { cookies } from 'next/headers'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ token: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { token } = await params
+    const { id: token } = await params
     const body = await request.json()
     const { first_name, last_name, password } = body
 
@@ -94,7 +94,15 @@ export async function POST(
       )
     }
 
-    // 3. Create user record in database (using service role to bypass RLS)
+    // 3. Look up the role UUID from the role table
+    const { data: roleData } = await (serviceSupabase
+      .from('role' as any)
+      .select('id')
+      .ilike('name', invitation.role)
+      .eq('is_system', true)
+      .single() as any)
+
+    // 4. Create user record in database (using service role to bypass RLS)
     const { data: newUser, error: userError } = await (serviceSupabase
       .from('user' as any)
       .insert({
@@ -104,6 +112,7 @@ export async function POST(
         last_name: last_name.trim(),
         agency_id: invitation.agency_id,
         role: invitation.role,
+        role_id: roleData?.id ?? null,
       })
       .select()
       .single() as any)
@@ -119,10 +128,13 @@ export async function POST(
       )
     }
 
-    // 4. Mark invitation as accepted (using service role to bypass RLS)
+    // 5. Mark invitation as accepted (using service role to bypass RLS)
     await (serviceSupabase
       .from('user_invitations' as any)
-      .update({ accepted_at: new Date().toISOString() })
+      .update({
+        accepted_at: new Date().toISOString(),
+        accepted_by: authData.user.id,
+      })
       .eq('token', token) as any)
 
     return NextResponse.json(
@@ -143,10 +155,10 @@ export async function POST(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ token: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { token } = await params
+    const { id: token } = await params
 
     if (!token) {
       return NextResponse.json(
