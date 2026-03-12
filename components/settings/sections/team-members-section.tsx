@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -19,15 +18,16 @@ import {
   UserPlus,
   Search,
   MoreHorizontal,
-  Link2,
-  Copy,
-  Check,
   Download,
   ChevronDown,
   ChevronLeft,
   Loader2,
   AlertCircle,
   Users,
+  Mail,
+  Clock,
+  RefreshCw,
+  X,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -369,8 +369,6 @@ export function TeamMembersSection() {
   const { profile } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
-  const [inviteLinkEnabled, setInviteLinkEnabled] = useState(false)
-  const [copied, setCopied] = useState(false)
   const [roleFilter, setRoleFilter] = useState<"all" | "owner" | "admin" | "manager" | "member">("all")
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null)
   const [memberToRemove, setMemberToRemove] = useState<TeamMember | null>(null)
@@ -382,6 +380,21 @@ export function TeamMembersSection() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Invitation state
+  interface PendingInvitation {
+    id: string
+    email: string
+    role: string
+    expires_at: string
+    created_at: string
+    accepted_at: string | null
+    is_expired: boolean
+    is_accepted: boolean
+  }
+  const [invitations, setInvitations] = useState<PendingInvitation[]>([])
+  const [isResending, setIsResending] = useState<string | null>(null)
+  const [isRevoking, setIsRevoking] = useState<string | null>(null)
 
   // Derive current user's role from team members list
   const currentUserRole = teamMembers.find(m => m.id === profile?.id)?.role ?? "member"
@@ -407,9 +420,64 @@ export function TeamMembersSection() {
     }
   }, [])
 
+  // Fetch pending invitations from API
+  const fetchInvitations = useCallback(async () => {
+    try {
+      const response = await fetch('/api/v1/settings/invitations', {
+        credentials: 'include',
+      })
+      if (!response.ok) return
+      const data = await response.json()
+      setInvitations(data.invitations || [])
+    } catch {
+      // Non-critical — don't block the page if invitations fail to load
+    }
+  }, [])
+
   useEffect(() => {
     fetchMembers()
-  }, [fetchMembers])
+    fetchInvitations()
+  }, [fetchMembers, fetchInvitations])
+
+  // Handle resend invitation
+  const handleResendInvitation = async (invitationId: string) => {
+    setIsResending(invitationId)
+    try {
+      const response = await fetchWithCsrf(`/api/v1/settings/invitations/${invitationId}/resend`, {
+        method: 'POST',
+      })
+      if (!response.ok) {
+        const err = await response.json()
+        throw new Error(err.error || 'Failed to resend invitation')
+      }
+      toast.success('Invitation resent successfully')
+      fetchInvitations()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to resend invitation')
+    } finally {
+      setIsResending(null)
+    }
+  }
+
+  // Handle revoke invitation
+  const handleRevokeInvitation = async (invitationId: string) => {
+    setIsRevoking(invitationId)
+    try {
+      const response = await fetchWithCsrf(`/api/v1/settings/invitations/${invitationId}`, {
+        method: 'DELETE',
+      })
+      if (!response.ok) {
+        const err = await response.json()
+        throw new Error(err.error || 'Failed to revoke invitation')
+      }
+      toast.success('Invitation revoked')
+      setInvitations(prev => prev.filter(i => i.id !== invitationId))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to revoke invitation')
+    } finally {
+      setIsRevoking(null)
+    }
+  }
 
   // Handle member update (from profile edit)
   const handleMemberUpdate = (updated: TeamMember) => {
@@ -454,13 +522,9 @@ export function TeamMembersSection() {
     return matchesSearch && matchesRole
   })
 
-  const inviteLink = "https://app.audienceos.com/join/abc123xyz"
-
-  const handleCopyLink = async () => {
-    await navigator.clipboard.writeText(inviteLink)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
+  // Compute pending invitations for display
+  const pendingInvitations = invitations.filter(i => !i.is_accepted && !i.is_expired)
+  const expiredInvitations = invitations.filter(i => !i.is_accepted && i.is_expired)
 
   const handleExport = () => {
     // In production, this would generate and download a CSV
@@ -514,55 +578,128 @@ export function TeamMembersSection() {
         </Button>
       </div>
 
-      {/* Invite Link Section - Linear style */}
-      <div className="border border-border rounded-lg p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-md bg-secondary">
-              <Link2 className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <div>
-              <p className="text-sm font-medium">Invite link</p>
-              <p className="text-sm text-muted-foreground">
-                {inviteLinkEnabled
-                  ? "Anyone with this link can join your workspace"
-                  : "Enable to allow anyone with the link to join"
-                }
-              </p>
-            </div>
+      {/* Pending Invitations Section */}
+      {(pendingInvitations.length > 0 || expiredInvitations.length > 0) && (
+        <div className="border border-border rounded-lg divide-y divide-border">
+          <div className="px-4 py-3 flex items-center gap-2">
+            <Mail className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Pending Invitations</span>
+            <Badge variant="secondary" className="ml-auto">
+              {pendingInvitations.length} pending
+            </Badge>
           </div>
-          <Switch
-            checked={inviteLinkEnabled}
-            onCheckedChange={setInviteLinkEnabled}
-          />
-        </div>
 
-        {inviteLinkEnabled && (
-          <div className="mt-4 flex items-center gap-2">
-            <div className="flex-1 px-3 py-2 bg-secondary rounded-md text-sm text-muted-foreground truncate">
-              {inviteLink}
+          {pendingInvitations.map((inv) => {
+            const expiresIn = Math.max(0, Math.ceil((new Date(inv.expires_at).getTime() - Date.now()) / (1000 * 60 * 60)))
+            return (
+              <div key={inv.id} className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-8 w-8 bg-amber-500/20">
+                    <AvatarFallback className="text-amber-600 text-sm font-medium">
+                      {inv.email.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{inv.email}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      <span>Expires in {expiresIn}h</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="capitalize text-amber-600 border-amber-300">
+                    {inv.role}
+                  </Badge>
+                  <Badge variant="secondary" className="text-amber-600 bg-amber-50">
+                    Pending
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    disabled={isResending === inv.id}
+                    onClick={() => handleResendInvitation(inv.id)}
+                    title="Resend invitation"
+                  >
+                    {isResending === inv.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:text-destructive"
+                    disabled={isRevoking === inv.id}
+                    onClick={() => handleRevokeInvitation(inv.id)}
+                    title="Revoke invitation"
+                  >
+                    {isRevoking === inv.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <X className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )
+          })}
+
+          {expiredInvitations.map((inv) => (
+            <div key={inv.id} className="flex items-center justify-between px-4 py-3 opacity-50">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-8 w-8 bg-muted">
+                  <AvatarFallback className="text-muted-foreground text-sm font-medium">
+                    {inv.email.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">{inv.email}</p>
+                  <p className="text-xs text-muted-foreground">Expired</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="capitalize">
+                  {inv.role}
+                </Badge>
+                <Badge variant="secondary" className="text-muted-foreground">
+                  Expired
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  disabled={isResending === inv.id}
+                  onClick={() => handleResendInvitation(inv.id)}
+                  title="Resend invitation"
+                >
+                  {isResending === inv.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:text-destructive"
+                  disabled={isRevoking === inv.id}
+                  onClick={() => handleRevokeInvitation(inv.id)}
+                  title="Revoke invitation"
+                >
+                  {isRevoking === inv.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <X className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleCopyLink}
-              className="gap-2 shrink-0"
-            >
-              {copied ? (
-                <>
-                  <Check className="h-4 w-4" />
-                  Copied
-                </>
-              ) : (
-                <>
-                  <Copy className="h-4 w-4" />
-                  Copy link
-                </>
-              )}
-            </Button>
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Search and Filter Row - Linear style */}
       <div className="flex items-center gap-3">
@@ -710,7 +847,8 @@ export function TeamMembersSection() {
         isOpen={isInviteModalOpen}
         onClose={() => setIsInviteModalOpen(false)}
         onSuccess={() => {
-          fetchMembers() // Refresh members list after invite
+          fetchMembers()
+          fetchInvitations()
         }}
       />
 

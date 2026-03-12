@@ -12,7 +12,7 @@ import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permi
  */
 export const POST = withPermission({ resource: 'users', action: 'manage' })(
   async (request: AuthenticatedRequest) => {
-    const rateLimitResponse = withRateLimit(request, { maxRequests: 10, windowMs: 3600000 })
+    const rateLimitResponse = withRateLimit(request, { maxRequests: 30, windowMs: 3600000 })
     if (rateLimitResponse) return rateLimitResponse
 
     try {
@@ -31,6 +31,7 @@ export const POST = withPermission({ resource: 'users', action: 'manage' })(
         return createErrorResponse(400, 'Email is required')
       }
 
+      // Valid roles must match the user_role enum in Postgres
       if (!role || !['owner', 'admin', 'manager', 'member'].includes(role)) {
         return createErrorResponse(400, 'Valid role is required (owner, admin, manager, or member)')
       }
