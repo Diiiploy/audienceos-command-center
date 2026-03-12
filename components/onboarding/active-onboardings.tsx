@@ -43,6 +43,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  closestCenter,
 } from "@dnd-kit/core"
 import {
   ClipboardList,
@@ -148,6 +149,16 @@ function getOnboardingStageForInstance(instance: OnboardingInstanceWithRelations
 
   // Default to intake if pending
   return "intake"
+}
+
+// Map onboarding stage ID to journey stage index (null = computed state, handled separately in handleDragEnd)
+const ONBOARDING_STAGE_INDEX: Record<OnboardingStageId, number | null> = {
+  intake: 0,
+  access: 1,
+  installation: 2,
+  audit: 3,
+  live: null,          // Computed: all stages completed
+  needs_support: null, // Computed: any stage blocked
 }
 
 // =============================================================================
@@ -685,13 +696,50 @@ export function ActiveOnboardings({ onClientClick }: ActiveOnboardingsProps) {
       return
     }
 
-    const instance = active.data.current?.instance
-    const targetStage = over.data.current?.stage
+    const instance = active.data.current?.instance as OnboardingInstanceWithRelations | undefined
+    const targetStage = over.data.current?.stage as OnboardingStageConfig | undefined
 
-    if (instance && targetStage) {
-      // Move instance to new stage via store API call
-      updateStageStatus(instance.id, targetStage.id, 'in_progress')
+    if (!instance || !targetStage) return
+
+    const journeyStages = (instance.journey?.stages as Stage[] | undefined) || []
+
+    // --- Live Support: complete all remaining stages ---
+    if (targetStage.id === 'live') {
+      for (const stage of journeyStages) {
+        const stageStatus = instance.stage_statuses?.find(s => s.stage_id === stage.id)
+        if (stageStatus?.status !== 'completed') {
+          updateStageStatus(instance.id, stage.id, 'completed')
+        }
+      }
+      return
     }
+
+    // --- Needs Support: block the current active stage ---
+    if (targetStage.id === 'needs_support') {
+      const activeStage = instance.stage_statuses?.find(s => s.status === 'in_progress')
+        || instance.stage_statuses?.find(s => s.status === 'pending')
+      if (activeStage) {
+        updateStageStatus(instance.id, activeStage.stage_id, 'blocked')
+      } else if (journeyStages[0]) {
+        updateStageStatus(instance.id, journeyStages[0].id, 'blocked')
+      }
+      return
+    }
+
+    // --- Normal stage: resolve UUID from index ---
+    const targetIndex = ONBOARDING_STAGE_INDEX[targetStage.id]
+    if (targetIndex === null || targetIndex === undefined) return
+
+    const journeyStage = journeyStages[targetIndex]
+    if (!journeyStage?.id) return
+
+    // Clear any blocked stages first so instance leaves needs_support
+    const blockedStatuses = instance.stage_statuses?.filter(s => s.status === 'blocked') || []
+    for (const blocked of blockedStatuses) {
+      updateStageStatus(instance.id, blocked.stage_id, 'pending')
+    }
+
+    updateStageStatus(instance.id, journeyStage.id, 'in_progress')
   }
 
   const slideTransition = useSlideTransition()
@@ -766,6 +814,7 @@ export function ActiveOnboardings({ onClientClick }: ActiveOnboardingsProps) {
   return (
     <DndContext
       sensors={sensors}
+      collisionDetection={closestCenter}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >

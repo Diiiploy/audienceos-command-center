@@ -20,7 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useOnboardingStore } from "@/stores/onboarding-store"
-import { Mail, Info, Loader2, Globe } from "lucide-react"
+import { useAuth } from "@/hooks/use-auth"
+import { Mail, Info, Loader2, Globe, Users } from "lucide-react"
 import { toast } from "sonner"
 import { SEOPreviewCard } from "./seo-preview-card"
 
@@ -43,17 +44,34 @@ interface Competitor {
 
 export function TriggerOnboardingModal({ open, onOpenChange }: TriggerOnboardingModalProps) {
   const { triggerOnboarding, isTriggeringOnboarding, journeys, fetchJourneys } = useOnboardingStore()
+  const { profile } = useAuth()
 
   const [clientName, setClientName] = useState("")
   const [clientEmail, setClientEmail] = useState("")
   const [clientWebsite, setClientWebsite] = useState("")
   const [clientTier, setClientTier] = useState<"Core" | "Enterprise">("Core")
   const [selectedJourneyId, setSelectedJourneyId] = useState<string>("")
+  const [users, setUsers] = useState<Array<{ id: string; first_name: string; last_name: string; email: string }>>([])
+  const [selectedUserId, setSelectedUserId] = useState<string>("")
 
-  // Fetch journeys on mount
+  // Fetch journeys and users on mount
   useEffect(() => {
     fetchJourneys()
   }, [fetchJourneys])
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await fetch('/api/v1/settings/users', { credentials: 'include' })
+        if (!response.ok) return
+        const { data } = await response.json()
+        setUsers(data || [])
+      } catch (error) {
+        console.error('Failed to fetch users:', error)
+      }
+    }
+    fetchUsers()
+  }, [])
 
   // Auto-select default journey when journeys load
   useEffect(() => {
@@ -62,6 +80,13 @@ export function TriggerOnboardingModal({ open, onOpenChange }: TriggerOnboarding
       setSelectedJourneyId(defaultJourney?.id || journeys[0].id)
     }
   }, [journeys, selectedJourneyId])
+
+  // Auto-select current user when users load
+  useEffect(() => {
+    if (users.length > 0 && !selectedUserId && profile?.id) {
+      setSelectedUserId(profile.id)
+    }
+  }, [users, selectedUserId, profile?.id])
 
   // SEO enrichment state
   const [seoLoading, setSeoLoading] = useState(false)
@@ -77,6 +102,7 @@ export function TriggerOnboardingModal({ open, onOpenChange }: TriggerOnboarding
       setClientWebsite("")
       setClientTier("Core")
       setSelectedJourneyId("")
+      setSelectedUserId("")
       setSeoLoading(false)
       setSeoData(null)
       setSeoError(null)
@@ -164,6 +190,7 @@ export function TriggerOnboardingModal({ open, onOpenChange }: TriggerOnboarding
       client_tier: clientTier,
       journey_id: selectedJourneyId || undefined,
       website_url: clientWebsite || undefined,
+      assigned_to_user_id: selectedUserId || undefined,
       ...(seoData?.summary && {
         seo_data: {
           ...seoData,
@@ -270,6 +297,22 @@ export function TriggerOnboardingModal({ open, onOpenChange }: TriggerOnboarding
               <SelectContent>
                 <SelectItem value="Core">Core</SelectItem>
                 <SelectItem value="Enterprise">Enterprise</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="assignUser">Assign To</Label>
+            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select team member" />
+              </SelectTrigger>
+              <SelectContent>
+                {users.map((user) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.first_name} {user.last_name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

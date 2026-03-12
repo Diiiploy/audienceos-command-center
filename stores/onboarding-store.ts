@@ -121,6 +121,7 @@ interface OnboardingState {
     client_tier?: string
     journey_id?: string
     website_url?: string
+    assigned_to_user_id?: string
     seo_data?: {
       summary: unknown
       competitors: unknown[]

@@ -115,7 +115,7 @@ export const POST = withPermission({ resource: 'clients', action: 'write' })(
         return createErrorResponse(400, 'Invalid JSON body')
       }
 
-      const { client_name, client_email, client_tier: _client_tier, journey_id, website_url, seo_data } = body
+      const { client_name, client_email, client_tier: _client_tier, journey_id, website_url, seo_data, assigned_to_user_id } = body
 
       // Validate required fields
       if (!client_name || typeof client_name !== 'string') {
@@ -255,6 +255,19 @@ export const POST = withPermission({ resource: 'clients', action: 'write' })(
         apiLogger.error({ err: instanceError }, 'Failed to create onboarding instance')
         return createErrorResponse(500, 'Failed to create onboarding instance')
       }
+
+      // Assign the client to a user (defaults to the creating user)
+      const assignUserId = (typeof assigned_to_user_id === 'string' && assigned_to_user_id) || userId
+      await (supabase as any)
+        .from('client_assignment')
+        .upsert({
+          agency_id: agencyId,
+          client_id: clientId,
+          user_id: assignUserId,
+          role: 'owner',
+        }, {
+          onConflict: 'client_id,user_id,role',
+        })
 
       // Initialize stage statuses
       if (Array.isArray(journey.stages)) {
