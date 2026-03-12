@@ -1,12 +1,13 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import { useOnboardingStore } from "@/stores/onboarding-store"
 import { FieldRow } from "./field-row"
+import type { FieldRowHandle } from "./field-row"
 import { FormPreview } from "./form-preview"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Loader2, FileText } from "lucide-react"
+import { Plus, Loader2, FileText, Check } from "lucide-react"
 import {
   DndContext,
   closestCenter,
@@ -27,13 +28,67 @@ export function FormBuilder() {
   const {
     fields,
     isLoadingFields,
-    isSavingField,
+    isReordering,
     fetchFields,
     createField,
     updateField,
     deleteField,
     reorderFields,
   } = useOnboardingStore()
+
+  // Per-field save indicator: true when ANY field is saving
+  const isSaving = useOnboardingStore(state => Object.keys(state.savingFieldIds).length > 0)
+  const lastSaveAt = useOnboardingStore(state => state.lastSaveAt)
+
+  // "Saved" indicator — show for 2s after save completes
+  const [showSaved, setShowSaved] = useState(false)
+
+  useEffect(() => {
+    if (!isSaving && lastSaveAt) {
+      setShowSaved(true)
+      const timer = setTimeout(() => setShowSaved(false), 2000)
+      return () => clearTimeout(timer)
+    }
+    if (isSaving) setShowSaved(false) // Clear immediately when new save starts (M5)
+  }, [isSaving, lastSaveAt])
+
+  // Ref map for FieldRow flush/hasPending (Council amendment M3)
+  const fieldRefs = useRef<Map<string, FieldRowHandle>>(new Map())
+
+  const flushAll = useCallback(() => {
+    fieldRefs.current.forEach(ref => ref.flush())
+  }, [])
+
+  const hasPendingChanges = useCallback(() => {
+    for (const ref of fieldRefs.current.values()) {
+      if (ref.hasPending()) return true
+    }
+    return false
+  }, [])
+
+  // Ctrl+S handler — flush all pending saves (Council amendment M7)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault() // Prevent browser "Save As" dialog
+        flushAll()
+      }
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [flushAll])
+
+  // beforeunload guard — warn on browser close with pending changes (Council amendment M6)
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (hasPendingChanges()) {
+        e.preventDefault()
+        e.returnValue = '' // Required for Chrome
+      }
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [hasPendingChanges])
 
   // Set up drag sensors with minimal distance to start
   const sensors = useSensors(
@@ -98,9 +153,26 @@ export function FormBuilder() {
       {/* Left: Field List (2/3 width) */}
       <Card className="lg:col-span-2">
         <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <FileText className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-base">Intake Form Fields</CardTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">Intake Form Fields</CardTitle>
+            </div>
+            <div className="flex items-center gap-2">
+              {/* Save indicator */}
+              {isSaving && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Saving...
+                </span>
+              )}
+              {showSaved && !isSaving && (
+                <span className="flex items-center gap-1 text-xs text-emerald-500">
+                  <Check className="h-3 w-3" />
+                  Saved
+                </span>
+              )}
+            </div>
           </div>
           <CardDescription className="text-xs">
             Customize the fields clients fill out during onboarding
@@ -125,10 +197,13 @@ export function FormBuilder() {
                 {sortedFields.map((field) => (
                   <FieldRow
                     key={field.id}
+                    ref={(handle) => {
+                      if (handle) fieldRefs.current.set(field.id, handle)
+                      else fieldRefs.current.delete(field.id)
+                    }}
                     field={field}
                     onUpdate={updateField}
                     onDelete={deleteField}
-                    isUpdating={isSavingField}
                   />
                 ))}
               </SortableContext>
@@ -140,13 +215,9 @@ export function FormBuilder() {
             size="sm"
             className="w-full text-xs"
             onClick={handleAddField}
-            disabled={isSavingField}
+            disabled={isReordering}
           >
-            {isSavingField ? (
-              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-            )}
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
             Add Field
           </Button>
         </CardContent>
