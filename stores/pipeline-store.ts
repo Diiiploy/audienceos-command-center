@@ -135,7 +135,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
     set({ isLoading: true, error: null })
 
     try {
-      const response = await fetch('/api/v1/clients', { credentials: 'include' })
+      const response = await fetch('/api/v1/clients?is_active=true', { credentials: 'include' })
 
       if (!response.ok) {
         throw new Error('Failed to fetch clients')
@@ -320,6 +320,9 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
     const { clients, filters } = get()
 
     return clients.filter((client) => {
+      // Only show active clients
+      if (client.is_active === false) return false
+
       // Stage filter
       if (filters.stage !== 'all' && client.stage !== filters.stage) {
         return false

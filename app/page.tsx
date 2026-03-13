@@ -417,11 +417,10 @@ function CommandCenterContent() {
         title: "Client deleted",
         description: `${deleteTarget.name} has been deactivated`,
       })
-      setDeleteConfirmOpen(false)
-      setDeleteTarget(null)
       if (selectedClient?.id === deleteTarget.id) {
         setSelectedClient(null)
       }
+      setDeleteConfirmOpen(false)
     } catch (error) {
       toast({
         title: "Error",
@@ -838,34 +837,42 @@ function CommandCenterContent() {
           onCancel={handleCancelStageMove}
         />
       )}
-      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Client</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to deactivate <span className="font-medium text-foreground">{deleteTarget?.name}</span>?
-              This will remove them from the pipeline. This action can be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => { setDeleteConfirmOpen(false); setDeleteTarget(null) }}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Deleting...
-                </>
-              ) : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {deleteConfirmOpen && (
+        <AlertDialog open onOpenChange={(open) => {
+          if (!open) {
+            setDeleteConfirmOpen(false)
+            setDeleteTarget(null)
+            requestAnimationFrame(() => {
+              document.body.style.pointerEvents = ''
+            })
+          }
+        }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Client</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to deactivate <span className="font-medium text-foreground">{deleteTarget?.name}</span>?
+                This will remove them from the pipeline. This action can be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="bg-destructive hover:bg-destructive/90"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </>
   )
 }
