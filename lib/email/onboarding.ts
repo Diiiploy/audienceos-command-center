@@ -164,7 +164,7 @@ Questions? Just reply to this email!
     subject: `Welcome to ${agencyName} - Let's Get Started!`,
     html: htmlContent,
     text: textContent,
-    replyTo: 'support@audienceos.io',
+    replyTo: 'cs@audienceos.io',
   })
 }
 
@@ -292,6 +292,6 @@ Expect to hear from us within 3-5 business days. If you have any urgent question
     subject: `Onboarding Complete - Welcome to ${agencyName}!`,
     html: htmlContent,
     text: textContent,
-    replyTo: 'support@audienceos.io',
+    replyTo: 'cs@audienceos.io',
   })
 }

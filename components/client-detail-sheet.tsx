@@ -22,11 +22,13 @@ import {
   Play,
   FileText,
   Video,
-  Check,
 } from "lucide-react"
 import { type Client, type ZoomRecording } from "@/types/pipeline"
 import { owners } from "@/lib/constants/pipeline"
 import { cn } from "@/lib/utils"
+import { useClientOnboarding } from "@/hooks/use-client-onboarding"
+import { JourneyProgress } from "@/components/onboarding/journey-progress"
+import { IntakeDataCard } from "@/components/onboarding/intake-data-card"
 import { Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts"
 
 interface ClientDetailSheetProps {
@@ -111,38 +113,17 @@ function getTrendIcon(trend: string) {
 export function ClientDetailSheet({ client, open, onOpenChange, defaultTab = "overview" }: ClientDetailSheetProps) {
   const [activeTab, setActiveTab] = useState(defaultTab)
   const [message, setMessage] = useState("")
-  const [accessStatus, setAccessStatus] = useState({
-    meta: false,
-    gtm: false,
-    shopify: false,
-  })
+  const onboarding = useClientOnboarding(client?.id ?? null)
 
   useEffect(() => {
     if (client) {
       setActiveTab(defaultTab)
-      if (client.onboardingData) {
-        setAccessStatus({
-          meta: client.onboardingData.accessGrants.meta,
-          gtm: client.onboardingData.accessGrants.gtm,
-          shopify: client.onboardingData.accessGrants.shopify,
-        })
-      }
     }
   }, [client, defaultTab])
 
   const owner = owners.find((o) => o.name === client?.owner)
   // TODO: Replace with real recordings API when available
   const recordings: ZoomRecording[] = []
-
-  const handleVerifyAccess = (platform: "meta" | "gtm" | "shopify") => {
-    setAccessStatus((prev) => ({ ...prev, [platform]: true }))
-    // TODO: Implement platform verification API call
-  }
-
-  const handleGenerateInstallPlan = () => {
-    // TODO: Implement AI plan generation
-    alert("AI is analyzing your tech stack and will generate implementation steps. Check back in a few minutes!")
-  }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -652,147 +633,18 @@ export function ClientDetailSheet({ client, open, onOpenChange, defaultTab = "ov
               </TabsContent>
 
               <TabsContent value="techsetup" className="mt-6 space-y-4">
-                {client.onboardingData ? (
-                  <>
-                    <div className="space-y-3">
-                      <h4 className="text-sm font-semibold text-foreground uppercase tracking-wide">
-                        Onboarding Submission
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="p-3 bg-secondary/30 border border-border rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">Shopify Store URL</p>
-                          <p className="text-sm font-mono text-foreground break-all">
-                            {client.onboardingData.shopifyUrl}
-                          </p>
-                        </div>
-                        <div className="p-3 bg-secondary/30 border border-border rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">GTM Container ID</p>
-                          <p className="text-sm font-mono text-foreground">{client.onboardingData.gtmContainerId}</p>
-                        </div>
-                        <div className="p-3 bg-secondary/30 border border-border rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">Meta Pixel ID</p>
-                          <p className="text-sm font-mono text-foreground">{client.onboardingData.metaPixelId}</p>
-                        </div>
-                        <div className="p-3 bg-secondary/30 border border-border rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">Klaviyo API Key</p>
-                          <p className="text-sm font-mono text-foreground truncate">
-                            {client.onboardingData.klaviyoApiKey}
-                          </p>
-                        </div>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Submitted on {new Date(client.onboardingData.submittedAt).toLocaleDateString()}
-                      </p>
-                    </div>
-
-                    <div className="space-y-3 pt-4 border-t border-border">
-                      <h4 className="text-sm font-semibold text-foreground uppercase tracking-wide">Access Status</h4>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between p-3 bg-secondary/30 border border-border rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={`w-3 h-3 rounded-full ${
-                                accessStatus.meta ? "bg-emerald-500" : "bg-amber-500 animate-pulse"
-                              }`}
-                            />
-                            <span className="text-sm text-foreground">Meta Business Manager</span>
-                          </div>
-                          {!accessStatus.meta && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleVerifyAccess("meta")}
-                              className="text-xs border-border"
-                            >
-                              Verify Access
-                            </Button>
-                          )}
-                          {accessStatus.meta && (
-                            <span className="text-xs text-emerald-400 flex items-center gap-1">
-                              <Check className="h-3 w-3" />
-                              Verified
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex items-center justify-between p-3 bg-secondary/30 border border-border rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={`w-3 h-3 rounded-full ${
-                                accessStatus.gtm ? "bg-emerald-500" : "bg-amber-500 animate-pulse"
-                              }`}
-                            />
-                            <span className="text-sm text-foreground">Google Tag Manager</span>
-                          </div>
-                          {!accessStatus.gtm && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleVerifyAccess("gtm")}
-                              className="text-xs border-border"
-                            >
-                              Verify Access
-                            </Button>
-                          )}
-                          {accessStatus.gtm && (
-                            <span className="text-xs text-emerald-400 flex items-center gap-1">
-                              <Check className="h-3 w-3" />
-                              Verified
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex items-center justify-between p-3 bg-secondary/30 border border-border rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={`w-3 h-3 rounded-full ${
-                                accessStatus.shopify ? "bg-emerald-500" : "bg-amber-500 animate-pulse"
-                              }`}
-                            />
-                            <span className="text-sm text-foreground">Shopify Staff Account</span>
-                          </div>
-                          {!accessStatus.shopify && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleVerifyAccess("shopify")}
-                              className="text-xs border-border"
-                            >
-                              Verify Access
-                            </Button>
-                          )}
-                          {accessStatus.shopify && (
-                            <span className="text-xs text-emerald-400 flex items-center gap-1">
-                              <Check className="h-3 w-3" />
-                              Verified
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="pt-4 border-t border-border">
-                      <Button
-                        onClick={handleGenerateInstallPlan}
-                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-                      >
-                        <Sparkles className="h-4 w-4 mr-2" />
-                        AI: Generate Implementation Steps
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-sm text-muted-foreground">No onboarding data submitted yet.</p>
-                    <Button
-                      variant="outline"
-                      className="mt-4 bg-transparent"
-                      onClick={() => (window.location.href = "/onboarding/start")}
-                    >
-                      Start Onboarding
-                    </Button>
-                  </div>
-                )}
+                <div className="p-4 bg-card border border-border rounded-lg">
+                  <JourneyProgress
+                    stages={onboarding.stages}
+                    stageStatusMap={onboarding.stageStatusMap}
+                    onToggleStatus={onboarding.toggleStageStatus}
+                    isLoading={onboarding.isLoading}
+                  />
+                </div>
+                <IntakeDataCard
+                  responses={onboarding.intakeResponses}
+                  isLoading={onboarding.isLoading}
+                />
               </TabsContent>
             </Tabs>
           </div>

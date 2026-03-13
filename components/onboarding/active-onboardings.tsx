@@ -31,6 +31,7 @@ import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import { useSlideTransition } from "@/hooks/use-slide-transition"
 import { useOnboardingStore, type OnboardingInstanceWithRelations, type Stage } from "@/stores/onboarding-store"
+import { JourneyProgress } from "@/components/onboarding/journey-progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import {
@@ -265,57 +266,15 @@ function ClientDetailPanel({ instance, stage, onClose, onUpdateStageStatus, onRe
         </div>
 
         {/* Journey Progress */}
-        <div className="space-y-3">
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            Journey Progress
-          </h3>
-          <p className="text-xs text-muted-foreground">Click to toggle completion status</p>
-          <div className="space-y-1">
-            {stages.map((s) => {
-              const status = stageStatusMap.get(s.id) || "pending"
-              const isCompleted = status === "completed"
-              const isInProgress = status === "in_progress"
-              const isBlocked = status === "blocked"
-
-              // Toggle handler - completed ↔ pending
-              const handleToggle = async () => {
-                const newStatus = isCompleted ? "pending" : "completed"
-                await onUpdateStageStatus(instance.id, s.id, newStatus)
-              }
-
-              return (
-                <button
-                  key={s.id}
-                  onClick={handleToggle}
-                  className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-pointer",
-                    "hover:ring-2 hover:ring-primary/30",
-                    isCompleted && "bg-emerald-500/5",
-                    isInProgress && "bg-blue-500/5",
-                    isBlocked && "bg-red-500/5",
-                    !isCompleted && !isInProgress && !isBlocked && "bg-secondary/30"
-                  )}
-                >
-                  {isCompleted ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                  ) : isInProgress ? (
-                    <Play className="w-4 h-4 text-blue-500 shrink-0" />
-                  ) : isBlocked ? (
-                    <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
-                  ) : (
-                    <Circle className="w-4 h-4 text-muted-foreground shrink-0" />
-                  )}
-                  <span className={cn(
-                    "text-sm text-left flex-1",
-                    isCompleted && "line-through text-muted-foreground"
-                  )}>
-                    {s.name}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
+        <JourneyProgress
+          stages={stages}
+          stageStatusMap={stageStatusMap}
+          onToggleStatus={async (stageId) => {
+            const currentStatus = stageStatusMap.get(stageId) || "pending"
+            const newStatus = currentStatus === "completed" ? "pending" : "completed"
+            await onUpdateStageStatus(instance.id, stageId, newStatus)
+          }}
+        />
 
         {/* Portal Link */}
         {instance.link_token && (

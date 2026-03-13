@@ -15,15 +15,17 @@ import {
   Send,
   Sparkles,
   Play,
-  Check,
   TicketIcon,
 } from "lucide-react"
 import { owners } from "@/lib/constants/pipeline"
 import { cn } from "@/lib/utils"
 import { useClientDetail } from "@/hooks/use-client-detail"
+import { useClientOnboarding } from "@/hooks/use-client-onboarding"
 import { useAuth } from "@/hooks/use-auth"
 import { useClientAdPerformance } from "@/hooks/use-client-ad-performance"
 import { useClientAdAccounts } from "@/hooks/use-client-ad-accounts"
+import { JourneyProgress } from "@/components/onboarding/journey-progress"
+import { IntakeDataCard } from "@/components/onboarding/intake-data-card"
 import { SlackChannelLinker } from "@/components/slack-channel-linker"
 import { ClientEmailContacts } from "@/components/client-email-contacts"
 import { AddTicketModal, type TicketPrefill } from "@/components/linear"
@@ -89,7 +91,6 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     notes: detailedClient.notes,
     tags: detailedClient.tags,
     slackChannels: detailedClient.slack_channels || [],
-    onboardingData: null as { shopifyUrl: string; gtmContainerId: string; metaPixelId: string; klaviyoApiKey: string } | null,
   } : null
 
   // Build Slack channel ID → name lookup from linked channels
@@ -117,11 +118,6 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const [message, setMessage] = useState("")
   const [commFilter, setCommFilter] = useState<'all' | 'slack' | 'gmail'>('all')
   const [commSortOrder, setCommSortOrder] = useState<'newest' | 'oldest'>('newest')
-  const [accessStatus, setAccessStatus] = useState({
-    meta: false,
-    gtm: false,
-    shopify: false,
-  })
   const [ticketModalOpen, setTicketModalOpen] = useState(false)
   const [ticketPrefill, setTicketPrefill] = useState<TicketPrefill | undefined>()
 
@@ -134,6 +130,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const [adPlatform, setAdPlatform] = useState<string>('all')
   const [selectedAccountId, setSelectedAccountId] = useState<string | undefined>(undefined)
   const { data: adAccounts } = useClientAdAccounts(clientId)
+  const onboarding = useClientOnboarding(detailedClient?.id ?? null)
   const compareDates = computeCompareDates(adTimeFilter)
   const { data: adPerformance, isLoading: adPerfLoading } = useClientAdPerformance({
     clientId,
@@ -193,10 +190,6 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   }
 
   const owner = owners.find((o) => o.name === client.owner)
-
-  const handleVerifyAccess = (platform: "meta" | "gtm" | "shopify") => {
-    setAccessStatus((prev) => ({ ...prev, [platform]: true }))
-  }
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -656,75 +649,18 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
           </TabsContent>
 
           <TabsContent value="techsetup" className="space-y-4">
-            {/* Tech setup details */}
-            {client.onboardingData ? (
-              <>
-                <Card className="p-6 space-y-4">
-                  <h4 className="text-sm font-semibold text-foreground uppercase tracking-wide">
-                    Onboarding Submission
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="p-3 bg-secondary/30 border border-border rounded-lg">
-                      <p className="text-xs text-muted-foreground mb-1">Shopify Store URL</p>
-                      <p className="text-sm font-mono text-foreground">{client.onboardingData.shopifyUrl}</p>
-                    </div>
-                    <div className="p-3 bg-secondary/30 border border-border rounded-lg">
-                      <p className="text-xs text-muted-foreground mb-1">GTM Container ID</p>
-                      <p className="text-sm font-mono text-foreground">{client.onboardingData.gtmContainerId}</p>
-                    </div>
-                    <div className="p-3 bg-secondary/30 border border-border rounded-lg">
-                      <p className="text-xs text-muted-foreground mb-1">Meta Pixel ID</p>
-                      <p className="text-sm font-mono text-foreground">{client.onboardingData.metaPixelId}</p>
-                    </div>
-                    <div className="p-3 bg-secondary/30 border border-border rounded-lg">
-                      <p className="text-xs text-muted-foreground mb-1">Klaviyo API Key</p>
-                      <p className="text-sm font-mono text-foreground">{client.onboardingData.klaviyoApiKey}</p>
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="p-6 space-y-4">
-                  <h4 className="text-sm font-semibold text-foreground uppercase tracking-wide">Access Status</h4>
-                  <div className="space-y-2">
-                    {([
-                      { key: "meta", label: "Meta Business Manager" },
-                      { key: "gtm", label: "Google Tag Manager" },
-                      { key: "shopify", label: "Shopify Staff Account" },
-                    ] as const).map((item) => (
-                      <div
-                        key={item.key}
-                        className="flex items-center justify-between p-4 bg-secondary/30 border border-border rounded-lg"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`w-3 h-3 rounded-full ${
-                              accessStatus[item.key]
-                                ? "bg-emerald-500"
-                                : "bg-amber-500 animate-pulse"
-                            }`}
-                          />
-                          <span className="text-sm text-foreground">{item.label}</span>
-                        </div>
-                        {!accessStatus[item.key] ? (
-                          <Button size="sm" variant="outline" onClick={() => handleVerifyAccess(item.key)}>
-                            Verify Access
-                          </Button>
-                        ) : (
-                          <span className="text-xs text-emerald-400 flex items-center gap-1">
-                            <Check className="h-3 w-3" />
-                            Verified
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              </>
-            ) : (
-              <Card className="p-8 text-center">
-                <p className="text-sm text-muted-foreground">No onboarding data submitted yet.</p>
-              </Card>
-            )}
+            <Card className="p-6">
+              <JourneyProgress
+                stages={onboarding.stages}
+                stageStatusMap={onboarding.stageStatusMap}
+                onToggleStatus={onboarding.toggleStageStatus}
+                isLoading={onboarding.isLoading}
+              />
+            </Card>
+            <IntakeDataCard
+              responses={onboarding.intakeResponses}
+              isLoading={onboarding.isLoading}
+            />
           </TabsContent>
         </Tabs>
       </div>
