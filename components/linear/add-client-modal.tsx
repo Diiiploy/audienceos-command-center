@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   Dialog,
   DialogContent,
@@ -20,8 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Building2, AlertCircle, Loader2 } from "lucide-react"
+import { Building2, AlertCircle, Loader2, X, Plus } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/hooks/use-auth"
 import { fetchWithCsrf } from "@/lib/csrf"
 import { usePipelineStore, type Stage, type HealthStatus } from "@/stores/pipeline-store"
 
@@ -29,6 +30,13 @@ interface AddClientModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess?: () => void
+}
+
+interface TeamUser {
+  id: string
+  first_name: string
+  last_name: string
+  email: string
 }
 
 const STAGES: Stage[] = [
@@ -49,12 +57,15 @@ const HEALTH_STATUSES: { label: string; value: ApiHealthStatus }[] = [
   { label: "Red", value: "red" },
 ]
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 export function AddClientModal({
   isOpen,
   onClose,
   onSuccess,
 }: AddClientModalProps) {
   const { toast } = useToast()
+  const { profile } = useAuth()
   const { fetchClients } = usePipelineStore()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -67,6 +78,69 @@ export function AddClientModal({
   const [healthStatus, setHealthStatus] = useState<ApiHealthStatus>("green")
   const [notes, setNotes] = useState("")
 
+  // New fields: user assignment + multi-email
+  const [users, setUsers] = useState<TeamUser[]>([])
+  const [selectedUserId, setSelectedUserId] = useState<string>("")
+  const [additionalEmails, setAdditionalEmails] = useState<string[]>([])
+  const [emailInput, setEmailInput] = useState("")
+
+  // Fetch team members on mount
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await fetch('/api/v1/settings/users?is_active=true', { credentials: 'include' })
+        if (!response.ok) return
+        const { data } = await response.json()
+        setUsers(data || [])
+      } catch (err) {
+        console.error('Failed to fetch users:', err)
+      }
+    }
+    fetchUsers()
+  }, [])
+
+  // Auto-select current user when users load
+  useEffect(() => {
+    if (users.length > 0 && !selectedUserId && profile?.id) {
+      setSelectedUserId(profile.id)
+    }
+  }, [users, selectedUserId, profile?.id])
+
+  // Add email to the list
+  const addEmail = useCallback(() => {
+    const trimmed = emailInput.trim().toLowerCase()
+    if (!trimmed) return
+
+    if (!EMAIL_REGEX.test(trimmed)) {
+      setError("Please enter a valid email address")
+      return
+    }
+    if (trimmed === contactEmail.trim().toLowerCase()) {
+      setError("This email is already the primary contact email")
+      return
+    }
+    if (additionalEmails.includes(trimmed)) {
+      setError("This email has already been added")
+      return
+    }
+
+    setAdditionalEmails((prev) => [...prev, trimmed])
+    setEmailInput("")
+    setError(null)
+  }, [emailInput, contactEmail, additionalEmails])
+
+  // Handle Enter/comma in email input
+  const handleEmailKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault()
+      addEmail()
+    }
+  }
+
+  const removeEmail = (email: string) => {
+    setAdditionalEmails((prev) => prev.filter((e) => e !== email))
+  }
+
   // Reset form to initial state
   const resetForm = () => {
     setName("")
@@ -75,6 +149,9 @@ export function AddClientModal({
     setStage("Onboarding")
     setHealthStatus("green")
     setNotes("")
+    setSelectedUserId(profile?.id || "")
+    setAdditionalEmails([])
+    setEmailInput("")
     setError(null)
   }
 
@@ -100,6 +177,8 @@ export function AddClientModal({
           stage,
           health_status: healthStatus,
           notes: notes.trim() || null,
+          assigned_to_user_id: selectedUserId || null,
+          contact_emails: additionalEmails.length > 0 ? additionalEmails : undefined,
         }),
       })
 
@@ -117,7 +196,7 @@ export function AddClientModal({
 
       toast({
         title: "Client created",
-        description: `${name} has been added to your pipeline.`,
+        description: `${name} has been added to your pipeline and onboarding.`,
         variant: "default",
       })
 
@@ -154,14 +233,14 @@ export function AddClientModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             Add Client
           </DialogTitle>
           <DialogDescription>
-            Add a new client to your pipeline. They will start in the selected stage.
+            Add a new client to your pipeline. They will be automatically added to onboarding.
           </DialogDescription>
         </DialogHeader>
 
@@ -201,7 +280,7 @@ export function AddClientModal({
             </div>
             <div className="space-y-2">
               <Label htmlFor="contact-email" className="text-sm">
-                Contact Email
+                Primary Email
               </Label>
               <Input
                 id="contact-email"
@@ -213,6 +292,57 @@ export function AddClientModal({
                 className="h-9"
               />
             </div>
+          </div>
+
+          {/* Additional Emails */}
+          <div className="space-y-2">
+            <Label className="text-sm">
+              Additional Emails
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                type="email"
+                placeholder="Add another email..."
+                value={emailInput}
+                onChange={(e) => {
+                  setEmailInput(e.target.value)
+                  setError(null)
+                }}
+                onKeyDown={handleEmailKeyDown}
+                disabled={isSubmitting}
+                className="h-9 flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addEmail}
+                disabled={isSubmitting || !emailInput.trim()}
+                className="h-9 px-2"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            {additionalEmails.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                {additionalEmails.map((email) => (
+                  <span
+                    key={email}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-secondary text-xs text-secondary-foreground"
+                  >
+                    {email}
+                    <button
+                      type="button"
+                      onClick={() => removeEmail(email)}
+                      className="hover:text-destructive"
+                      disabled={isSubmitting}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Two-column layout for stage and health */}
@@ -259,6 +389,29 @@ export function AddClientModal({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Assign To */}
+          <div className="space-y-2">
+            <Label htmlFor="assign-user" className="text-sm">
+              Assign To
+            </Label>
+            <Select
+              value={selectedUserId}
+              onValueChange={setSelectedUserId}
+              disabled={isSubmitting}
+            >
+              <SelectTrigger id="assign-user" className="h-9">
+                <SelectValue placeholder="Select team member" />
+              </SelectTrigger>
+              <SelectContent>
+                {users.map((user) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.first_name} {user.last_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Notes */}

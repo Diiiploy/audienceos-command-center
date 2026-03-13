@@ -13,6 +13,24 @@ export interface SendEmailResult {
   error?: string
 }
 
+const MAX_ATTEMPTS = 3
+const BACKOFF_MS = [1000, 2000, 4000]
+
+function isRetryable(status: number): boolean {
+  return status === 429 || status >= 500
+}
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(signal.reason)
+    const timer = setTimeout(resolve, ms)
+    signal?.addEventListener('abort', () => {
+      clearTimeout(timer)
+      reject(signal.reason)
+    }, { once: true })
+  })
+}
+
 export async function sendEmail(params: {
   to: string | string[]
   subject: string
@@ -36,39 +54,64 @@ export async function sendEmail(params: {
     subject: params.subject,
   })
 
-  try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        from: fromEmail,
-        to: params.to,
-        subject: params.subject,
-        html: params.html,
-        ...(params.text && { text: params.text }),
-        ...(params.replyTo && { reply_to: params.replyTo }),
-      }),
-      ...(params.signal && { signal: params.signal }),
-    })
+  const body = JSON.stringify({
+    from: fromEmail,
+    to: params.to,
+    subject: params.subject,
+    html: params.html,
+    ...(params.text && { text: params.text }),
+    ...(params.replyTo && { reply_to: params.replyTo }),
+  })
 
-    const data = await response.json() as { id?: string; message?: string }
+  let lastError: string = 'Email delivery failed'
 
-    if (!response.ok) {
-      console.error('[email] Resend API error:', {
-        status: response.status,
-        error: data,
-      })
-      return { success: false, error: data.message || 'Email delivery failed' }
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    if (attempt > 0) {
+      console.log(`[email] Retry ${attempt}/${MAX_ATTEMPTS - 1} after ${BACKOFF_MS[attempt - 1]}ms`)
+      try {
+        await sleep(BACKOFF_MS[attempt - 1], params.signal)
+      } catch {
+        return { success: false, error: 'Email send aborted' }
+      }
     }
 
-    console.log('[email] Sent successfully:', { messageId: data.id })
-    return { success: true, messageId: data.id }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Email service error'
-    console.error('[email] Send failed:', message)
-    return { success: false, error: message }
+    try {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body,
+        ...(params.signal && { signal: params.signal }),
+      })
+
+      const data = await response.json() as { id?: string; message?: string }
+
+      if (response.ok) {
+        console.log('[email] Sent successfully:', { messageId: data.id })
+        return { success: true, messageId: data.id }
+      }
+
+      lastError = data.message || `HTTP ${response.status}`
+      console.error('[email] Resend API error:', { status: response.status, error: data })
+
+      if (!isRetryable(response.status)) {
+        return { success: false, error: lastError }
+      }
+    } catch (error) {
+      if (params.signal?.aborted) {
+        return { success: false, error: 'Email send aborted' }
+      }
+      lastError = error instanceof Error ? error.message : 'Email service error'
+      console.error('[email] Send failed:', lastError)
+    }
   }
+
+  console.error('[email] All attempts exhausted:', {
+    to: params.to,
+    subject: params.subject,
+    lastError,
+  })
+  return { success: false, error: lastError }
 }

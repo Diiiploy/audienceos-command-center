@@ -121,7 +121,7 @@ Questions? Contact ${inviterName} for more information.
     subject: `${inviterName} invited you to join ${agencyName}`,
     html: htmlContent,
     text: textContent,
-    replyTo: 'support@audienceos.io',
+    replyTo: 'cs@audienceos.io',
   })
 
   if (result.success) {

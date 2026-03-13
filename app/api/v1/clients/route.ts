@@ -5,6 +5,7 @@ import { withRateLimit, withCsrfProtection, sanitizeString, sanitizeEmail, sanit
 import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission'
 import type { HealthStatus } from '@/types/database'
 import { createSlackChannelForClient } from '@/lib/integrations/slack-channel-service'
+import { randomBytes } from 'crypto'
 
 // Valid values for enums
 const VALID_STAGES = ['Lead', 'Onboarding', 'Installation', 'Audit', 'Live', 'Needs Support', 'Off-boarding']
@@ -106,7 +107,7 @@ export const POST = withPermission({ resource: 'clients', action: 'write' })(
       return createErrorResponse(400, 'Invalid JSON body')
     }
 
-    const { name, contact_email, contact_name, stage, health_status, notes, tags } = body
+    const { name, contact_email, contact_name, stage, health_status, notes, tags, assigned_to_user_id, contact_emails } = body
 
     // Validate and sanitize required fields
     if (!name || typeof name !== 'string') {
@@ -195,6 +196,103 @@ export const POST = withPermission({ resource: 'clients', action: 'write' })(
       }
     } catch {
       // Non-fatal: Slack auto-create failure should never block client creation
+    }
+
+    // Auto-create client assignment (fire-and-forget)
+    const assignUserId = (typeof assigned_to_user_id === 'string' && assigned_to_user_id) || request.user.id;
+    (supabase as any)
+      .from('client_assignment')
+      .upsert({
+        agency_id: agencyId,
+        client_id: client.id,
+        user_id: assignUserId,
+        role: 'owner',
+      }, {
+        onConflict: 'client_id,user_id,role',
+      })
+      .then(({ error: assignError }: { error: unknown }) => {
+        if (assignError) {
+          console.error('[clients/POST] Failed to create client_assignment:', assignError)
+        }
+      })
+
+    // Store additional contact emails (fire-and-forget)
+    if (Array.isArray(contact_emails) && contact_emails.length > 0) {
+      const validEmails = contact_emails
+        .filter((e): e is string => typeof e === 'string' && e.trim().length > 0)
+        .map(e => sanitizeEmail(e.trim()))
+        .filter((e): e is string => e !== null)
+
+      if (validEmails.length > 0) {
+        const contactInserts = validEmails.map((email, index) => ({
+          agency_id: agencyId,
+          client_id: client.id,
+          email,
+          is_primary: index === 0 && !sanitizedEmail,
+          role: 'primary',
+          source: 'manual',
+        }));
+        (supabase as any)
+          .from('client_contact')
+          .insert(contactInserts)
+          .then(({ error: contactError }: { error: unknown }) => {
+            if (contactError) {
+              console.error('[clients/POST] Failed to create contact emails:', contactError)
+            }
+          })
+      }
+    }
+
+    // Auto-create onboarding instance with all stage statuses (fire-and-forget)
+    // This ensures every client appears in the Onboarding Pipeline
+    try {
+      // Find the default active journey
+      const { data: journey } = await supabase
+        .from('onboarding_journey')
+        .select('id, stages')
+        .eq('agency_id', agencyId)
+        .eq('is_active', true)
+        .eq('is_default', true)
+        .single()
+
+      if (journey) {
+        const linkToken = randomBytes(32).toString('hex')
+        const stages = Array.isArray(journey.stages) ? journey.stages as Array<{ id: string; name: string; order: number }> : []
+
+        const { data: instance, error: instanceError } = await supabase
+          .from('onboarding_instance')
+          .insert({
+            agency_id: agencyId,
+            client_id: client.id,
+            journey_id: journey.id,
+            link_token: linkToken,
+            status: 'pending',
+            triggered_by: request.user.id,
+            current_stage_id: stages.length > 0 ? stages[0].id : null,
+          })
+          .select('id')
+          .single()
+
+        if (!instanceError && instance) {
+          // Initialize all stage statuses as pending
+          if (stages.length > 0) {
+            const stageInserts = stages.map((s) => ({
+              agency_id: agencyId,
+              instance_id: instance.id,
+              stage_id: s.id,
+              status: 'pending' as const,
+            }))
+            await supabase.from('onboarding_stage_status').insert(stageInserts)
+          }
+        } else if (instanceError) {
+          console.error('[clients/POST] Failed to create onboarding instance:', instanceError)
+        }
+      } else {
+        console.warn('[clients/POST] No default active journey found — skipping auto-onboard')
+      }
+    } catch (onboardErr) {
+      // Non-fatal: onboarding auto-creation should never block client creation
+      console.error('[clients/POST] Auto-onboard failed:', onboardErr)
     }
 
       return NextResponse.json({ data: client }, { status: 201 })

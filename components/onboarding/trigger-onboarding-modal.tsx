@@ -62,7 +62,7 @@ export function TriggerOnboardingModal({ open, onOpenChange }: TriggerOnboarding
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await fetch('/api/v1/settings/users', { credentials: 'include' })
+        const response = await fetch('/api/v1/settings/users?is_active=true', { credentials: 'include' })
         if (!response.ok) return
         const { data } = await response.json()
         setUsers(data || [])
