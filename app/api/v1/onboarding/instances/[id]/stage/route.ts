@@ -95,13 +95,7 @@ export const PATCH = withPermission({ resource: 'clients', action: 'write' })(
         return createErrorResponse(500, 'Failed to update stage status')
       }
 
-      // Update the current_stage_id on the instance
-      await supabase
-        .from('onboarding_instance')
-        .update({ current_stage_id: stage_id })
-        .eq('id', instanceId)
-
-      // Check if all stages are completed to mark instance as completed
+      // Compute current_stage_id from completion state (first uncompleted stage)
       const { data: journey } = await supabase
         .from('onboarding_journey')
         .select('stages')
@@ -114,24 +108,38 @@ export const PATCH = withPermission({ resource: 'clients', action: 'write' })(
           .select('stage_id, status')
           .eq('instance_id', instanceId)
 
-        const completedStages = allStatuses?.filter(s => s.status === 'completed').length || 0
-        const totalStages = journey.stages.length
+        const statusMap = new Map(allStatuses?.map(s => [s.stage_id, s.status]) || [])
+        const sortedStages = (journey.stages as Array<{ id: string; order: number }>)
+          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
 
-        if (completedStages === totalStages) {
+        // current_stage_id = first uncompleted stage
+        const firstUncompleted = sortedStages.find(s => statusMap.get(s.id) !== 'completed')
+        const newCurrentStageId = firstUncompleted?.id || sortedStages[sortedStages.length - 1]?.id
+
+        if (newCurrentStageId) {
           await supabase
             .from('onboarding_instance')
-            .update({
-              status: 'completed',
-              completed_at: new Date().toISOString(),
-            })
+            .update({ current_stage_id: newCurrentStageId })
             .eq('id', instanceId)
-        } else if (status === 'in_progress') {
-          // Mark instance as in_progress if not already
+        }
+
+        // Re-evaluate instance status
+        const completedCount = allStatuses?.filter(s => s.status === 'completed').length || 0
+        const totalStages = sortedStages.length
+
+        if (completedCount === totalStages) {
+          // All stages completed → mark instance completed
+          await supabase
+            .from('onboarding_instance')
+            .update({ status: 'completed', completed_at: new Date().toISOString() })
+            .eq('id', instanceId)
+        } else {
+          // Not all completed → ensure instance is in_progress (handles unchecking from completed state)
           await supabase
             .from('onboarding_instance')
             .update({ status: 'in_progress' })
             .eq('id', instanceId)
-            .eq('status', 'pending')
+            .in('status', ['pending', 'completed'])
         }
       }
 

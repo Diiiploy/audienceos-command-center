@@ -126,29 +126,36 @@ const onboardingStages: OnboardingStageConfig[] = [
   },
 ]
 
-// Map instance status/stage to onboarding stage
+// Map instance status/stage to onboarding stage using completion-based logic:
+// Pipeline column = position of the FIRST UNCOMPLETED task in journey order.
 function getOnboardingStageForInstance(instance: OnboardingInstanceWithRelations): OnboardingStageId {
-  // Check if any stage has "blocked" status
+  // Priority 1: Any blocked stage → needs_support
   const hasBlocker = instance.stage_statuses?.some(s => s.status === "blocked")
   if (hasBlocker) return "needs_support"
 
-  // Check if all stages are completed
+  // Get journey stages sorted by order
   const stages = (instance.journey?.stages as Stage[] | undefined) || []
-  const completedStages = instance.stage_statuses?.filter(s => s.status === "completed") || []
-  if (completedStages.length === stages.length && stages.length > 0) return "live"
+  const sortedStages = [...stages].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+  const stageStatusMap = new Map(
+    instance.stage_statuses?.map(s => [s.stage_id, s.status]) || []
+  )
 
-  // Find the current stage based on stage_statuses
-  const inProgressStage = instance.stage_statuses?.find(s => s.status === "in_progress")
-  if (inProgressStage) {
-    const stageIndex = stages.findIndex(s => s.id === inProgressStage.stage_id)
-    if (stageIndex === 0) return "intake"
-    if (stageIndex === 1) return "access"
-    if (stageIndex === 2) return "installation"
-    if (stageIndex === 3) return "audit"
-    return "live"
+  // Priority 2: All stages completed → live
+  const allCompleted = sortedStages.length > 0 &&
+    sortedStages.every(s => stageStatusMap.get(s.id) === "completed")
+  if (allCompleted) return "live"
+
+  // Priority 3: First uncompleted stage determines pipeline column
+  for (let i = 0; i < sortedStages.length; i++) {
+    if (stageStatusMap.get(sortedStages[i].id) !== "completed") {
+      if (i === 0) return "intake"
+      if (i === 1) return "access"
+      if (i === 2) return "installation"
+      if (i === 3) return "audit"
+      return "live"
+    }
   }
 
-  // Default to intake if pending
   return "intake"
 }
 
@@ -193,12 +200,19 @@ function ClientDetailPanel({ instance, stage, onClose, onUpdateStageStatus, onRe
   const ownerName = instance.triggered_by_user
     ? `${instance.triggered_by_user.first_name || ""} ${instance.triggered_by_user.last_name || ""}`.trim()
     : "Unknown"
-  // Use the most recent stage_status updated_at for "days in stage" calculation
-  const currentStageStatus = instance.stage_statuses?.find(s => s.status === "in_progress")
-    || instance.stage_statuses?.[instance.stage_statuses.length - 1]
+  // Use the first uncompleted stage's updated_at for "days in stage" calculation
+  const detailStages = (instance.journey?.stages as Stage[] | undefined) || []
+  const detailSorted = [...detailStages].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+  const firstUncompleted = detailSorted.find(s => {
+    const status = instance.stage_statuses?.find(ss => ss.stage_id === s.id)?.status
+    return status !== "completed"
+  })
+  const currentStageStatus = firstUncompleted
+    ? instance.stage_statuses?.find(ss => ss.stage_id === firstUncompleted.id)
+    : instance.stage_statuses?.[instance.stage_statuses.length - 1]
   const stageEnteredAt = currentStageStatus?.updated_at || instance.triggered_at
   const daysInStage = differenceInDays(new Date(), new Date(stageEnteredAt))
-  const stages = (instance.journey?.stages as Stage[] | undefined) || []
+  const stages = detailStages
   const stageStatusMap = new Map(
     instance.stage_statuses?.map((s) => [s.stage_id, s.status]) || []
   )
@@ -351,10 +365,17 @@ function DraggableClient({ instance, isSelected, isCompact, hasUnseen, onSelect 
   const ownerName = instance.triggered_by_user
     ? `${instance.triggered_by_user.first_name || ""} ${instance.triggered_by_user.last_name || ""}`.trim()
     : "Unknown"
-  // Use stage_status updated_at for accurate "days in stage"
-  const currentStageStatus = instance.stage_statuses?.find(s => s.status === "in_progress")
-    || instance.stage_statuses?.[instance.stage_statuses.length - 1]
-  const stageEnteredAt = currentStageStatus?.updated_at || instance.triggered_at
+  // Use first uncompleted stage's updated_at for accurate "days in stage"
+  const dragStages = (instance.journey?.stages as Stage[] | undefined) || []
+  const dragSorted = [...dragStages].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+  const dragFirstUncompleted = dragSorted.find(s => {
+    const status = instance.stage_statuses?.find(ss => ss.stage_id === s.id)?.status
+    return status !== "completed"
+  })
+  const dragCurrentStatus = dragFirstUncompleted
+    ? instance.stage_statuses?.find(ss => ss.stage_id === dragFirstUncompleted.id)
+    : instance.stage_statuses?.[instance.stage_statuses.length - 1]
+  const stageEnteredAt = dragCurrentStatus?.updated_at || instance.triggered_at
   const daysInStage = differenceInDays(new Date(), new Date(stageEnteredAt))
 
   // Check if instance is completed (all stages done)
@@ -673,24 +694,26 @@ export function ActiveOnboardings({ onClientClick }: ActiveOnboardingsProps) {
       return
     }
 
-    // --- Needs Support: block the current active stage ---
+    // --- Needs Support: block the first uncompleted stage ---
     if (targetStage.id === 'needs_support') {
-      const activeStage = instance.stage_statuses?.find(s => s.status === 'in_progress')
-        || instance.stage_statuses?.find(s => s.status === 'pending')
-      if (activeStage) {
-        updateStageStatus(instance.id, activeStage.stage_id, 'blocked')
-      } else if (journeyStages[0]) {
-        updateStageStatus(instance.id, journeyStages[0].id, 'blocked')
+      const sortedStages = [...journeyStages].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      const firstUncompleted = sortedStages.find(s => {
+        const status = instance.stage_statuses?.find(ss => ss.stage_id === s.id)?.status
+        return status !== 'completed'
+      })
+      if (firstUncompleted) {
+        updateStageStatus(instance.id, firstUncompleted.id, 'blocked')
+      } else if (sortedStages[0]) {
+        updateStageStatus(instance.id, sortedStages[0].id, 'blocked')
       }
       return
     }
 
-    // --- Normal stage: resolve UUID from index ---
+    // --- Normal stage: complete prior stages, reset target + later ---
     const targetIndex = ONBOARDING_STAGE_INDEX[targetStage.id]
     if (targetIndex === null || targetIndex === undefined) return
 
-    const journeyStage = journeyStages[targetIndex]
-    if (!journeyStage?.id) return
+    const sortedStages = [...journeyStages].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
 
     // Clear any blocked stages first so instance leaves needs_support
     const blockedStatuses = instance.stage_statuses?.filter(s => s.status === 'blocked') || []
@@ -698,7 +721,34 @@ export function ActiveOnboardings({ onClientClick }: ActiveOnboardingsProps) {
       updateStageStatus(instance.id, blocked.stage_id, 'pending')
     }
 
-    updateStageStatus(instance.id, journeyStage.id, 'in_progress')
+    // All stages BEFORE target → completed
+    for (let i = 0; i < targetIndex; i++) {
+      const stage = sortedStages[i]
+      if (!stage) continue
+      const currentStatus = instance.stage_statuses?.find(s => s.stage_id === stage.id)?.status
+      if (currentStatus !== 'completed') {
+        updateStageStatus(instance.id, stage.id, 'completed')
+      }
+    }
+
+    // Target stage → pending (becomes "first uncompleted")
+    const targetJourneyStage = sortedStages[targetIndex]
+    if (targetJourneyStage) {
+      const currentStatus = instance.stage_statuses?.find(s => s.stage_id === targetJourneyStage.id)?.status
+      if (currentStatus !== 'pending') {
+        updateStageStatus(instance.id, targetJourneyStage.id, 'pending')
+      }
+    }
+
+    // All stages AFTER target → pending
+    for (let i = targetIndex + 1; i < sortedStages.length; i++) {
+      const stage = sortedStages[i]
+      if (!stage) continue
+      const currentStatus = instance.stage_statuses?.find(s => s.stage_id === stage.id)?.status
+      if (currentStatus !== 'pending') {
+        updateStageStatus(instance.id, stage.id, 'pending')
+      }
+    }
   }
 
   const slideTransition = useSlideTransition()
