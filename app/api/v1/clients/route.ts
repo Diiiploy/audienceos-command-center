@@ -60,8 +60,14 @@ export const GET = withPermission({ resource: 'clients', action: 'read' })(
     if (healthStatus && VALID_HEALTH_STATUSES.includes(healthStatus as HealthStatus)) {
       query = query.eq('health_status', healthStatus as HealthStatus)
     }
-    if (isActive !== null && isActive !== undefined) {
-      query = query.eq('is_active', isActive === 'true')
+    // Default to active clients unless explicitly requesting all
+    if (isActive === 'all') {
+      // No filter - return all clients (for admin/reporting)
+    } else if (isActive === 'false') {
+      query = query.eq('is_active', false)
+    } else {
+      // Default: only active clients
+      query = query.eq('is_active', true)
     }
     if (search) {
       const sanitizedSearch = sanitizeSearchPattern(search)
