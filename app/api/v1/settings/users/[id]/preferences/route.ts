@@ -135,13 +135,108 @@ export const PATCH = withPermission({ resource: 'users', action: 'read' })(
         if (typeof ai !== 'object') {
           return createErrorResponse(400, 'Invalid AI preferences format')
         }
-        const { assistant_name } = ai as { assistant_name?: unknown }
+        const { assistant_name, voice } = ai as { assistant_name?: unknown; voice?: unknown }
         if (assistant_name !== undefined) {
           if (typeof assistant_name !== 'string') {
             return createErrorResponse(400, 'Assistant name must be a string')
           }
           if (assistant_name.length < 1 || assistant_name.length > 50) {
             return createErrorResponse(400, 'Assistant name must be 1-50 characters')
+          }
+        }
+
+        // Validate voice settings if provided
+        if (voice !== undefined) {
+          if (voice !== null && typeof voice !== 'object') {
+            return createErrorResponse(400, 'Voice must be an object or null')
+          }
+
+          if (voice !== null) {
+            const { tone, style, personality, vocabulary } = voice as {
+              tone?: unknown; style?: unknown; personality?: unknown; vocabulary?: unknown
+            }
+
+            // Validate tone
+            if (tone !== undefined) {
+              if (typeof tone !== 'object' || tone === null) {
+                return createErrorResponse(400, 'Voice tone must be an object')
+              }
+              const { formality, enthusiasm, empathy } = tone as {
+                formality?: unknown; enthusiasm?: unknown; empathy?: unknown
+              }
+              if (formality !== undefined && !['professional', 'casual', 'friendly'].includes(formality as string)) {
+                return createErrorResponse(400, 'Voice tone formality must be "professional", "casual", or "friendly"')
+              }
+              if (enthusiasm !== undefined) {
+                if (typeof enthusiasm !== 'number' || enthusiasm < 0 || enthusiasm > 10) {
+                  return createErrorResponse(400, 'Voice tone enthusiasm must be a number between 0 and 10')
+                }
+              }
+              if (empathy !== undefined) {
+                if (typeof empathy !== 'number' || empathy < 0 || empathy > 10) {
+                  return createErrorResponse(400, 'Voice tone empathy must be a number between 0 and 10')
+                }
+              }
+            }
+
+            // Validate style
+            if (style !== undefined) {
+              if (typeof style !== 'object' || style === null) {
+                return createErrorResponse(400, 'Voice style must be an object')
+              }
+              const { sentenceLength, paragraphStructure, useEmojis } = style as {
+                sentenceLength?: unknown; paragraphStructure?: unknown; useEmojis?: unknown
+              }
+              if (sentenceLength !== undefined && !['short', 'medium', 'long'].includes(sentenceLength as string)) {
+                return createErrorResponse(400, 'Voice style sentenceLength must be "short", "medium", or "long"')
+              }
+              if (paragraphStructure !== undefined && !['single', 'multi'].includes(paragraphStructure as string)) {
+                return createErrorResponse(400, 'Voice style paragraphStructure must be "single" or "multi"')
+              }
+              if (useEmojis !== undefined && typeof useEmojis !== 'boolean') {
+                return createErrorResponse(400, 'Voice style useEmojis must be a boolean')
+              }
+            }
+
+            // Validate personality
+            if (personality !== undefined) {
+              if (typeof personality !== 'object' || personality === null) {
+                return createErrorResponse(400, 'Voice personality must be an object')
+              }
+              const { voiceDescription, traits } = personality as {
+                voiceDescription?: unknown; traits?: unknown
+              }
+              if (voiceDescription !== undefined && typeof voiceDescription !== 'string') {
+                return createErrorResponse(400, 'Voice personality voiceDescription must be a string')
+              }
+              if (traits !== undefined) {
+                if (!Array.isArray(traits) || !traits.every((t: unknown) => typeof t === 'string')) {
+                  return createErrorResponse(400, 'Voice personality traits must be an array of strings')
+                }
+              }
+            }
+
+            // Validate vocabulary
+            if (vocabulary !== undefined) {
+              if (typeof vocabulary !== 'object' || vocabulary === null) {
+                return createErrorResponse(400, 'Voice vocabulary must be an object')
+              }
+              const { complexity, industryTerms, bannedWords, preferredPhrases } = vocabulary as {
+                complexity?: unknown; industryTerms?: unknown; bannedWords?: unknown; preferredPhrases?: unknown
+              }
+              if (complexity !== undefined && !['simple', 'moderate', 'advanced'].includes(complexity as string)) {
+                return createErrorResponse(400, 'Voice vocabulary complexity must be "simple", "moderate", or "advanced"')
+              }
+              if (industryTerms !== undefined && !Array.isArray(industryTerms)) {
+                return createErrorResponse(400, 'Voice vocabulary industryTerms must be an array')
+              }
+              if (bannedWords !== undefined && !Array.isArray(bannedWords)) {
+                return createErrorResponse(400, 'Voice vocabulary bannedWords must be an array')
+              }
+              if (preferredPhrases !== undefined && !Array.isArray(preferredPhrases)) {
+                return createErrorResponse(400, 'Voice vocabulary preferredPhrases must be an array')
+              }
+            }
           }
         }
       }

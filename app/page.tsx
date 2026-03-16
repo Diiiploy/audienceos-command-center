@@ -209,7 +209,7 @@ function CommandCenterContent() {
 
   // Intelligence Center state for deep linking
   const [intelligenceInitialSection, setIntelligenceInitialSection] = useState<string | undefined>()
-  const [intelligenceInitialCartridgeTab, setIntelligenceInitialCartridgeTab] = useState<"voice" | "style" | "preferences" | "instructions" | "brand" | undefined>()
+  // Note: initialCartridgeTab state removed — tabs hidden, only Voice settings shown now
 
   // Full client detail view state - stores the client ID to show in full view
   const [fullViewClientId, setFullViewClientId] = useState<string | null>(null)
@@ -708,9 +708,8 @@ function CommandCenterContent() {
       case "intelligence":
         return (
           <IntelligenceCenter
-            key={`intelligence-${intelligenceInitialSection}-${intelligenceInitialCartridgeTab}`}
+            key={`intelligence-${intelligenceInitialSection}`}
             initialSection={intelligenceInitialSection}
-            initialCartridgeTab={intelligenceInitialCartridgeTab}
           />
         )
 
@@ -741,7 +740,6 @@ function CommandCenterContent() {
           <SettingsView
             onBrandClick={() => {
               setIntelligenceInitialSection("cartridges")
-              setIntelligenceInitialCartridgeTab("brand")
               setActiveView("intelligence")
             }}
           />
@@ -785,7 +783,7 @@ function CommandCenterContent() {
           setSelectedClient(null)
           // Clear intelligence initial props when navigating normally
           setIntelligenceInitialSection(undefined)
-          setIntelligenceInitialCartridgeTab(undefined)
+          // intelligenceInitialCartridgeTab cleared (tabs hidden)
           // Navigate to path-based URL (e.g., /onboarding, /settings)
           // Dashboard uses root path for clean URLs
           const newPath = view === 'dashboard' ? '/' : `/${view}`

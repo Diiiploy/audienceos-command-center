@@ -23,6 +23,7 @@ export {
   type BrandCartridge,
   type StyleCartridge,
   type InstructionCartridge,
+  type VoiceSettings,
   type CartridgeContext,
 } from './cartridge-loader';
 

@@ -66,10 +66,9 @@ type ChatFilterTab = "all" | "chat" | "ai"
 interface IntelligenceCenterProps {
   onBack?: () => void
   initialSection?: string
-  initialCartridgeTab?: "voice" | "style" | "preferences" | "instructions" | "brand"
 }
 
-export function IntelligenceCenter({ onBack, initialSection = "overview", initialCartridgeTab }: IntelligenceCenterProps) {
+export function IntelligenceCenter({ onBack, initialSection = "overview" }: IntelligenceCenterProps) {
   const [activeSection, setActiveSection] = useState(initialSection)
   const [chatFilter, setChatFilter] = useState<ChatFilterTab>("all")
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null)
@@ -462,8 +461,8 @@ export function IntelligenceCenter({ onBack, initialSection = "overview", initia
       )}
 
       {activeSection === "cartridges" && (
-        <SettingsContentSection title="Training Cartridges">
-          <CartridgesPage initialTab={initialCartridgeTab} />
+        <SettingsContentSection title="AI Voice Settings">
+          <CartridgesPage />
         </SettingsContentSection>
       )}
 

@@ -140,7 +140,7 @@ export const intelligenceSettingsGroups: SettingsGroup[] = [
     label: "Configuration",
     icon: <Settings className="w-4 h-4" />,
     sections: [
-      { id: "cartridges", label: "Training Cartridges" },
+      { id: "cartridges", label: "AI Voice Settings" },
       { id: "prompts", label: "Custom Prompts" },
       { id: "training-data", label: "AI Training Data" },
       { id: "memory", label: "Memory" },

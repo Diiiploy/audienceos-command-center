@@ -98,10 +98,20 @@ async function buildSystemPrompt(
   const responseTone = aiConfig.response_tone || 'professional';
   const responseLength = aiConfig.response_length || 'detailed';
 
+  // Load cartridge context early (needed to check for voice settings before building base identity)
+  let cartridgeContext;
+  try {
+    cartridgeContext = await loadCartridgeContext(supabase, agencyId, userId);
+  } catch (err) {
+    console.warn('[Chat API] Failed to load cartridge context:', err);
+  }
+
   // Base identity (incorporating ai_config settings)
+  // When user has voice settings configured, skip legacy tone/length — voice provides richer instructions
+  const hasVoice = !!cartridgeContext?.voice;
+  const toneInstruction = hasVoice ? '' : `\nRespond in a ${responseTone} tone. Keep responses ${responseLength}.`;
   parts.push(`Your name is ${assistantName}. You are an AI assistant for AudienceOS Command Center.
-You help agency teams manage their clients, view performance data, and navigate the app.
-Respond in a ${responseTone} tone. Keep responses ${responseLength}.
+You help agency teams manage their clients, view performance data, and navigate the app.${toneInstruction}
 This query was classified as: ${route}
 
 IMPORTANT CAPABILITIES:
@@ -125,15 +135,12 @@ If you're asked to remember a preference, decision, or fact about a client, conf
   const appPrompt = generateAppContextPrompt(appContext);
   parts.push(appPrompt);
 
-  // 2. Training cartridges (brand, style, instructions)
-  try {
-    const cartridgeContext = await loadCartridgeContext(supabase, agencyId);
-    if (cartridgeContext.brand || cartridgeContext.style || (cartridgeContext.instructions?.length ?? 0) > 0) {
-      const cartridgePrompt = generateCartridgeContextPrompt(cartridgeContext);
+  // 2. Training cartridges (voice, brand, style, instructions)
+  if (cartridgeContext) {
+    const cartridgePrompt = generateCartridgeContextPrompt(cartridgeContext);
+    if (cartridgePrompt) {
       parts.push(cartridgePrompt);
     }
-  } catch (err) {
-    console.warn('[Chat API] Failed to load cartridge context:', err);
   }
 
   // 3. Chat history (recent messages for continuity)
