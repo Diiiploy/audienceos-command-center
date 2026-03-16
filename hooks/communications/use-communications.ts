@@ -234,28 +234,30 @@ export function useSendReply() {
 export function useGenerateDraft() {
   return useMutation({
     mutationFn: async ({
-      messageId,
+      originalMessage,
+      subject,
       tone = 'professional',
     }: {
-      messageId: string
+      originalMessage: string
+      subject?: string
       tone?: 'professional' | 'casual'
     }) => {
-      const response = await fetchWithCsrf('/api/v1/assistant/draft', {
+      const response = await fetchWithCsrf('/api/v1/chat/generate-reply', {
         method: 'POST',
         body: JSON.stringify({
-          type: 'reply',
-          context: { message_id: messageId },
+          original_message: originalMessage,
+          subject,
           tone,
         }),
       })
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.message || 'Failed to generate draft')
+        throw new Error(error.message || error.error || 'Failed to generate draft')
       }
 
       const data = await response.json()
-      return data.draft as string
+      return data.data.draft as string
     },
   })
 }

@@ -62,12 +62,24 @@ export interface InstructionCartridge {
 }
 
 /**
+ * Voice settings from user preferences
+ * Stored in user.preferences.ai.voice JSONB
+ */
+export interface VoiceSettings {
+  tone: { formality: string; enthusiasm: number; empathy: number }
+  style: { sentenceLength: string; paragraphStructure: string; useEmojis: boolean }
+  personality: { voiceDescription: string; traits: string[] }
+  vocabulary: { complexity: string; industryTerms?: string[]; bannedWords?: string[]; preferredPhrases?: string[] }
+}
+
+/**
  * All cartridges combined for context injection
  */
 export interface CartridgeContext {
   brand?: BrandCartridge;
   style?: StyleCartridge;
   instructions?: InstructionCartridge[];
+  voice?: VoiceSettings;
 }
 
 /**
@@ -82,10 +94,12 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
  */
 export async function loadCartridgeContext(
   supabase: SupabaseClient,
-  agencyId: string
+  agencyId: string,
+  userId?: string
 ): Promise<CartridgeContext> {
   // Check cache first
-  const cached = cartridgeCache.get(agencyId);
+  const cacheKey = userId ? `${agencyId}:${userId}` : agencyId;
+  const cached = cartridgeCache.get(cacheKey);
   if (cached && cached.expires > Date.now()) {
     return cached.context;
   }
@@ -94,7 +108,7 @@ export async function loadCartridgeContext(
 
   try {
     // Fetch all cartridges in parallel
-    const [brandResult, styleResult, instructionsResult] = await Promise.all([
+    const [brandResult, styleResult, instructionsResult, userResult] = await Promise.all([
       supabase
         .from('brand_cartridge')
         .select('*')
@@ -110,6 +124,12 @@ export async function loadCartridgeContext(
         .select('*')
         .eq('agency_id', agencyId)
         .eq('is_active', true),
+      userId ? supabase
+        .from('user')
+        .select('preferences')
+        .eq('id', userId)
+        .single()
+      : Promise.resolve({ data: null, error: null }),
     ]);
 
     // Handle brand cartridge
@@ -127,8 +147,16 @@ export async function loadCartridgeContext(
       context.instructions = instructionsResult.data as InstructionCartridge[];
     }
 
+    // Handle user voice settings
+    if (userResult.data && !userResult.error) {
+      const prefs = (userResult.data as any)?.preferences;
+      if (prefs?.ai?.voice) {
+        context.voice = prefs.ai.voice as VoiceSettings;
+      }
+    }
+
     // Cache the result
-    cartridgeCache.set(agencyId, {
+    cartridgeCache.set(cacheKey, {
       context,
       expires: Date.now() + CACHE_TTL_MS,
     });
@@ -141,10 +169,58 @@ export async function loadCartridgeContext(
 }
 
 /**
+ * Convert voice settings to natural language prompt instructions
+ */
+function generateVoicePrompt(voice: VoiceSettings): string {
+  const parts: string[] = [];
+
+  // Tone
+  const { formality, enthusiasm, empathy } = voice.tone;
+  const enthusiasmLabel = enthusiasm <= 2 ? 'minimal' : enthusiasm <= 4 ? 'low' : enthusiasm <= 6 ? 'moderate' : enthusiasm <= 8 ? 'high' : 'very high';
+  const empathyLabel = empathy <= 2 ? 'minimal' : empathy <= 4 ? 'low' : empathy <= 6 ? 'moderate' : empathy <= 8 ? 'high' : 'very high';
+  parts.push(`Communicate in a ${formality} tone with ${enthusiasmLabel} enthusiasm and ${empathyLabel} empathy.`);
+
+  // Style
+  const { sentenceLength, paragraphStructure, useEmojis } = voice.style;
+  const lengthDesc = sentenceLength === 'short' ? 'short, punchy' : sentenceLength === 'long' ? 'longer, more detailed' : 'medium-length';
+  parts.push(`Use ${lengthDesc} sentences in ${paragraphStructure === 'single' ? 'single-sentence' : 'multi-sentence'} paragraphs.`);
+  if (useEmojis) parts.push('Use emojis where appropriate.');
+  else parts.push('Do not use emojis.');
+
+  // Personality
+  if (voice.personality.voiceDescription) {
+    parts.push(`Personality: ${voice.personality.voiceDescription}`);
+  }
+  if (voice.personality.traits.length > 0) {
+    parts.push(`Key traits: ${voice.personality.traits.join(', ')}.`);
+  }
+
+  // Vocabulary
+  const complexityDesc = voice.vocabulary.complexity === 'simple' ? 'everyday, accessible' : voice.vocabulary.complexity === 'advanced' ? 'specialized, technical' : 'professional';
+  parts.push(`Use ${complexityDesc} vocabulary.`);
+  if (voice.vocabulary.bannedWords?.length) {
+    parts.push(`Never use these words: ${voice.vocabulary.bannedWords.join(', ')}.`);
+  }
+  if (voice.vocabulary.preferredPhrases?.length) {
+    parts.push(`Prefer these phrases when relevant: ${voice.vocabulary.preferredPhrases.join(', ')}.`);
+  }
+  if (voice.vocabulary.industryTerms?.length) {
+    parts.push(`Industry terms to incorporate naturally: ${voice.vocabulary.industryTerms.join(', ')}.`);
+  }
+
+  return `## Voice & Communication Style\n\n${parts.join('\n')}\n\nAdapt all responses and drafted replies to match this voice profile.`;
+}
+
+/**
  * Generate system prompt injection for cartridge context
  */
 export function generateCartridgeContextPrompt(context: CartridgeContext): string {
   const parts: string[] = [];
+
+  // Voice context (from user preferences)
+  if (context.voice) {
+    parts.push(generateVoicePrompt(context.voice));
+  }
 
   // Brand context
   if (context.brand) {
@@ -200,6 +276,7 @@ Follow these instructions when generating responses.`);
  */
 export function hasCartridgeContext(context: CartridgeContext): boolean {
   return !!(
+    context.voice ||
     context.brand?.company_name ||
     context.style?.learned_style ||
     (context.instructions && context.instructions.length > 0)
@@ -211,7 +288,12 @@ export function hasCartridgeContext(context: CartridgeContext): boolean {
  * Call this when cartridges are updated
  */
 export function invalidateCartridgeCache(agencyId: string): void {
-  cartridgeCache.delete(agencyId);
+  // Clear all cache entries for this agency (any user)
+  Array.from(cartridgeCache.keys()).forEach((key) => {
+    if (key === agencyId || key.startsWith(`${agencyId}:`)) {
+      cartridgeCache.delete(key);
+    }
+  });
 }
 
 /**
