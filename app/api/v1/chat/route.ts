@@ -5,7 +5,6 @@ import { getSmartRouter } from '@/lib/chat/router';
 import { executeFunction, hgcFunctions } from '@/lib/chat/functions';
 import { withPermission, type AuthenticatedRequest } from '@/lib/rbac/with-permission';
 import { createRouteHandlerClient } from '@/lib/supabase';
-import { getGeminiRAG } from '@/lib/rag';
 import { getFileSearchStoreService } from '@/lib/gemini/file-search-store-service';
 import { getMemoryInjector, summarizeConversation, shouldSummarize } from '@/lib/memory';
 import { initializeMem0Service } from '@/lib/memory/mem0-service';
@@ -658,11 +657,23 @@ function formatFallbackResult(functionName: string, result: unknown): string {
 }
 
 /**
- * Handle RAG route - document search using Gemini File Search Store
+ * Handle RAG route — document search using Gemini File Search Store
  *
- * Primary path: Uses persistent File Search Store with `fileSearch` tool
- * Fallback: If no store exists for agency, falls back to old GeminiRAG service
- * (backward-compat for agencies that haven't uploaded since migration)
+ * Single retrieval path: the File Search Store. The legacy `GeminiRAG` fallback
+ * was removed in Phase 1 — it filtered on `gemini_file_id`, a column the current
+ * upload pipeline no longer populates (writes `gemini_document_name` instead),
+ * so the fallback's query was structurally unsatisfiable and emitted a
+ * misleading "no documents enabled" error for any agency without a store row.
+ *
+ * Enforcement layers (defense in depth):
+ *   1. Gemini server-side `metadataFilter` scopes by agency_id + use_for_training.
+ *   2. DB-side allowlist (this function, below) is the authoritative filter —
+ *      Gemini's stored per-doc metadata is stamped once at upload and never
+ *      updated (SDK has no per-doc patch method), so toggle state must be
+ *      enforced from the database.
+ *   3. Post-filter Gemini citations against the allowlist by documentId/title.
+ *
+ * See docs/04-technical/kb-chat-allowlist-fix-guide.md for the full design.
  */
 async function handleRAGRoute(
   apiKey: string,
@@ -673,88 +684,119 @@ async function handleRAGRoute(
   temperature: number = 0.7,
   documentTitle?: string
 ): Promise<string> {
-  try {
-    const effectiveAgencyId = agencyId || 'demo-agency';
+  // Fail closed if agencyId is missing. `withPermission` at the route entry
+  // should have rejected this request with 401, but we defense-in-depth here
+  // to avoid falling back to a sentinel tenant that could mask auth bugs.
+  if (!agencyId) {
+    chatLogger.error({}, 'RAG route invoked without agencyId — failing closed');
+    return "I couldn't identify your agency. Please sign out and back in, or contact support if this persists.";
+  }
 
-    // Check if agency has a File Search Store (new path)
-    const { data: store } = await (supabase as any)
+  try {
+    // Look up the agency's File Search Store. `.maybeSingle()` returns
+    // { data: null, error: null } on zero rows — unlike `.single()`, which
+    // returns a PGRST116 error code that a bare `{ data }` destructure would
+    // discard silently.
+    const { data: store, error: storeError } = await (supabase as any)
       .from('file_search_store')
       .select('store_name')
-      .eq('agency_id', effectiveAgencyId)
+      .eq('agency_id', agencyId)
       .eq('is_active', true)
-      .single();
+      .maybeSingle();
 
-    if (store?.store_name) {
-      // ── New path: File Search Store ──
-      const service = getFileSearchStoreService(apiKey);
-      const searchQuery = documentTitle
-        ? `About the document "${documentTitle}": ${message}`
-        : message;
-      const result = await service.search(
-        store.store_name,
-        searchQuery,
-        {
-          agencyId: effectiveAgencyId,
-          useForTrainingOnly: true,
-          temperature,
-        }
+    if (storeError) {
+      chatLogger.error({ agencyId, err: storeError }, 'file_search_store lookup failed');
+      return "I couldn't reach the knowledge base right now. Please try again in a moment.";
+    }
+
+    chatLogger.info(
+      { agencyId, path: store?.store_name ? 'store' : 'no-store' },
+      'kb.retrieval_path_chosen'
+    );
+
+    if (!store?.store_name) {
+      // No store row — upload pipeline has not yet successfully provisioned
+      // one. This is expected briefly for a first-ever upload on a fresh
+      // agency; if persistent, investigate why `getOrCreateAgencyStore` is
+      // failing (check Vercel logs for `File Search Store indexing failed`).
+      // Users can recover by re-uploading or via POST /api/v1/documents/process.
+      chatLogger.warn(
+        { agencyId },
+        'kb.no_store_for_agency — chat cannot ground against documents'
       );
-
-      // Add RAG citations (url omitted — documentId is a Gemini file ID, not a navigable URL)
-      for (const ragCitation of result.citations) {
-        const citation: Citation = {
-          index: citations.length + 1,
-          title: ragCitation.documentName,
-          source: 'rag',
-          snippet: ragCitation.text,
-        };
-        if (!citations.find(c => c.title === citation.title)) {
-          citations.push(citation);
-        }
-      }
-
-      chatLogger.debug({ citationCount: result.citations.length, isGrounded: result.isGrounded, path: 'file-search-store' }, 'RAG search complete');
-      return result.content;
+      return "Your knowledge base is still being set up. If you recently uploaded documents, please try re-uploading from the Knowledge Base page, or contact support if this message persists.";
     }
 
-    // ── Fallback path: old GeminiRAG (agencies without a store yet) ──
-    chatLogger.debug({ agencyId: effectiveAgencyId }, 'No File Search Store found, falling back to legacy RAG');
+    // Build the DB-side allowlist. Authoritative: document.use_for_training
+    // + is_active. We collect both the Gemini document-name (stable API-level
+    // id) AND the human-visible title so we can match whichever field
+    // populates on `groundingChunk.retrievedContext`.
+    const { data: allowlistRows } = await (supabase as any)
+      .from('document')
+      .select('gemini_document_name, title')
+      .eq('agency_id', agencyId)
+      .eq('is_active', true)
+      .eq('use_for_training', true)
+      .not('gemini_document_name', 'is', null);
 
-    let allowedGeminiFileNames: string[] | undefined;
-    try {
-      const { data: trainingDocs } = await (supabase as any)
-        .from('document')
-        .select('gemini_file_id')
-        .eq('agency_id', effectiveAgencyId)
-        .eq('is_active', true)
-        .eq('use_for_training', true)
-        .not('gemini_file_id', 'is', null);
+    const allowlistByName = new Set<string>(
+      (allowlistRows ?? [])
+        .map((d: { gemini_document_name: string | null }) => d.gemini_document_name)
+        .filter((n: string | null): n is string => !!n)
+    );
+    const allowlistByTitle = new Set<string>(
+      (allowlistRows ?? []).map((d: { title: string }) => d.title)
+    );
 
-      if (trainingDocs && trainingDocs.length > 0) {
-        allowedGeminiFileNames = trainingDocs.map(
-          (d: { gemini_file_id: string }) => d.gemini_file_id
-        );
-      } else if (trainingDocs && trainingDocs.length === 0) {
-        return "No documents are currently enabled for AI training. Go to Knowledge Base and enable 'AI Training' on documents you want me to reference.";
-      }
-    } catch (err) {
-      console.warn('[Chat API] Failed to load training allowlist:', err);
+    chatLogger.info(
+      {
+        agencyId,
+        allowlistSize: allowlistByName.size,
+        totalAllowlistRows: allowlistRows?.length ?? 0,
+      },
+      'kb.training_allowlist_resolved'
+    );
+
+    if (allowlistByName.size === 0) {
+      // Either no documents have training enabled, OR the ones that do haven't
+      // finished indexing into the store yet (gemini_document_name still null).
+      return "No documents are currently enabled for AI training. Go to Knowledge Base and enable 'AI Training' on documents you want me to reference.";
     }
 
-    const ragService = getGeminiRAG(apiKey);
-    const fallbackQuery = documentTitle
+    // File Search Store retrieval. The Gemini-side metadataFilter provides the
+    // primary tenant/training barrier; the DB allowlist we built above is the
+    // authoritative secondary filter for training state.
+    const service = getFileSearchStoreService(apiKey);
+    const searchQuery = documentTitle
       ? `About the document "${documentTitle}": ${message}`
       : message;
-    const result = await ragService.search({
-      query: fallbackQuery,
-      agencyId: effectiveAgencyId,
-      includeGlobal: true,
-      maxDocuments: 5,
-      minConfidence: 0.5,
-      allowedGeminiFileNames,
-    });
 
+    const result = await service.search(
+      store.store_name,
+      searchQuery,
+      {
+        agencyId,
+        useForTrainingOnly: true,
+        temperature,
+      }
+    );
+
+    // Post-filter citations against the DB allowlist. `documentId` is the
+    // retrieved chunk's `uri` (Gemini resource name) and `documentName` is the
+    // chunk's `title`. If a chunk's referenced doc isn't in our allowlist, it
+    // means the user has toggled training off in the DB but the doc still
+    // carries `use_for_training="true"` in Gemini's custom metadata (which we
+    // cannot patch) — the allowlist is the enforcement.
+    let kept = 0;
+    let filtered = 0;
     for (const ragCitation of result.citations) {
+      const inAllowlistById = allowlistByName.has(ragCitation.documentId);
+      const inAllowlistByTitle = allowlistByTitle.has(ragCitation.documentName);
+      if (!inAllowlistById && !inAllowlistByTitle) {
+        filtered++;
+        continue;
+      }
+      kept++;
       const citation: Citation = {
         index: citations.length + 1,
         title: ragCitation.documentName,
@@ -766,7 +808,20 @@ async function handleRAGRoute(
       }
     }
 
-    chatLogger.debug({ citationCount: result.citations.length, isGrounded: result.isGrounded, path: 'legacy-rag' }, 'RAG search complete');
+    chatLogger.info(
+      {
+        agencyId,
+        returned: kept,
+        filteredOut: filtered,
+        allowlistSize: allowlistByName.size,
+      },
+      'kb.chunks_post_filtered'
+    );
+
+    chatLogger.debug(
+      { citationCount: kept, isGrounded: result.isGrounded, path: 'file-search-store' },
+      'RAG search complete'
+    );
     return result.content;
   } catch (error) {
     console.error('[Chat API] RAG search failed:', error);

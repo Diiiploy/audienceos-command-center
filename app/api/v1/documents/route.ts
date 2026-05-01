@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck - Temporary: Generated Database types have Insert type mismatch after RBAC migration
-import { NextResponse } from 'next/server'
+import { NextResponse, after } from 'next/server'
 import { cookies } from 'next/headers'
 import { createRouteHandlerClient, getAuthenticatedUser } from '@/lib/supabase'
 import { withRateLimit, withCsrfProtection, createErrorResponse } from '@/lib/security'
@@ -198,7 +198,11 @@ export const POST = withPermission({ resource: 'knowledge-base', action: 'write'
     const documentId = document.id
     const scope: 'global' | 'client' = clientId ? 'client' : 'global'
 
-    ;(async () => {
+    // Schedule background indexing with after() — guarantees completion on Vercel
+    // serverless. A bare fire-and-forget IIFE is killed when the response returns,
+    // leaving the document stuck at index_status='pending' forever (see
+    // docs/04-technical/kb-chat-allowlist-fix-guide.md §14 Entry 1).
+    after(async () => {
       try {
         // Get or create the agency's File Search Store
         const { storeName, storeId } = await getOrCreateAgencyStore(supabase, agencyId)
@@ -247,7 +251,7 @@ export const POST = withPermission({ resource: 'knowledge-base', action: 'write'
           })
           .eq('id', documentId)
       }
-    })()
+    })
 
     return NextResponse.json({ data: document }, { status: 201 })
   } catch (error) {

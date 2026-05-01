@@ -25,7 +25,8 @@ interface DocumentResult {
   pageCount: number | null;
   indexStatus: string;
   uploadedAt: string;
-  hasGeminiFile: boolean;
+  /** True when the doc has finished indexing and can be referenced by RAG. */
+  isIndexed: boolean;
 }
 
 export async function searchKnowledgeBase(
@@ -46,7 +47,7 @@ export async function searchKnowledgeBase(
   try {
     let query = supabase
       .from('document')
-      .select('id, title, file_name, category, client_id, page_count, index_status, gemini_file_id, created_at')
+      .select('id, title, file_name, category, client_id, page_count, index_status, gemini_document_name, created_at')
       .eq('agency_id', agencyId)
       .eq('is_active', true)
       .order('created_at', { ascending: false })
@@ -83,7 +84,9 @@ export async function searchKnowledgeBase(
       pageCount: doc.page_count,
       indexStatus: doc.index_status,
       uploadedAt: doc.created_at,
-      hasGeminiFile: !!doc.gemini_file_id,
+      // `gemini_document_name` is the post-migration indexing pointer; the old
+      // `gemini_file_id` column is never populated by the current upload path.
+      isIndexed: !!doc.gemini_document_name,
     }));
 
     const message = documents.length > 0
